@@ -331,6 +331,7 @@ for i in requested_months:
                 if z_scores[j] <= -5:
                     z_flags = np.append(z_flags, j)
                     p += 1
+            # It might be worth considering to just get rid of this. Why flag valleys?
 
         # Redefines z_flag to only contain flags from the start to p-1
         # yeah, but why?
