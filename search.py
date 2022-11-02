@@ -25,7 +25,6 @@ month_int = int(input1[2:4])
 day_int = int(input1[-2:])
 year_month = input1[:4]
 
-
 input2 = str(sys.argv[2])
 year_int2 = int('20' + input2[:2])  # This is probably redundant, but I'll leave it for now
 month_int2 = int(input2[2:4])
