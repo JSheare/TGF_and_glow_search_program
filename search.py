@@ -92,6 +92,8 @@ for i in requested_months:
         MONTH_str = str(MONTH).zfill(2)
         DAY_str = str(DAY).zfill(2)
 
+        # converting to julian date might not be necessary. Look into it and remove if applicable
+
         full_day_string = f'{YEAR_str[2:4]}{MONTH_str}{DAY_str}'  # In format yymmdd
         date_timestamp = datetime.date(YEAR, MONTH, DAY)  # In format yyyy-mm-dd
         print(f'\n{date_timestamp}:')
