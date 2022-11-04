@@ -3,7 +3,6 @@ import warnings
 import datetime
 import calendar
 import numpy as np
-import math as math
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import search_classes as sc
