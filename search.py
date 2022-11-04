@@ -95,7 +95,7 @@ for year in requested_dates:  # Loops over all requested years
             date_timestamp = datetime.date(YEAR, MONTH, DAY)  # In format yyyy-mm-dd
             print(f'\n{date_timestamp}:')
 
-            # Logs relevant data files and flagged bins, and general program activity, in a .txt File
+            # Logs relevant data files and events in a .txt File
             log_path = f'{sm.results_loc()}Results/{unit}/{full_day_string}/'
             sm.path_maker(log_path)
             datetime_logs = open(f'{log_path}log.txt', 'w')
