@@ -163,6 +163,7 @@ for year in requested_dates:  # Loops over all requested years
 
                 interval = np.abs(times - np.roll(times, rollgap))
 
+                # -1's are meant to band-aid a bug. I pretty much know what's causing it but too lazy to fix right now
                 for v in range(len(interval)):
                     # Records the beginning index of a potential event
                     if interval[v] < event_time_spacing and event_length == 0:
