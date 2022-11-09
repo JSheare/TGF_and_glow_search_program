@@ -237,7 +237,10 @@ for year in requested_dates:  # Loops over all requested years
                     if is_greater_than_thresh and good_channel_ratio:
                         f_potential_event_list.append(event)
                     else:
-                        print('Potential event removed due to noise')
+                        if not good_channel_ratio:
+                            print('Potential event removed due to noise (bad high-to-low channel ratio)')
+                        elif not is_greater_than_thresh:
+                            print('Potential event removed due to noise (no energies greater than minimum threshold)')
 
                 sm.print_logger(f'\n{len(f_potential_event_list)} potential events recorded', datetime_logs)
                 sm.print_logger(f'Detection threshold reached {total_threshold_reached} times\n', datetime_logs)
@@ -327,10 +330,6 @@ for year in requested_dates:  # Loops over all requested years
                         p += 1
                 elif hist_allday[j] < mue:  # Valley
                     z_scores = np.append(z_scores, ((hist_allday[j] - mue) / sigma))
-                    if z_scores[j] <= -5:
-                        z_flags = np.append(z_flags, j)
-                        p += 1
-                # It might be worth considering to just get rid of this. Why flag valleys?
 
             # Redefines z_flag to only contain flags from the start to p-1
             # yeah, but why?
@@ -371,7 +370,8 @@ for year in requested_dates:  # Loops over all requested years
                     highest_scores.append(highest_score)
                     beginning, length = glow.glow_length_and_beginning_seconds(bins10sec)
                     print(f'{datetime.datetime.utcfromtimestamp(beginning + first_sec)} UTC ({beginning} '
-                          f'seconds of day), {length} seconds long', file=datetime_logs)
+                          f'seconds of day), {length} seconds long, highest z-score: {highest_score}',
+                          file=datetime_logs)
 
                 glow_sorting_order = np.argsort(highest_scores)
                 glow_sorting_order = glow_sorting_order[::-1]
