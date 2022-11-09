@@ -202,7 +202,8 @@ for year in requested_dates:  # Loops over all requested years
                     event_length = len(event_energies)
 
                     # Checks that there are fewer counts in the higher energy channels than the low energy channels
-                    good_channel_ratio = False
+                    # High/low channel ratio is not checked for THOR
+                    good_channel_ratio = True if detector.THOR else False
                     if event_length >= 30:
                         low_channel_counts = 0
                         high_channel_counts = 0
@@ -219,7 +220,6 @@ for year in requested_dates:  # Loops over all requested years
 
                         except ZeroDivisionError:
                             pass
-
                     # High/low channel ratio is not checked for events with < 30 counts
                     else:
                         good_channel_ratio = True
@@ -237,10 +237,12 @@ for year in requested_dates:  # Loops over all requested years
                     if is_greater_than_thresh and good_channel_ratio:
                         f_potential_event_list.append(event)
                     else:
-                        if not good_channel_ratio:
+                        if not good_channel_ratio and is_greater_than_thresh:
                             print('Potential event removed due to noise (bad high-to-low channel ratio)')
-                        elif not is_greater_than_thresh:
+                        elif not is_greater_than_thresh and good_channel_ratio:
                             print('Potential event removed due to noise (no energies greater than minimum threshold)')
+                        else:
+                            print('Potential event removed due to noise')
 
                 sm.print_logger(f'\n{len(f_potential_event_list)} potential events recorded', datetime_logs)
                 sm.print_logger(f'Detection threshold reached {total_threshold_reached} times\n', datetime_logs)
@@ -250,6 +252,8 @@ for year in requested_dates:  # Loops over all requested years
                     for event in f_potential_event_list:
                         print(f'{datetime.datetime.utcfromtimestamp(times[event.start] + first_sec)} UTC '
                               f'({times[event.start]} seconds of day)', file=datetime_logs)
+
+                    print('\n', file=datetime_logs)
 
                     # Makes scatter plots of the resulting potential events
                     sm.print_logger('Generating scatter plots...', datetime_logs)

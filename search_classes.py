@@ -231,8 +231,8 @@ class ShortEvent:
         event_length = event_times[-1] - event_times[0]
 
         figure1 = plt.figure(figsize=[20, 11.0])
-        figure1.suptitle(f'Event {str(event_number)} for {date_timestamp}, {len(event_energies)} counts',
-                         fontsize=20)
+        figure1.suptitle(f'{self.scintillator} Event {str(event_number)} for {date_timestamp}, {len(event_energies)} '
+                         f'counts', fontsize=20)
         ax1 = figure1.add_subplot(3, 1, 1)
         ax2 = figure1.add_subplot(3, 1, 2)
         ax3 = figure1.add_subplot(3, 1, 3)
