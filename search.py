@@ -240,7 +240,7 @@ for year in requested_dates:  # Loops over all requested years
                         if not good_channel_ratio and is_greater_than_thresh:
                             print('Potential event removed due to noise (bad high-to-low channel ratio)')
                         elif not is_greater_than_thresh and good_channel_ratio:
-                            print('Potential event removed due to noise (no energies greater than minimum threshold)')
+                            print('Potential event removed due to noise (minimum energy threshold not reached)')
                         else:
                             print('Potential event removed due to noise')
 
