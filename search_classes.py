@@ -28,9 +28,9 @@ class Detector:
             self.GODOT = True
             if 'processed' in self.modes:
                 self.processed = True
-                self.import_path = f'{sm.G_processed_data_loc()}{day[0:4]}/'
+                self.import_path = f'{sm.G_processed_data_loc()}/{day[0:4]}/'
             else:
-                self.import_path = f'{sm.G_raw_data_loc()}{day}/'
+                self.import_path = f'{sm.G_raw_data_loc()}/{day}/'
 
             self.scintillators = {'NaI': {'eRC': '1490', 'filelist': [],
                                           'time': np.array([]), 'energy': np.array([])},
@@ -39,7 +39,7 @@ class Detector:
 
         elif self.unit[0:4] == 'THOR':
             self.THOR = True
-            self.import_path = f'{sm.T_raw_data_loc()}{unit}/Data/{day}/'
+            self.import_path = f'{sm.T_raw_data_loc()}/{unit}/Data/{day}/'
             self.scintillators = {'NaI': {'eRC': sm.T_eRC(self.unit)[0], 'filelist': [],
                                           'time': np.array([]), 'energy': np.array([])},
                                   'SP': {'eRC': sm.T_eRC(self.unit)[1], 'filelist': [],
@@ -51,7 +51,7 @@ class Detector:
 
         elif self.unit == 'SANTIS':
             self.SANTIS = True
-            self.import_path = f'{sm.S_raw_data_loc()}{day}/'
+            self.import_path = f'{sm.S_raw_data_loc()}/{day}/'
             self.scintillators = {'LP': {'eRC': '2549', 'filelist': [],
                                          'time': np.array([]), 'energy': np.array([])}}
         else:
@@ -60,7 +60,7 @@ class Detector:
 
         if 'custom' in self.modes:
             self.custom = True  # Not necessary for anything right now
-            self.import_path = f'{sm.C_raw_data_loc()}'
+            self.import_path = f'{sm.C_raw_data_loc()}/'
 
         if 'processed' in self.modes:
             self.processed = True
@@ -105,9 +105,9 @@ class Detector:
             sm.print_logger('\n', datetime_logs)
             sm.print_logger(f'For eRC {eRC} ({i}):', datetime_logs)
             if self.THOR:
-                complete_filelist = glob.glob(f'{self.import_path}eRC{eRC}*_lm_{self.day}_*')
+                complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}*_lm_{self.day}_*')
             else:
-                complete_filelist = glob.glob(f'{self.import_path}eRC{eRC}_lm4_*_{self.day}_*')
+                complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}_lm4_*_{self.day}_*')
 
             # Filters out trace mode files and .txtp files (whatever those are)
             filtered_filelist = []

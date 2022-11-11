@@ -1,18 +1,16 @@
 import os
 import numpy as np
-import math as math
 import matplotlib.pyplot as plt
 from scipy import signal
 
 # Functions used in search.py. Also, a centralized location for file paths and detector locations
 
-# Import/export paths: by the convention I've chosen, there should ALWAYS be a slash at the end of these strings
-
 
 # Info functions:
+
 # Custom raw data location
 def C_raw_data_loc():
-    # Enter the custom raw data filepath inbetween the quotes. Remember to include a SLASH at the end
+    # Enter the custom raw data filepath inbetween the quotes.
     path = ''
     return path
 
@@ -25,25 +23,25 @@ def results_loc():
 
 # Location of GODOT raw data
 def G_raw_data_loc():
-    path = '/media/AllDetectorData/Detectors/GODOT/Data/'
+    path = '/media/AllDetectorData/Detectors/GODOT/Data'
     return path
 
 
 # Location of THOR raw data
 def T_raw_data_loc():
-    path = '/media/AllDetectorData/Detectors/THOR/'
+    path = '/media/AllDetectorData/Detectors/THOR'
     return path
 
 
 # Location of Santis instrument raw data
 def S_raw_data_loc():
-    path = '/media/AllDetectorData/Detectors/SANTIS/Data/'
+    path = '/media/AllDetectorData/Detectors/SANTIS/Data'
     return path
 
 
 # Location of GODOT processed data
 def G_processed_data_loc():
-    path = '/media/godot/godot/monthly_processed/'
+    path = '/media/godot/godot/monthly_processed'
     return path
 
 
@@ -137,33 +135,6 @@ def channel_to_mev(energy_array, channel1, channel2, eRC):  # review this
     b = K40 - (channel1 * (K40 - T)) / (channel1 - channel2)
     energy_array = (h * 2.998e8) / (a * energy_array + b)
     return energy_array
-
-
-# Converts date to Julian date
-def date_to_julian(yr, mnth, dy):  # review this
-    if mnth == 1 or mnth == 2:
-        yearp = yr - 1
-        monthp = mnth + 12
-    else:
-        yearp = yr
-        monthp = mnth
-
-    # Checks where we are in relation to October 15, 1582, the beginning of the Gregorian calendar
-    if (yr < 1582) or (yr == 1582 and mnth < 10) or (yr == 1582 and mnth == 10 and dy < 15):
-        # before start of Gregorian calendar
-        B = 0
-    else:
-        # after start of Gregorian calendar
-        A = math.trunc(yearp / 100.)
-        B = 2 - A + math.trunc(A / 4.)
-
-    if yearp < 0:
-        C = math.trunc((365.25 * yearp) - 0.75)
-    else:
-        C = math.trunc(365.25 * yearp)
-    D = math.trunc(30.6001 * (monthp + 1))
-    jd = B + C + D + dy + 1720994.5
-    return jd
 
 
 # Makes the flagged z-score subplots for the glow search histograms
