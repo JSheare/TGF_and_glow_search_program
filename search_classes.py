@@ -102,7 +102,8 @@ class Detector:
         for i in self.scintillators:
             scintillator = self.scintillators[i]
             eRC = scintillator['eRC']
-            sm.print_logger(f'\nFor eRC {eRC} ({i}):', datetime_logs)
+            sm.print_logger('\n', datetime_logs)
+            sm.print_logger(f'For eRC {eRC} ({i}):', datetime_logs)
             if self.THOR:
                 complete_filelist = glob.glob(f'{self.import_path}eRC{eRC}*_lm_{self.day}_*')
             else:
@@ -208,8 +209,10 @@ class Detector:
                 scintillator.update({'energy': np.concatenate(energy_list)})
                 self.scintillators.update({i: scintillator})
 
-                print(f'\nTotal Counts: {len(np.concatenate(time_list))}', file=datetime_logs)
-                print(f'Average time gap: {np.sum(file_time_gaps) / len(file_time_gaps)}\n', file=datetime_logs)
+                print('\n', file=datetime_logs)
+                print(f'Total Counts: {len(np.concatenate(time_list))}', file=datetime_logs)
+                print(f'Average time gap: {np.sum(file_time_gaps) / len(file_time_gaps)}', file=datetime_logs)
+                print('\n', file=datetime_logs)
             except (AssertionError, ValueError):
                 print('Missing data for the specified day.', file=datetime_logs)
                 print('Missing data for the specified day.', end='\r')

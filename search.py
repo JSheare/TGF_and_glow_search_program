@@ -103,35 +103,40 @@ for year in requested_dates:  # Loops over all requested years
             first_sec = calendar.timegm((YEAR, MONTH, DAY, 0, 0, 0, -1, -1, -1))
             last_sec = first_sec + 86400
             sm.print_logger(f'The first second of {YEAR}-{MONTH}-{DAY} is: {first_sec}', datetime_logs)
-            sm.print_logger(f'The last second of {YEAR}-{MONTH}-{DAY} is: {last_sec}\n', datetime_logs)
+            sm.print_logger(f'The last second of {YEAR}-{MONTH}-{DAY} is: {last_sec}', datetime_logs)
 
             # Imports the data
             print('Importing data...')
             detector = sc.Detector(unit, full_day_string, mode)
             detector.data_importer(datetime_logs)
             if len(detector.scintillators['NaI']['filelist']) == 0 or (detector.scintillators['LP']['filelist']) == 0:
-                print('\n\nNo/Missing data for specified day.')
-                print('\nNo/Missing data for specified day.', file=datetime_logs)
+                print('\n\n')
+                print('\n', file=datetime_logs)
+                sm.print_logger('No/Missing data for specified day.', datetime_logs)
                 continue
 
-            print('\nDone.')
+            print('\n')
+            print('Done.')
 
             # Calibrates each scintillator
-            sm.print_logger('\nCalibrating Scintillators and generating energy spectra graphs...', datetime_logs)
+            print('\n')
+            sm.print_logger('Calibrating Scintillators and generating energy spectra graphs...', datetime_logs)
             if detector.THOR:
-                print('temp')  # Haven't made an algorithm for THOR's scintillators yet
+                print('')  # Haven't made an algorithm for THOR's scintillators yet
             elif detector.GODOT:
                 LPK40, LPT = sm.g_spectra_maker(detector.attribute_retriever('LP', 'energy'), date_timestamp,
                                                 full_day_string, unit, '1491')
                 NaIK40, NaIT = sm.g_spectra_maker(detector.attribute_retriever('NaI', 'energy'), date_timestamp,
                                                   full_day_string, unit, '1490')
             else:
-                print('temp')
+                print('')
 
             sm.print_logger('Done.', datetime_logs)
 
     # Short event algorithm starts here:
-            sm.print_logger('\nStarting search for short events...\n', datetime_logs)
+            sm.print_logger('\n', datetime_logs)
+            sm.print_logger('Starting search for short events...', datetime_logs)
+            sm.print_logger('\n', datetime_logs)
 
             # Parameters:
             rollgap = 4
@@ -245,7 +250,8 @@ for year in requested_dates:  # Loops over all requested years
                             print('Potential event removed due to noise')
 
                 sm.print_logger(f'\n{len(f_potential_event_list)} potential events recorded', datetime_logs)
-                sm.print_logger(f'Detection threshold reached {total_threshold_reached} times\n', datetime_logs)
+                sm.print_logger(f'Detection threshold reached {total_threshold_reached} times', datetime_logs)
+                print('\n', file=datetime_logs)
 
                 if len(f_potential_event_list) > 0:
                     print('Potential short events:', file=datetime_logs)
@@ -256,6 +262,7 @@ for year in requested_dates:  # Loops over all requested years
                     print('\n', file=datetime_logs)
 
                     # Makes scatter plots of the resulting potential events
+                    print('\n')
                     sm.print_logger('Generating scatter plots...', datetime_logs)
 
                     # Subplot timescales
@@ -273,7 +280,8 @@ for year in requested_dates:  # Loops over all requested years
                         plots_made += 1
                         print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
 
-                    sm.print_logger('Done.\n', datetime_logs)
+                    sm.print_logger('Done.', datetime_logs)
+                    sm.print_logger('\n', datetime_logs)
 
     # Glow search algorithm starts here
             sm.print_logger('Starting search for glows...', datetime_logs)
@@ -368,7 +376,8 @@ for year in requested_dates:  # Loops over all requested years
             else:
                 # Logs potential glows and sorts them in descending order depending on their highest z-score
                 highest_scores = []
-                print('\nPotential glows:', file=datetime_logs)
+                print('\n', file=datetime_logs)
+                print('Potential glows:', file=datetime_logs)
                 for glow in potential_glow_list:
                     highest_score = glow.highest_zscore(z_scores)
                     highest_scores.append(highest_score)
@@ -385,7 +394,8 @@ for year in requested_dates:  # Loops over all requested years
                 location = sm.location(unit, YEAR)
 
                 # Plotting the histograms
-                sm.print_logger('\nGenerating Histogram...', datetime_logs)
+                sm.print_logger('\n', datetime_logs)
+                sm.print_logger('Generating Histogram...', datetime_logs)
                 figu = plt.figure(figsize=[20, 11.0])
                 plt.title(f'{unit} {location}, {str(date_timestamp)}', loc='center')
                 plt.tick_params(left=False, right=False, labelleft=False, labelbottom=False, bottom=False)
@@ -424,6 +434,7 @@ for year in requested_dates:  # Loops over all requested years
                 sm.path_maker(hist_path)
                 plt.savefig(f'{hist_path}{full_day_string}_histogram.png', dpi=500)
                 plt.close(figu)
-                sm.print_logger('Done\n', datetime_logs)
+                sm.print_logger('Done', datetime_logs)
+                sm.print_logger('\n', datetime_logs)
 
             datetime_logs.close()
