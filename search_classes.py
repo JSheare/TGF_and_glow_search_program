@@ -59,7 +59,7 @@ class Detector:
             exit()
 
         if 'custom' in self.modes:
-            self.custom = True  # Redundant
+            self.custom = True  # Not necessary for anything right now
             self.import_path = f'{sm.C_raw_data_loc()}'
 
         if 'processed' in self.modes:
@@ -250,7 +250,7 @@ class ShortEvent:
             dot_size = 3 if ts == timescales[0] else 1  # makes larger dots for top plot
             ax.set_yscale('log')
             ax.set_ylim([0.5, 1e5])
-            ax.scatter(times, energies + 0.6, s=dot_size, zorder=1)
+            ax.scatter(times, energies + 0.6, s=dot_size, zorder=1, alpha=1.0)
             ax.set_xlabel(f'Time (Seconds, {ts}s total)')
             ax.set_ylabel('Energy Channel')
             # Lines appear (100*percent)% to the left or right of event start/stop depending on subplot timescale
