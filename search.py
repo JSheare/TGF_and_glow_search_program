@@ -113,6 +113,7 @@ for year in requested_dates:  # Loops over all requested years
                 print('\n\n')
                 print('\n', file=datetime_logs)
                 sm.print_logger('No/Missing data for specified day.', datetime_logs)
+                print('\n')
                 continue
 
             print('\n')
