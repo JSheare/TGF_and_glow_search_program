@@ -122,16 +122,7 @@ for year in requested_dates:  # Loops over all requested years
             # Calibrates each scintillator
             print('\n')
             sm.print_logger('Calibrating Scintillators and generating energy spectra graphs...', datetime_logs)
-            if detector.THOR:
-                print('')  # Haven't made an algorithm for THOR's scintillators yet
-            elif detector.GODOT:
-                LPK40, LPT = sm.g_spectra_maker(detector.attribute_retriever('LP', 'energy'), date_timestamp,
-                                                full_day_string, unit, '1491')
-                NaIK40, NaIT = sm.g_spectra_maker(detector.attribute_retriever('NaI', 'energy'), date_timestamp,
-                                                  full_day_string, unit, '1490')
-            else:
-                print('')
-
+            lp_channels, nai_channels = detector.spectra_maker(date_timestamp, full_day_string, datetime_logs)
             sm.print_logger('Done.', datetime_logs)
 
     # Short event algorithm starts here:
@@ -288,21 +279,27 @@ for year in requested_dates:  # Loops over all requested years
             sm.print_logger('Starting search for glows...', datetime_logs)
 
             # Converts energy channels from volts to MeV using the locations of peaks/edges obtained during calibration
+            lp_times = detector.attribute_retriever('LP', 'time')
+            lp_energies = sm.channel_to_mev(detector.attribute_retriever('LP', 'energy'), lp_channels, 'LP')
+            if detector.SANTIS:
+                nai_times = []
+                nai_energies = []
+            else:
+                nai_times = detector.attribute_retriever('NaI', 'time')
+                nai_energies = sm.channel_to_mev(detector.attribute_retriever('NaI', 'energy'), nai_channels, 'NaI')
+
+            # Combines large plastic and NaI data for GODOT
             if detector.GODOT:
-                LP = detector.scintillators['LP']
-                LP.update({'energy': sm.channel_to_mev(LP['energy'], LPK40, LPT, LP['eRC'])})
-                detector.scintillators.update({'LP': LP})
-
-                NaI = detector.scintillators['NaI']
-                NaI.update({'energy': sm.channel_to_mev(LP['energy'], NaIK40, NaIT, NaI['eRC'])})
-                detector.scintillators.update({'NaI': NaI})
-                # I really need to write a method for this, it looks kind of gross right now
-
-                # Combines large plastic and NaI data for GODOT
-                times, energies = detector.scintillator_combiner('LP', 'NaI')
+                times = np.append(lp_times, nai_times)
+                energies = np.append(lp_energies, nai_energies)
+            elif detector.THOR:
+                times = nai_times
+                energies = nai_energies
             else:
                 times = detector.attribute_retriever('LP', 'time')
                 energies = detector.attribute_retriever('LP', 'energy')
+
+            # Code that slices out everything below the cut off goes here
 
             # Makes one bin for every ten seconds of the day
             if detector.processed:

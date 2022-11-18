@@ -1,6 +1,7 @@
 import glob
 import numpy as np
 import pandas as pd
+import scipy.signal as signal
 import matplotlib.pyplot as plt
 import search_module as sm
 import DataReaderFinal as dr
@@ -13,6 +14,7 @@ class Detector:
     def __init__(self, unit, day, modes):
         self.unit = unit
         self.day = day
+        # Eventually will need to add another one here for location
         self.modes = modes
 
         self.THOR = False
@@ -22,7 +24,10 @@ class Detector:
         self.custom = False
         self.processed = False
         self.plastics = False
+        self.template = False
+
         self.import_path = ''
+        self.good_lp_calibration = False
 
         if self.unit == 'GODOT':
             self.GODOT = True
@@ -71,31 +76,121 @@ class Detector:
         if 'plastics' in self.modes:
             self.plastics = True
 
+        if 'template' in self.modes:
+            self.template = True
+
     # Retrieves the requested attribute for a particular scintillator
     def attribute_retriever(self, scintillator, attribute):  # Make it possible to request multiple attributes at once?
         medium = self.scintillators[scintillator]
         desired_attribute = medium[attribute]
         return desired_attribute
 
-    # Combines the time and energy arrays for multiple scintillators
-    def scintillator_combiner(self, *args):
-        time = np.array([])
-        energy = np.array([])
-        iterations = 0
-        for arg in args:
-            new_time = self.attribute_retriever(arg, 'time')
-            new_energy = self.attribute_retriever(arg, 'energy')
-            if iterations == 0:
-                time = new_time
-                energy = new_energy
-            else:
-                time = np.append(time, new_time)
-                sorting_order = np.argsort(time)
-                time = np.sort(time)
-                energy = np.append(energy, new_energy)
-                energy = energy[sorting_order.astype(int)]
+    # Makes the energy spectra histograms for the LP and NaI scintillators
+    def spectra_maker(self, date_timestamp, full_day_string, log):  # review and optimize this
+        location = ''  # Eventually this will not be blank
+        lp_indices = np.array([])
+        nai_indices = np.array([])
+        for scintillator in self.scintillators:
+            if scintillator == 'SP' or scintillator == 'MP':
+                continue  # (for now)
 
-        return time, energy
+            energies = self.attribute_retriever(scintillator, 'energy')
+            plt.figure(figsize=[20, 11.0])
+            energy_bins = np.linspace(0.0, 15008.0, num=939)
+            energy_hist, bin_edges = np.histogram(energies, bins=energy_bins)
+            bin_plot_edge = len(energy_bins)
+            flagged_indices = np.array([])
+
+            if self.template and scintillator == 'LP':
+                # Adjust the position of the K40 line on the histogram
+                edge1_adjustment = 0
+                # Adjust the position of the Thorium line on the histogram
+                edge2_adjustment = 0
+                # 41 and 83 are good starting positions usually
+                edge1 = 41 + edge1_adjustment
+                edge2 = 83 + edge2_adjustment
+                flagged_indices = np.append(flagged_indices, edge1)
+                flagged_indices = np.append(flagged_indices, edge2)
+                template = pd.DataFrame(data={'energy_hist': energy_hist, 'bins': energy_bins[0:938],
+                                              'indices': np.append(flagged_indices, np.zeros(len(energy_hist)-2))})
+                sm.path_maker('Templates')
+                template.to_csv(f'Templates/{location}template.csv', index=False)
+                bin_plot_edge = 200
+                print('Template made')
+            elif scintillator == 'LP':
+                try:
+                    template = pd.read_csv(f'Templates/{location}template.csv')
+                    correlation = signal.correlate(template['energy_hist'].to_numpy(), energy_hist, 'full')
+                    best_correlation_index = np.argmax(correlation)
+                    shift_amount = (-len(template) + 1) + best_correlation_index
+
+                    edge_indices = template['indices'].to_numpy()[0:2]
+                    flagged_indices = edge_indices + shift_amount
+                    self.good_lp_calibration = True
+                except FileNotFoundError:  # Here just in case there is no template found for the specified location
+                    # This LP calibration is likely to be pretty inaccurate
+                    # Add a way to flag this in the histogram? Maybe even don't cut off radon washout energies?
+                    sm.print_logger('No LP template found for this location', log)
+                    window_size = 19
+                    poly_order = 2
+                    curve_change = 1000
+                    # Makes a rough "response function" for plotting purposes.
+                    smoothed_energies = signal.savgol_filter(energy_hist, window_size, poly_order)  # Savitzky-Golay
+                    plt.plot(energy_bins[0:938], smoothed_energies, color='green', alpha=0.75)
+
+                    # Finds all the points on the response function where the concavity changes from + to -
+                    second_derivative = signal.savgol_filter(energy_hist, window_size, poly_order, 2)
+                    curvature_sign = np.sign(second_derivative)
+                    for jk in range(len(second_derivative)):
+                        if jk > 0 and curvature_sign[jk] == -1 and curvature_sign[jk - 1] in [0, 1]:
+                            lower_limit = energy_hist[jk - int(((window_size - 1) / 2))]
+                            upper_limit = energy_hist[jk + int(((window_size - 1) / 2))]
+                            # Only flags those points whose surrounding curvature is sufficiently hilly
+                            if np.abs(lower_limit - upper_limit) > curve_change:
+                                flagged_indices = np.append(flagged_indices, jk)
+                    if len(flagged_indices) < 2:
+                        raise Exception('One or more compton edges not found')
+
+                    if len(flagged_indices) > 2:
+                        raise Exception('Too many concavity changes found')
+
+                lp_indices = flagged_indices
+
+            else:  # NaI scintillator
+                # Takes the sum of each bin with its two closest neighboring bins on either side
+                sums = energy_hist
+                for i in range(2):
+                    sums += (np.roll(energy_hist, i + 1) + np.roll(energy_hist, i - 1))
+
+                # Looks for the location of the maximum sum within the two bands where the peaks are likely to be
+                band_starts = [38, 94]
+                band_ends = [75, 125]
+                # These might need to be tuned separately for THOR and GODOT
+                for th in range(len(band_starts)):
+                    band_max = np.argmax(sums[band_starts[th]:band_ends[th]]) + int(band_starts[th])
+                    flagged_indices = np.append(flagged_indices, band_max)
+                nai_indices = flagged_indices
+
+            # Plots the actual spectrum
+            plt.title(f'Energy Spectrum for {scintillator}, {str(date_timestamp)}', loc='center')
+            plt.xlabel('Energy Channel')
+            plt.ylabel('Counts/bin')
+            plt.yscale('log')
+            plt.hist(energies, bins=energy_bins[0:bin_plot_edge], color='r', rwidth=0.5, zorder=1)
+
+            # Saves energy bins corresponding to the desired energies and plots them as vertical lines
+            plt.vlines(energy_bins[flagged_indices.astype(int)], 0, 1e6, zorder=2, alpha=0.75)
+
+            # Saves the figure
+            sp_path = f'{sm.results_loc()}Results/{self.unit}/{full_day_string}/'
+            sm.path_maker(sp_path)
+            plt.savefig(f'{sp_path}{scintillator}_Spectrum.png', dpi=500)
+            plt.clf()
+
+        if self.template:
+            exit()
+
+        return lp_indices, nai_indices
 
     # Imports data from datafiles into arrays
     def data_importer(self, datetime_logs):

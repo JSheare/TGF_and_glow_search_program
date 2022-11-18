@@ -122,8 +122,8 @@ def path_maker(path):
 
 
 # Uses compton edges obtained from scintillator calibration to convert energy array values into actual energies in MeV
-def channel_to_mev(energy_array, channel1, channel2, eRC):  # review this
-    if eRC == '1491':
+def channel_to_mev(energy_array, channel, scintillator):
+    if scintillator == 'LP':
         K40 = 9.982624235104672506e-13  # Compton edge photon wavelength for Potassium 40 (meters)
         T = 5.207231961360773518e-13  # Compton edge photon wavelength for Thorium (meters)
     else:
@@ -131,6 +131,8 @@ def channel_to_mev(energy_array, channel1, channel2, eRC):  # review this
         T = 4.768622807692308078e-13  # Photo-peak photon wavelength for Thorium (meters)
     h = 4.1357e-21  # Planck's constant in MeV*s
 
+    channel1 = channel[0]
+    channel2 = channel[1]
     a = (K40 - T) / (channel1 - channel2)
     b = K40 - (channel1 * (K40 - T)) / (channel1 - channel2)
     energy_array = (h * 2.998e8) / (a * energy_array + b)
@@ -149,70 +151,3 @@ def hist_subplotter(ax, glow, times, bins10sec, mue, sigma):
     ax.set_ylabel('Counts/10-sec', )
     ax.axhline(y=(mue + 5 * sigma), color='blue', linestyle='dashed', linewidth=2)
     ax.grid(True)
-
-
-# Makes the energy spectra histograms for each GODOT scintillator
-def g_spectra_maker(energies, date_timestamp, full_day_string, detector, eRC):  # review this
-    plt.figure(figsize=[20, 11.0])
-    energy_bins = np.linspace(0.0, 15008.0, num=939)
-    energy_hist, bin_edges = np.histogram(energies, bins=energy_bins)
-    flagged_indices = np.array([])
-
-    if eRC == '1491':
-        scintillator = 'Large Plastic'
-        window_size = 19
-        poly_order = 2
-        curve_change = 1000
-        # Makes a rough "response function" for plotting purposes.
-        smoothed_energies = signal.savgol_filter(energy_hist, window_size, poly_order)  # Savitzky-Golay filter
-        plt.plot(energy_bins[0:938], smoothed_energies, color='green', alpha=0.75)
-
-        # Finds all the points on the response function where the concavity changes from positive to negative
-        second_derivative = signal.savgol_filter(energy_hist, window_size, poly_order, 2)
-        curvature_sign = np.sign(second_derivative)
-        for jk in range(len(second_derivative)):
-            if jk > 0 and curvature_sign[jk] == -1 and curvature_sign[jk - 1] in [0, 1]:
-                lower_limit = energy_hist[jk - int(((window_size - 1) / 2))]
-                upper_limit = energy_hist[jk + int(((window_size - 1) / 2))]
-                # Only flags those points whose surrounding curvature is sufficiently hilly
-                if np.abs(lower_limit - upper_limit) > curve_change:
-                    flagged_indices = np.append(flagged_indices, jk)
-        if len(flagged_indices) < 2:
-            raise Exception('One or more compton edges not found')
-
-        if len(flagged_indices) > 2:
-            raise Exception('Too many concavity changes found')
-
-    else:
-        scintillator = 'Sodium Iodide'
-        # Takes the sum of each bin with its two closest neighboring bins on either side
-        sums = energy_hist
-        for i in range(2):
-            sums += (np.roll(energy_hist, i+1) + np.roll(energy_hist, i-1))
-
-        # Looks for the location of the maximum sum within the two bands where the peaks are likely to be
-        band_starts = [38, 94]
-        band_ends = [75, 125]
-        for th in range(len(band_starts)):
-            band_max = np.argmax(sums[band_starts[th]:band_ends[th]]) + int(band_starts[th])
-            flagged_indices = np.append(flagged_indices, band_max)
-
-    # Plots the actual spectrum
-    plt.title(f'Energy Spectrum for {scintillator}, {str(date_timestamp)}', loc='center')
-    plt.xlabel('Energy Channel')
-    plt.ylabel('Counts/bin')
-    plt.yscale('log')
-    plt.hist(energies, bins=energy_bins, color='r', rwidth=0.5, zorder=1)
-
-    # Saves energy bins corresponding to the desired energies and plots them as vertical lines
-    energy1 = energy_bins[int(flagged_indices[0])]
-    energy2 = energy_bins[int(flagged_indices[1])]
-    plt.vlines(energy_bins[flagged_indices.astype(int)], 0, 1e6, zorder=2, alpha=0.75)
-
-    # Saves the figure
-    sp_path = f'{results_loc()}Results/{detector}/{full_day_string}/'
-    path_maker(sp_path)
-    plt.savefig(f'{sp_path}{scintillator}_Spectrum.png', dpi=500)
-    plt.clf()
-
-    return energy1, energy2
