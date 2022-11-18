@@ -14,7 +14,7 @@ class Detector:
     def __init__(self, unit, day, modes):
         self.unit = unit
         self.day = day
-        # Eventually will need to add another one here for location
+        self.location = 'location'  # Eventually this will be fetched from a function in search_module
         self.modes = modes
 
         self.THOR = False
@@ -87,7 +87,6 @@ class Detector:
 
     # Makes the energy spectra histograms for the LP and NaI scintillators
     def spectra_maker(self, date_timestamp, full_day_string, log):  # review and optimize this
-        location = ''  # Eventually this will not be blank
         lp_indices = np.array([])
         nai_indices = np.array([])
         for scintillator in self.scintillators:
@@ -100,12 +99,14 @@ class Detector:
             energy_hist, bin_edges = np.histogram(energies, bins=energy_bins)
             bin_plot_edge = len(energy_bins)
             flagged_indices = np.array([])
-
+            # Makes a template that can be used in the LP calibration algorithm's cross-correlation
             if self.template and scintillator == 'LP':
                 # Adjust the position of the K40 line on the histogram
                 edge1_adjustment = 0
+
                 # Adjust the position of the Thorium line on the histogram
                 edge2_adjustment = 0
+
                 # 41 and 83 are good starting positions usually
                 edge1 = 41 + edge1_adjustment
                 edge2 = 83 + edge2_adjustment
@@ -114,12 +115,12 @@ class Detector:
                 template = pd.DataFrame(data={'energy_hist': energy_hist, 'bins': energy_bins[0:938],
                                               'indices': np.append(flagged_indices, np.zeros(len(energy_hist)-2))})
                 sm.path_maker('Templates')
-                template.to_csv(f'Templates/{location}template.csv', index=False)
+                template.to_csv(f'Templates/{self.unit}_{self.location}_template.csv', index=False)
                 bin_plot_edge = 200
                 print('Template made')
             elif scintillator == 'LP':
                 try:
-                    template = pd.read_csv(f'Templates/{location}template.csv')
+                    template = pd.read_csv(f'Templates/{self.unit}_{self.location}_template.csv')
                     correlation = signal.correlate(template['energy_hist'].to_numpy(), energy_hist, 'full')
                     best_correlation_index = np.argmax(correlation)
                     shift_amount = (-len(template) + 1) + best_correlation_index
@@ -129,12 +130,11 @@ class Detector:
                     self.good_lp_calibration = True
                 except FileNotFoundError:  # Here just in case there is no template found for the specified location
                     # This LP calibration is likely to be pretty inaccurate
-                    # Add a way to flag this in the histogram? Maybe even don't cut off radon washout energies?
                     sm.print_logger('No LP template found for this location', log)
                     window_size = 19
                     poly_order = 2
                     curve_change = 1000
-                    # Makes a rough "response function" for plotting purposes.
+                    # Makes a rough "response function" for plotting purposes
                     smoothed_energies = signal.savgol_filter(energy_hist, window_size, poly_order)  # Savitzky-Golay
                     plt.plot(energy_bins[0:938], smoothed_energies, color='green', alpha=0.75)
 

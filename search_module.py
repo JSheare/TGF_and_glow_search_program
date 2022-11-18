@@ -122,7 +122,7 @@ def path_maker(path):
 
 
 # Uses compton edges obtained from scintillator calibration to convert energy array values into actual energies in MeV
-def channel_to_mev(energy_array, channel, scintillator):
+def channel_to_mev(energy_array, channel, scintillator):  # Pretty sure that this isn't working properly
     if scintillator == 'LP':
         K40 = 9.982624235104672506e-13  # Compton edge photon wavelength for Potassium 40 (meters)
         T = 5.207231961360773518e-13  # Compton edge photon wavelength for Thorium (meters)

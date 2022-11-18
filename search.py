@@ -274,6 +274,7 @@ for year in requested_dates:  # Loops over all requested years
 
                     sm.print_logger('Done.', datetime_logs)
                     sm.print_logger('\n', datetime_logs)
+                    print('\n')
 
     # Glow search algorithm starts here
             sm.print_logger('Starting search for glows...', datetime_logs)
@@ -299,8 +300,18 @@ for year in requested_dates:  # Loops over all requested years
                 times = detector.attribute_retriever('LP', 'time')
                 energies = detector.attribute_retriever('LP', 'energy')
 
-            # Code that slices out everything below the cut off goes here
+            # Removes entries that are below a certain cutoff energy
+            if not detector.good_lp_calibration:
+                energy_cutoff = 0.7  # MeV
+                cut_indices = []
+                for ik in range(len(energies)):
+                    if energies[ik] < energy_cutoff:
+                        cut_indices.append(ik)
 
+                times = np.delete(times, cut_indices)
+                energies = np.delete(energies, cut_indices)
+            else:
+                print('Potentially inaccurate large plastic calibration, beware radon washout!', file=datetime_logs)
             # Makes one bin for every ten seconds of the day
             if detector.processed:
                 times = times - first_sec
