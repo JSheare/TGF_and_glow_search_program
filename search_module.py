@@ -122,20 +122,19 @@ def path_maker(path):
 
 
 # Uses compton edges obtained from scintillator calibration to convert energy array values into actual energies in MeV
-def channel_to_mev(energy_array, channel, scintillator):  # Pretty sure that this isn't working properly
-    if scintillator == 'LP':
-        K40 = 9.982624235104672506e-13  # Compton edge photon wavelength for Potassium 40 (meters)
-        T = 5.207231961360773518e-13  # Compton edge photon wavelength for Thorium (meters)
-    else:
-        K40 = 8.492068013698631405e-13  # Photo-peak photon wavelength for Potassium 40 (meters)
-        T = 4.768622807692308078e-13  # Photo-peak photon wavelength for Thorium (meters)
-    h = 4.1357e-21  # Planck's constant in MeV*s
+def channel_to_mev(energy_array, channel, scintillator):
+    if scintillator == 'NaI':
+        K40 = 1.46  # Photo-peak photon energy for Potassium 40 (MeV)
+        T = 2.60  # Photo-peak photon energy for Thorium (MeV)
+    else:  # i.e. plastic scintillators
+        K40 = 1.242  # Compton edge photon energy for Potassium 40 (MeV)
+        T = 2.381  # Compton edge photon energy for Thorium (MeV)
 
     channel1 = channel[0]
     channel2 = channel[1]
-    a = (K40 - T) / (channel1 - channel2)
-    b = K40 - (channel1 * (K40 - T)) / (channel1 - channel2)
-    energy_array = (h * 2.998e8) / (a * energy_array + b)
+    a = (K40 - T)/(channel1-channel2)
+    b = T - a*channel2
+    energy_array = a*energy_array + b
     return energy_array
 
 

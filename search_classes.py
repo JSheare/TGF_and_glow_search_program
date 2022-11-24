@@ -87,8 +87,8 @@ class Detector:
 
     # Makes the energy spectra histograms for the LP and NaI scintillators
     def spectra_maker(self, date_timestamp, full_day_string, log):  # review and optimize this
-        lp_indices = np.array([])
-        nai_indices = np.array([])
+        lp_energies = np.array([])
+        nai_energies = np.array([])
         for scintillator in self.scintillators:
             if scintillator == 'SP' or scintillator == 'MP':
                 continue  # (for now)
@@ -154,7 +154,7 @@ class Detector:
                     if len(flagged_indices) > 2:
                         raise Exception('Too many concavity changes found')
 
-                lp_indices = flagged_indices
+                lp_energies = energy_bins[flagged_indices.astype(int)]
 
             else:  # NaI scintillator
                 # Takes the sum of each bin with its two closest neighboring bins on either side
@@ -169,7 +169,7 @@ class Detector:
                 for th in range(len(band_starts)):
                     band_max = np.argmax(sums[band_starts[th]:band_ends[th]]) + int(band_starts[th])
                     flagged_indices = np.append(flagged_indices, band_max)
-                nai_indices = flagged_indices
+                nai_energies = energy_bins[flagged_indices.astype(int)]
 
             # Plots the actual spectrum
             plt.title(f'Energy Spectrum for {scintillator}, {str(date_timestamp)}', loc='center')
@@ -190,7 +190,7 @@ class Detector:
         if self.template:
             exit()
 
-        return lp_indices, nai_indices
+        return lp_energies, nai_energies
 
     # Imports data from datafiles into arrays
     def data_importer(self, datetime_logs):
