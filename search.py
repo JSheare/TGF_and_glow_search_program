@@ -375,8 +375,7 @@ for year in requested_dates:  # Loops over all requested years
 
                 previous_time = bins10sec[flag]
 
-            print('\n')
-            print('\n')
+            print('\n\n')
             sm.print_logger('Done.', datetime_logs)
             if len(potential_glow_list) == 0:
                 sm.print_logger(f'There were no potential glows for the date {date_timestamp}', datetime_logs)
