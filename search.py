@@ -275,6 +275,8 @@ for year in requested_dates:  # Loops over all requested years
                     sm.print_logger('Done.', datetime_logs)
                     sm.print_logger('\n', datetime_logs)
                     print('\n')
+                else:
+                    print('\n')
 
     # Glow search algorithm starts here
             sm.print_logger('Starting search for glows...', datetime_logs)
@@ -375,7 +377,6 @@ for year in requested_dates:  # Loops over all requested years
 
                 previous_time = bins10sec[flag]
 
-            print('\n\n')
             sm.print_logger('Done.', datetime_logs)
             if len(potential_glow_list) == 0:
                 sm.print_logger(f'There were no potential glows for the date {date_timestamp}', datetime_logs)
