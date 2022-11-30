@@ -5,7 +5,8 @@
 - [ ] Add full list of all locations ever for each detector 
 - [ ] Find/fix THOR beginning of day peak bug 
 - [ ] Review/change all for-loop variables 
-- [ ] Add docstrings to functions/classes 
+- [ ] Add docstrings to functions/classes
 
 ### Completed
 - [x] Fix channel-to-MeV converter function
+- [x] Add timestamp to scatter plot title

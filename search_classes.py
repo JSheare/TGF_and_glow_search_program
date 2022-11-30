@@ -5,6 +5,7 @@ import scipy.signal as signal
 import matplotlib.pyplot as plt
 import search_module as sm
 import DataReaderFinal as dr
+from datetime import timedelta as td
 
 # Classes used in search.py
 
@@ -327,10 +328,11 @@ class ShortEvent:
         event_times = times[self.start:self.stop]
         event_energies = energies[self.start:self.stop]
         event_length = event_times[-1] - event_times[0]
+        event_time = times[self.start]
 
         figure1 = plt.figure(figsize=[20, 11.0])
-        figure1.suptitle(f'{self.scintillator} Event {str(event_number)} for {date_timestamp}, {len(event_energies)} '
-                         f'counts', fontsize=20)
+        figure1.suptitle(f'{self.scintillator} Event {str(event_number)} for {date_timestamp} at '
+                         f'{td(seconds=event_time)} UTC, {len(event_energies)} counts', fontsize=20)
         ax1 = figure1.add_subplot(3, 1, 1)
         ax2 = figure1.add_subplot(3, 1, 2)
         ax3 = figure1.add_subplot(3, 1, 3)
@@ -357,7 +359,6 @@ class ShortEvent:
                       colors='r', linewidth=1, zorder=-1, alpha=0.3)
 
         # Adds the name of the relevant data file to the scatter plot
-        event_time = times[self.start]
         event_file = ''
         eventfound = False
         files_examined = 0
