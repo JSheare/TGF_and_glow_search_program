@@ -301,13 +301,9 @@ for year in requested_dates:  # Loops over all requested years
                 energies = detector.attribute_retriever('LP', 'energy')
 
             # Removes entries that are below a certain cutoff energy
-            if not detector.good_lp_calibration:
-                energy_cutoff = 0.7  # MeV
-                cut_indices = []
-                for ik in range(len(energies)):
-                    if energies[ik] < energy_cutoff:
-                        cut_indices.append(ik)
-
+            if detector.good_lp_calibration:
+                energy_cutoff = 1.9  # MeV
+                cut_indices = np.where(energies < energy_cutoff)
                 times = np.delete(times, cut_indices)
                 energies = np.delete(energies, cut_indices)
             else:
