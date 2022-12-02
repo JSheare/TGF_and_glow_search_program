@@ -87,37 +87,78 @@ class Detector:
         return desired_attribute
 
     # Makes the energy spectra histograms for the LP and NaI scintillators
-    def spectra_maker(self, date_timestamp, full_day_string, log):  # review and optimize this
+    def spectra_maker(self, date_timestamp, full_day_string, log):
         lp_energies = np.array([])
         nai_energies = np.array([])
+        if self.THOR:
+            bin_range = 65535.0
+            bin_number = 65536
+            band_starts = [1800, 5600]
+            band_ends = [2500, 6300]
+            template_bin_plot_edge = 8000
+        else:
+            bin_range = 15008.0
+            bin_number = 939
+            band_starts = [38, 94]
+            band_ends = [75, 125]
+            template_bin_plot_edge = 200
+
         for scintillator in self.scintillators:
             if scintillator == 'SP' or scintillator == 'MP':
                 continue  # (for now)
 
             energies = self.attribute_retriever(scintillator, 'energy')
-            plt.figure(figsize=[20, 11.0])
-            energy_bins = np.linspace(0.0, 15008.0, num=939)
+            energy_bins = np.linspace(0.0, bin_range, num=bin_number)
             energy_hist, bin_edges = np.histogram(energies, bins=energy_bins)
             bin_plot_edge = len(energy_bins)
             flagged_indices = np.array([])
             # Makes a template that can be used in the LP calibration algorithm's cross-correlation
             if self.template and scintillator == 'LP':
-                # Adjust the position of the K40 line on the histogram
-                edge1_adjustment = 0
+                sm.print_logger('Entering template mode...', log)
+                print('\n')
+                iterations = 0
+                bin_plot_edge = template_bin_plot_edge
+                while True:
+                    if iterations > 0:
+                        print(f'Previous line locations: K40: {int(flagged_indices[0])}, T: {int(flagged_indices[1])}')
+                    else:
+                        if self.THOR:
+                            print('0 and 0 are good starting positions for THOR')  # fix this
+                        else:
+                            print('41 and 83 are good starting positions for GODOT')
 
-                # Adjust the position of the Thorium line on the histogram
-                edge2_adjustment = 0
+                    flagged_indices = np.array([])
+                    edge1 = 0
+                    edge2 = 0
+                    while True:
+                        try:  # Idiot proofing
+                            edge1 = int(input('K40 Line Location: '))
+                            edge2 = int(input('T Line Location: '))
+                            break
+                        except ValueError:
+                            print('Only one NUMBER at a time please')
+                            continue
 
-                # 41 and 83 are good starting positions usually
-                edge1 = 41 + edge1_adjustment
-                edge2 = 83 + edge2_adjustment
-                flagged_indices = np.append(flagged_indices, edge1)
-                flagged_indices = np.append(flagged_indices, edge2)
+                    flagged_indices = np.append(flagged_indices, edge1)
+                    flagged_indices = np.append(flagged_indices, edge2)
+
+                    plt.xlabel('Energy Channel')
+                    plt.ylabel('Counts/bin')
+                    plt.yscale('log')
+                    plt.hist(energies, bins=energy_bins[0:bin_plot_edge], color='r', rwidth=0.5, zorder=1)
+                    plt.vlines(energy_bins[flagged_indices.astype(int)], 0, 1e6, zorder=2, alpha=0.75)
+                    plt.show()
+
+                    adequate = input('Are these good locations? (y/n): ')
+                    print('\n')
+                    if adequate in ['Y', 'y']:
+                        break
+                    iterations += 1
+
                 template = pd.DataFrame(data={'energy_hist': energy_hist, 'bins': energy_bins[0:938],
                                               'indices': np.append(flagged_indices, np.zeros(len(energy_hist)-2))})
                 sm.path_maker('Templates')
                 template.to_csv(f'Templates/{self.unit}_{self.location}_template.csv', index=False)
-                bin_plot_edge = 200
                 print('Template made')
             elif scintillator == 'LP':
                 try:
@@ -132,28 +173,6 @@ class Detector:
                 except FileNotFoundError:  # Here just in case there is no template found for the specified location
                     # This LP calibration is likely to be pretty inaccurate
                     sm.print_logger('No LP template found for this location', log)
-                    window_size = 19
-                    poly_order = 2
-                    curve_change = 1000
-                    # Makes a rough "response function" for plotting purposes
-                    smoothed_energies = signal.savgol_filter(energy_hist, window_size, poly_order)  # Savitzky-Golay
-                    plt.plot(energy_bins[0:938], smoothed_energies, color='green', alpha=0.75)
-
-                    # Finds all the points on the response function where the concavity changes from + to -
-                    second_derivative = signal.savgol_filter(energy_hist, window_size, poly_order, 2)
-                    curvature_sign = np.sign(second_derivative)
-                    for jk in range(len(second_derivative)):
-                        if jk > 0 and curvature_sign[jk] == -1 and curvature_sign[jk - 1] in [0, 1]:
-                            lower_limit = energy_hist[jk - int(((window_size - 1) / 2))]
-                            upper_limit = energy_hist[jk + int(((window_size - 1) / 2))]
-                            # Only flags those points whose surrounding curvature is sufficiently hilly
-                            if np.abs(lower_limit - upper_limit) > curve_change:
-                                flagged_indices = np.append(flagged_indices, jk)
-                    if len(flagged_indices) < 2:
-                        raise Exception('One or more compton edges not found')
-
-                    if len(flagged_indices) > 2:
-                        raise Exception('Too many concavity changes found')
 
                 lp_energies = energy_bins[flagged_indices.astype(int)]
 
@@ -164,15 +183,13 @@ class Detector:
                     sums += (np.roll(energy_hist, i + 1) + np.roll(energy_hist, i - 1))
 
                 # Looks for the location of the maximum sum within the two bands where the peaks are likely to be
-                band_starts = [38, 94]
-                band_ends = [75, 125]
-                # These might need to be tuned separately for THOR and GODOT
                 for th in range(len(band_starts)):
                     band_max = np.argmax(sums[band_starts[th]:band_ends[th]]) + int(band_starts[th])
                     flagged_indices = np.append(flagged_indices, band_max)
                 nai_energies = energy_bins[flagged_indices.astype(int)]
 
             # Plots the actual spectrum
+            plt.figure(figsize=[20, 11.0])
             plt.title(f'Energy Spectrum for {scintillator}, {str(date_timestamp)}', loc='center')
             plt.xlabel('Energy Channel')
             plt.ylabel('Counts/bin')
@@ -200,10 +217,20 @@ class Detector:
             eRC = scintillator['eRC']
             sm.print_logger('\n', datetime_logs)
             sm.print_logger(f'For eRC {eRC} ({i}):', datetime_logs)
-            if self.THOR:
-                complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}*_lm_{self.day}_*')
-            else:
-                complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}_lm4_*_{self.day}_*')
+            # Here in case the data files in a custom location are grouped into daily folders
+            try:
+                if self.THOR:
+                    complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}*_lm_{self.day}_*')
+                else:
+                    complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}_lm4_*_{self.day}_*')
+
+                assert len(complete_filelist) > 0, 'Empty filelist'
+
+            except AssertionError:
+                if self.THOR:
+                    complete_filelist = glob.glob(f'{self.import_path}/{self.day}/eRC{eRC}*_lm_{self.day}_*')
+                else:
+                    complete_filelist = glob.glob(f'{self.import_path}/{self.day}/eRC{eRC}_lm4_*_{self.day}_*')
 
             # Filters out trace mode files and .txtp files (whatever those are)
             filtered_filelist = []
