@@ -5,6 +5,7 @@ import scipy.signal as signal
 import matplotlib.pyplot as plt
 import search_module as sm
 import DataReaderFinal as dr
+import datetime
 from datetime import timedelta as td
 
 # Classes used in search.py
@@ -228,9 +229,9 @@ class Detector:
 
             except AssertionError:
                 if self.THOR:
-                    complete_filelist = glob.glob(f'{self.import_path}/{self.day}/eRC{eRC}*_lm_{self.day}_*')
+                    complete_filelist = glob.glob(f'{self.import_path}{self.day}/eRC{eRC}*_lm_{self.day}_*')
                 else:
-                    complete_filelist = glob.glob(f'{self.import_path}/{self.day}/eRC{eRC}_lm4_*_{self.day}_*')
+                    complete_filelist = glob.glob(f'{self.import_path}{self.day}/eRC{eRC}_lm4_*_{self.day}_*')
 
             # Filters out trace mode files and .txtp files (whatever those are)
             filtered_filelist = []
@@ -328,7 +329,14 @@ class Detector:
 
                 # Makes the final arrays and exports them
                 scintillator.update({'filelist': filelist})
-                scintillator.update({'time': np.concatenate(time_list)})
+                times = np.concatenate(time_list)
+                # Corrects for the fact that the first 200-300 seconds of the next day are included in the last file
+                day_change_array = np.array(np.where(np.diff(times) < -80000))
+                if day_change_array.size > 0:
+                    change_index = int(day_change_array[0]) + 1
+                    times = np.append(times[0:change_index], times[change_index:] + 86400.0)
+
+                scintillator.update({'time': times})
                 scintillator.update({'energy': np.concatenate(energy_list)})
                 self.scintillators.update({i: scintillator})
 
@@ -350,16 +358,18 @@ class ShortEvent:
         self.scintillator = scintillator
 
     # Makes the short event scatter plots
-    def scatterplot_maker(self, timescales, filelist, times, energies, event_number, date_timestamp, unit, mode):
+    def scatterplot_maker(self, timescales, filelist, times, energies, event_number, first_sec, timestamp, unit, mode):
         # so many arguments
+        # I should probably just make some of this stuff attributes of the detector object
         event_times = times[self.start:self.stop]
         event_energies = energies[self.start:self.stop]
         event_length = event_times[-1] - event_times[0]
-        event_time = times[self.start]
+        event_time = times[self.start] - 86400 if times[self.start] > 86400 else times[self.start]
 
         figure1 = plt.figure(figsize=[20, 11.0])
-        figure1.suptitle(f'{self.scintillator} Event {str(event_number)} for {date_timestamp} at '
-                         f'{td(seconds=event_time)} UTC, {len(event_energies)} counts', fontsize=20)
+        figure1.suptitle(f'{self.scintillator} Event {str(event_number)}, '
+                         f'{datetime.datetime.utcfromtimestamp(times[self.start] + first_sec)} UTC, '
+                         f'{len(event_energies)} counts', fontsize=20)
         ax1 = figure1.add_subplot(3, 1, 1)
         ax2 = figure1.add_subplot(3, 1, 2)
         ax3 = figure1.add_subplot(3, 1, 3)
@@ -420,7 +430,10 @@ class ShortEvent:
         plt.title(f'Obtained from {event_file}', fontsize=15, y=-0.4)
 
         # Saves the scatter plot
-        full_day_string = f'{str(date_timestamp)[2:4]}{str(date_timestamp)[5:7]}{str(date_timestamp)[8:10]}'  # Lazy fix
+        # Note: with this code, if an event happens in that 200-300 seconds of the next day that are included in the
+        # last file, the image file will have the wrong date in its name. Though the timestamp in the title will
+        # always be correct.
+        full_day_string = f'{str(timestamp)[2:4]}{str(timestamp)[5:7]}{str(timestamp)[8:10]}'  # Lazy fix
         scatterpath = f'{sm.results_loc()}Results/{unit}/{full_day_string}/scatterplots/'
         sm.path_maker(scatterpath)
         figure1.savefig(f'{scatterpath}{full_day_string}_{self.scintillator}_event{event_number}.png')

@@ -248,8 +248,9 @@ for year in requested_dates:  # Loops over all requested years
                 if len(f_potential_event_list) > 0:
                     print('Potential short events:', file=datetime_logs)
                     for event in f_potential_event_list:
+                        start_second = times[event.start] - 86400 if times[event.start] > 86400 else times[event.start]
                         print(f'{datetime.datetime.utcfromtimestamp(times[event.start] + first_sec)} UTC '
-                              f'({times[event.start]} seconds of day)', file=datetime_logs)
+                              f'({start_second} seconds of day)', file=datetime_logs)
 
                     print('\n', file=datetime_logs)
 
@@ -268,13 +269,12 @@ for year in requested_dates:  # Loops over all requested years
                         print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
                         event = f_potential_event_list[y]
                         new_filelist = event.scatterplot_maker(ts_list, filelist, times, energies,
-                                                               y+1, date_timestamp, unit, mode)
+                                                               y+1, first_sec, date_timestamp, unit, mode)
                         plots_made += 1
                         print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
 
                     sm.print_logger('Done.', datetime_logs)
                     sm.print_logger('\n', datetime_logs)
-                    print('\n')
                 else:
                     print('\n')
 
@@ -310,11 +310,11 @@ for year in requested_dates:  # Loops over all requested years
                 energies = np.delete(energies, cut_indices)
             else:
                 print('Potentially inaccurate large plastic calibration, beware radon washout!', file=datetime_logs)
-            # Makes one bin for every ten seconds of the day
+            # Makes one bin for every ten seconds of the day (plus 30 more for the next one)
             if detector.processed:
                 times = times - first_sec
 
-            bins10sec = np.linspace(0.0, 86400.0, num=8641)
+            bins10sec = np.linspace(0.0, 86700.0, num=8671)
 
             # Creates numerical values for histograms using numpy
             hist_allday, bins_allday = np.histogram(times, bins=bins10sec)
