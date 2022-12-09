@@ -171,8 +171,7 @@ class Detector:
                     edge_indices = template['indices'].to_numpy()[0:2]
                     flagged_indices = edge_indices + shift_amount
                     self.good_lp_calibration = True
-                except FileNotFoundError:  # Here just in case there is no template found for the specified location
-                    # This LP calibration is likely to be pretty inaccurate
+                except FileNotFoundError:
                     sm.print_logger('No LP template found for this location', log)
 
                 lp_energies = energy_bins[flagged_indices.astype(int)]
@@ -197,8 +196,9 @@ class Detector:
             plt.yscale('log')
             plt.hist(energies, bins=energy_bins[0:bin_plot_edge], color='r', rwidth=0.5, zorder=1)
 
-            # Saves energy bins corresponding to the desired energies and plots them as vertical lines
-            plt.vlines(energy_bins[flagged_indices.astype(int)], 0, 1e6, zorder=2, alpha=0.75)
+            # Plots the energy bins corresponding to the desired energies as vertical lines
+            if flagged_indices.size > 0:
+                plt.vlines(energy_bins[flagged_indices.astype(int)], 0, 1e6, zorder=2, alpha=0.75)
 
             # Saves the figure
             sp_path = f'{sm.results_loc()}Results/{self.unit}/{full_day_string}/'
