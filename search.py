@@ -303,18 +303,19 @@ for year in requested_dates:  # Loops over all requested years
                 energies = detector.attribute_retriever('LP', 'energy')
 
             # Removes entries that are below a certain cutoff energy
-            if detector.good_lp_calibration:
+            if not detector.good_lp_calibration and (detector.GODOT or detector.SANTIS):
+                print('Potentially inaccurate large plastic calibration, beware radon washout!', file=datetime_logs)
+            else:
                 energy_cutoff = 1.9  # MeV
                 cut_indices = np.where(energies < energy_cutoff)
                 times = np.delete(times, cut_indices)
                 energies = np.delete(energies, cut_indices)
-            else:
-                print('Potentially inaccurate large plastic calibration, beware radon washout!', file=datetime_logs)
-            # Makes one bin for every ten seconds of the day (plus 30 more for the next one)
+
             if detector.processed:
                 times = times - first_sec
 
-            bins10sec = np.linspace(0.0, 86700.0, num=8671)
+            # Makes one bin for every ten seconds of the day (plus 30 more for the next day)
+            bins10sec = np.arange(86701, step=10)
 
             # Creates numerical values for histograms using numpy
             hist_allday, bins_allday = np.histogram(times, bins=bins10sec)

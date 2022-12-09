@@ -142,7 +142,7 @@ def channel_to_mev(energy_array, channel, scintillator):
 def hist_subplotter(ax, glow, times, bins10sec, mue, sigma):
     padding = 20
     c = 0 if (glow.peak_index - padding) < 0 else (glow.peak_index - padding)
-    d = 8639 if (glow.peak_index + padding) > 8639 else (glow.peak_index + padding)
+    d = 8670 if (glow.peak_index + padding) > 8670 else (glow.peak_index + padding)
 
     subbins = bins10sec[c:d]
     ax.hist(times, bins=subbins, alpha=0.5, color='c')
