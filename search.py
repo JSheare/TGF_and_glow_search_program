@@ -1,7 +1,6 @@
 import sys
 import warnings
-import datetime
-import calendar
+import datetime as dt
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -82,37 +81,36 @@ for year in requested_dates:  # Loops over all requested years
     requested_months = requested_dates[year]
     YEAR = int(year)
     YEAR_str = year
-    for i in requested_months:  # Loops over each requested month of the given year
-        MONTH = i[0]
-        MONTH_str = f'0{i[0]}' if len(str(i[0])) < 2 else str(i[0])
-        day1 = i[1]
-        day2 = i[2]
+    for month in requested_months:  # Loops over each requested month of the given year
+        MONTH = month[0]
+        MONTH_str = f'0{month[0]}' if len(str(month[0])) < 2 else str(month[0])
+        day1 = month[1]
+        day2 = month[2]
         for day in range(day1, day2+1):  # Loops over each requested day of the given month
             DAY = day
             DAY_str = f'0{day}' if len(str(day)) < 2 else str(day)
             full_day_string = f'{YEAR_str[2:4]}{MONTH_str}{DAY_str}'  # In format yymmdd
-            date_timestamp = datetime.date(YEAR, MONTH, DAY)  # In format yyyy-mm-dd
+            date_timestamp = dt.date(YEAR, MONTH, DAY)  # In format yyyy-mm-dd
             print(f'\n{date_timestamp}:')
 
             # Logs relevant data files and events in a .txt File
             log_path = f'{sm.results_loc()}Results/{unit}/{full_day_string}/'
             sm.path_maker(log_path)
-            datetime_logs = open(f'{log_path}log.txt', 'w')
+            log = open(f'{log_path}log.txt', 'w')
 
-            # Finds the EPOCH time of the first & last second of the day
-            first_sec = calendar.timegm((YEAR, MONTH, DAY, 0, 0, 0, -1, -1, -1))
-            last_sec = first_sec + 86400
-            sm.print_logger(f'The first second of {YEAR}-{MONTH}-{DAY} is: {first_sec}', datetime_logs)
-            sm.print_logger(f'The last second of {YEAR}-{MONTH}-{DAY} is: {last_sec}', datetime_logs)
+            # EPOCH time conversions
+            first_sec = (dt.datetime(YEAR, MONTH, DAY, 0, 0) - dt.datetime(1970, 1, 1)).total_seconds()
+            sm.print_logger(f'The first second of {YEAR}-{MONTH}-{DAY} is: {int(first_sec)}', log)
+            sm.print_logger(f'The last second of {YEAR}-{MONTH}-{DAY} is: {int(first_sec + 86400)}', log)
 
             # Imports the data
             print('Importing data...')
-            detector = sc.Detector(unit, full_day_string, mode)
-            detector.data_importer(datetime_logs)
+            detector = sc.Detector(unit, first_sec, log, mode)
+            detector.data_importer()
             if len(detector.scintillators['NaI']['filelist']) == 0 or (detector.scintillators['LP']['filelist']) == 0:
                 print('\n\n')
-                print('\n', file=datetime_logs)
-                sm.print_logger('No/Missing data for specified day.', datetime_logs)
+                print('\n', file=detector.log)
+                sm.print_logger('No/Missing data for specified day.', detector.log)
                 print('\n')
                 continue
 
@@ -121,14 +119,14 @@ for year in requested_dates:  # Loops over all requested years
 
             # Calibrates each scintillator
             print('\n')
-            sm.print_logger('Calibrating Scintillators and generating energy spectra...', datetime_logs)
-            lp_channels, nai_channels = detector.spectra_maker(date_timestamp, full_day_string, datetime_logs)
-            sm.print_logger('Done.', datetime_logs)
+            sm.print_logger('Calibrating Scintillators and generating energy spectra...', detector.log)
+            lp_channels, nai_channels = detector.spectra_maker(date_timestamp, full_day_string, detector.log)
+            sm.print_logger('Done.', detector.log)
 
     # Short event algorithm starts here:
-            sm.print_logger('\n', datetime_logs)
-            sm.print_logger('Starting search for short events...', datetime_logs)
-            sm.print_logger('\n', datetime_logs)
+            sm.print_logger('\n', detector.log)
+            sm.print_logger('Starting search for short events...', detector.log)
+            sm.print_logger('\n', detector.log)
 
             # Parameters:
             rollgap = 4
@@ -139,16 +137,17 @@ for year in requested_dates:  # Loops over all requested years
             channel_range_width = 300
             channel_ratio = 0.5
 
-            for g in detector.scintillators:
-                if g != 'LP' and not detector.plastics:
+            for scintillator in detector.scintillators:
+                if scintillator != 'LP' and not detector.plastics:
                     continue
-                elif g == 'NaI' and detector.plastics:
+                elif scintillator == 'NaI' and detector.plastics:
                     continue
 
-                sm.print_logger(f'For eRC {detector.scintillators[g]["eRC"]} ({g}):', datetime_logs)
-                times = detector.attribute_retriever(g, 'time')
-                energies = detector.attribute_retriever(g, 'energy')
-                filelist = detector.attribute_retriever(g, 'filelist')
+                sm.print_logger(f'For eRC {detector.scintillators[scintillator]["eRC"]} '
+                                f'({scintillator}):', detector.log)
+                times = detector.attribute_retriever(scintillator, 'time')
+                energies = detector.attribute_retriever(scintillator, 'energy')
+                filelist = detector.attribute_retriever(scintillator, 'filelist')
 
                 # Checks for an event by looking for a certain number of counts (rollgap + 1) in a small timeframe
                 potential_event_list = []
@@ -161,25 +160,25 @@ for year in requested_dates:  # Loops over all requested years
                 interval = np.abs(times - np.roll(times, rollgap))
 
                 # -1's are meant to band-aid a bug. I pretty much know what's causing it but too lazy to fix right now
-                for v in range(len(interval)):
+                for i in range(len(interval)):
                     # Records the beginning index of a potential event
-                    if interval[v] < event_time_spacing and event_length == 0:
-                        event_start = v
+                    if interval[i] < event_time_spacing and event_length == 0:
+                        event_start = i
                         event_length += 1
-                        event_time += interval[v]
+                        event_time += interval[i]
                         total_potential_events += 1
                         print(f'Potential event (#{total_potential_events})')
                     # Measures the length of a potential event
-                    if interval[v] < event_time_spacing and event_length >= 1:
+                    if interval[i] < event_time_spacing and event_length >= 1:
                         event_length += 1
-                        event_time += interval[v]
+                        event_time += interval[i]
 
                     # Records the rough length of a potential event
-                    if interval[v] > event_time_spacing and event_length > 0:
+                    if interval[i] > event_time_spacing and event_length > 0:
                         # Keeps potential event if it is longer than the specified minimum number of counts
                         if (event_length - 1) >= event_min_counts:
                             print(f'Potential event length: {event_time} seconds, {event_length - 1} counts')
-                            potential_event = sc.ShortEvent(event_start, event_length - 1, g)
+                            potential_event = sc.ShortEvent(event_start, event_length - 1, scintillator)
                             potential_event_list.append(potential_event)
 
                         if (event_length - 1) < event_min_counts:
@@ -189,7 +188,7 @@ for year in requested_dates:  # Loops over all requested years
                         event_length = 0
                         event_time = 0
                     # Counts the total number of times that the detection threshold was reached
-                    if interval[v] < event_time_spacing:
+                    if interval[i] < event_time_spacing:
                         total_threshold_reached += 1
 
                 # Eliminates noisy events
@@ -204,11 +203,11 @@ for year in requested_dates:  # Loops over all requested years
                     if event_length >= 30:
                         low_channel_counts = 0
                         high_channel_counts = 0
-                        for u in event_energies:
-                            if 200 <= u <= (200 + channel_range_width):
+                        for i in event_energies:
+                            if 200 <= i <= (200 + channel_range_width):
                                 low_channel_counts += 1
 
-                            if (300 + channel_range_width) <= u <= (300 + 2 * channel_range_width):
+                            if (300 + channel_range_width) <= i <= (300 + 2 * channel_range_width):
                                 high_channel_counts += 1
 
                         try:
@@ -225,8 +224,8 @@ for year in requested_dates:  # Loops over all requested years
                     # These 5 lines can probably be condensed into one, but I'm not going to do it right now
                     max_indices = (-event_energies).argsort()[:min_noise_counts]
                     max_energies = np.array([])
-                    for x in max_indices:
-                        max_energies = np.append(max_energies, event_energies[x])
+                    for i in max_indices:
+                        max_energies = np.append(max_energies, event_energies[i])
 
                     is_greater_than_thresh = np.all((max_energies > noise_cutoff_energy))
 
@@ -241,22 +240,22 @@ for year in requested_dates:  # Loops over all requested years
                         else:
                             print('Potential event removed due to noise')
 
-                sm.print_logger(f'\n{len(f_potential_event_list)} potential events recorded', datetime_logs)
-                sm.print_logger(f'Detection threshold reached {total_threshold_reached} times', datetime_logs)
-                print('\n', file=datetime_logs)
+                sm.print_logger(f'\n{len(f_potential_event_list)} potential events recorded', detector.log)
+                sm.print_logger(f'Detection threshold reached {total_threshold_reached} times', detector.log)
+                print('\n', file=detector.log)
 
                 if len(f_potential_event_list) > 0:
-                    print('Potential short events:', file=datetime_logs)
+                    print('Potential short events:', file=detector.log)
                     for event in f_potential_event_list:
                         start_second = times[event.start] - 86400 if times[event.start] > 86400 else times[event.start]
-                        print(f'{datetime.datetime.utcfromtimestamp(times[event.start] + first_sec)} UTC '
-                              f'({start_second} seconds of day)', file=datetime_logs)
+                        print(f'{dt.datetime.utcfromtimestamp(times[event.start] + first_sec)} UTC '
+                              f'({start_second} seconds of day)', file=detector.log)
 
-                    print('\n', file=datetime_logs)
+                    print('\n', file=detector.log)
 
                     # Makes scatter plots of the resulting potential events
                     print('\n')
-                    sm.print_logger('Generating scatter plots...', datetime_logs)
+                    sm.print_logger('Generating scatter plots...', detector.log)
 
                     # Subplot timescales
                     ts1 = 1e-4  # 100 microseconds
@@ -265,28 +264,33 @@ for year in requested_dates:  # Loops over all requested years
                     ts_list = [ts1, ts2, ts3]
 
                     plots_made = 0
-                    for y in range(len(f_potential_event_list)):
+                    for i in range(len(f_potential_event_list)):
                         print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
-                        event = f_potential_event_list[y]
-                        new_filelist = event.scatterplot_maker(ts_list, filelist, times, energies,
-                                                               y+1, first_sec, date_timestamp, unit, mode)
+                        event = f_potential_event_list[i]
+                        new_filelist = event.scatterplot_maker(ts_list, detector, i+1)
                         plots_made += 1
                         print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
 
-                    sm.print_logger('Done.', datetime_logs)
-                    sm.print_logger('\n', datetime_logs)
+                    sm.print_logger('Done.', detector.log)
+                    sm.print_logger('\n', detector.log)
                 else:
                     print('\n')
 
     # Glow search algorithm starts here
-            sm.print_logger('Starting search for glows...', datetime_logs)
+            sm.print_logger('Starting search for glows...', detector.log)
 
             # Converts energy channels from volts to MeV using the locations of peaks/edges obtained during calibration
-            lp_times = detector.attribute_retriever('LP', 'time')
-            lp_energies = sm.channel_to_mev(detector.attribute_retriever('LP', 'energy'), lp_channels, 'LP')
+            # This code could probably be cleaned up
+            if detector.good_lp_calibration:
+                lp_times = detector.attribute_retriever('LP', 'time')
+                lp_energies = sm.channel_to_mev(detector.attribute_retriever('LP', 'energy'), lp_channels, 'LP')
+            else:
+                lp_times = detector.attribute_retriever('LP', 'time')
+                lp_energies = detector.attribute_retriever('LP', 'energy')
+
             if detector.SANTIS:
-                nai_times = []
-                nai_energies = []
+                nai_times = np.array([])
+                nai_energies = np.array([])
             else:
                 nai_times = detector.attribute_retriever('NaI', 'time')
                 nai_energies = sm.channel_to_mev(detector.attribute_retriever('NaI', 'energy'), nai_channels, 'NaI')
@@ -304,7 +308,7 @@ for year in requested_dates:  # Loops over all requested years
 
             # Removes entries that are below a certain cutoff energy
             if not detector.good_lp_calibration and (detector.GODOT or detector.SANTIS):
-                print('Potentially inaccurate large plastic calibration, beware radon washout!', file=datetime_logs)
+                print('Potentially inaccurate large plastic calibration, beware radon washout!', file=detector.log)
             else:
                 energy_cutoff = 1.9  # MeV
                 cut_indices = np.where(energies < energy_cutoff)
@@ -330,9 +334,9 @@ for year in requested_dates:  # Loops over all requested years
             hist_allday_nz = hist_allday_nz[np.argsort(abs_zscores)]
             hist_allday_nz = hist_allday_nz[::-1]
             zscores = np.sort(abs_zscores)[::-1]
-            for k in range(len(abs_zscores)):
-                if abs_zscores[k] < 3:
-                    hist_allday_nz = hist_allday_nz[k:]
+            for i in range(len(abs_zscores)):
+                if abs_zscores[i] < 3:
+                    hist_allday_nz = hist_allday_nz[i:]
                     break
 
             mue = sum(hist_allday_nz) / len(hist_allday_nz)
@@ -342,14 +346,14 @@ for year in requested_dates:  # Loops over all requested years
             z_flags = np.array([])
             p = 0
             # Flags only those z-scores > 5
-            for j in range(len(hist_allday)):
-                if hist_allday[j] > mue:  # Peak
-                    z_scores = np.append(z_scores, ((hist_allday[j] - mue) / sigma))
-                    if z_scores[j] >= 5:
-                        z_flags = np.append(z_flags, j)
+            for i in range(len(hist_allday)):
+                if hist_allday[i] > mue:  # Peak
+                    z_scores = np.append(z_scores, ((hist_allday[i] - mue) / sigma))
+                    if z_scores[i] >= 5:
+                        z_flags = np.append(z_flags, i)
                         p += 1
-                elif hist_allday[j] < mue:  # Valley
-                    z_scores = np.append(z_scores, ((hist_allday[j] - mue) / sigma))
+                elif hist_allday[i] < mue:  # Valley
+                    z_scores = np.append(z_scores, ((hist_allday[i] - mue) / sigma))
 
             # Redefines z_flag to only contain flags from the start to p-1
             # yeah, but why?
@@ -378,21 +382,21 @@ for year in requested_dates:  # Loops over all requested years
 
                 previous_time = bins10sec[flag]
 
-            sm.print_logger('Done.', datetime_logs)
+            sm.print_logger('Done.', detector.log)
             if len(potential_glow_list) == 0:
-                sm.print_logger(f'There were no potential glows for the date {date_timestamp}', datetime_logs)
+                sm.print_logger(f'There were no potential glows for the date {date_timestamp}', detector.log)
             else:
                 # Logs potential glows and sorts them in descending order depending on their highest z-score
                 highest_scores = []
-                print('\n', file=datetime_logs)
-                print('Potential glows:', file=datetime_logs)
+                print('\n', file=detector.log)
+                print('Potential glows:', file=detector.log)
                 for glow in potential_glow_list:
                     highest_score = glow.highest_zscore(z_scores)
                     highest_scores.append(highest_score)
                     beginning, length = glow.glow_length_and_beginning_seconds(bins10sec)
-                    print(f'{datetime.datetime.utcfromtimestamp(beginning + first_sec)} UTC ({beginning} '
+                    print(f'{dt.datetime.utcfromtimestamp(beginning + first_sec)} UTC ({beginning} '
                           f'seconds of day), {length} seconds long, highest z-score: {highest_score}',
-                          file=datetime_logs)
+                          file=detector.log)
 
                 glow_sorting_order = np.argsort(highest_scores)
                 glow_sorting_order = glow_sorting_order[::-1]
@@ -402,8 +406,8 @@ for year in requested_dates:  # Loops over all requested years
                 location = sm.location(unit, YEAR)
 
                 # Plotting the histograms
-                sm.print_logger('\n', datetime_logs)
-                sm.print_logger('Generating Histogram...', datetime_logs)
+                sm.print_logger('\n', detector.log)
+                sm.print_logger('Generating Histogram...', detector.log)
                 figu = plt.figure(figsize=[20, 11.0])
                 plt.title(f'{unit} {location}, {str(date_timestamp)}', loc='center')
                 plt.tick_params(left=False, right=False, labelleft=False, labelbottom=False, bottom=False)
@@ -427,10 +431,10 @@ for year in requested_dates:  # Loops over all requested years
                 ax1.legend(handles=[allday_data, allday_5sigma, ], bbox_to_anchor=(1.05, 1), loc=1, borderaxespad=0.)
                 ax1.grid(True)
 
-                for a in range(4):
+                for i in range(4):
                     try:
-                        glow = potential_glow_list[a]
-                        sm.hist_subplotter(ax_list[a], glow, times, bins10sec, mue, sigma)
+                        glow = potential_glow_list[i]
+                        sm.hist_subplotter(ax_list[i], glow, times, bins10sec, mue, sigma)
                     except IndexError:
                         continue
 
@@ -442,7 +446,7 @@ for year in requested_dates:  # Loops over all requested years
                 sm.path_maker(hist_path)
                 plt.savefig(f'{hist_path}{full_day_string}_histogram.png', dpi=500)
                 plt.close(figu)
-                sm.print_logger('Done', datetime_logs)
-                sm.print_logger('\n', datetime_logs)
+                sm.print_logger('Done', detector.log)
+                sm.print_logger('\n', detector.log)
 
-            datetime_logs.close()
+            log.close()

@@ -1,7 +1,4 @@
 import os
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy import signal
 
 # Functions used in search.py. Also, a centralized location for file paths and detector locations
 

@@ -5,39 +5,36 @@ import scipy.signal as signal
 import matplotlib.pyplot as plt
 import search_module as sm
 import DataReaderFinal as dr
-import datetime
-from datetime import timedelta as td
+import datetime as dt
 
 # Classes used in search.py
 
 
 # Class used to store all relevant information about the detector and the data
 class Detector:
-    def __init__(self, unit, day, modes):
+    def __init__(self, unit, first_sec, log, modes):
+        # Basic information
         self.unit = unit
-        self.day = day
+        self.first_sec = first_sec
+        self.full_day_string = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%y%m%d')  # In format yymmdd
+        self.date_timestamp = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%Y-%m-%d')  # In format yyyy-mm-dd
         self.location = 'location'  # Eventually this will be fetched from a function in search_module
+        self.log = log
         self.modes = modes
+        self.import_path = ''
+        self.good_lp_calibration = False
 
+        # Detector information
         self.THOR = False
         self.GODOT = False
         self.SANTIS = False
 
-        self.custom = False
-        self.processed = False
-        self.plastics = False
-        self.template = False
-
-        self.import_path = ''
-        self.good_lp_calibration = False
-
         if self.unit == 'GODOT':
             self.GODOT = True
             if 'processed' in self.modes:
-                self.processed = True
-                self.import_path = f'{sm.G_processed_data_loc()}/{day[0:4]}/'
+                self.import_path = f'{sm.G_processed_data_loc()}/{self.full_day_string[0:4]}'
             else:
-                self.import_path = f'{sm.G_raw_data_loc()}/{day}/'
+                self.import_path = f'{sm.G_raw_data_loc()}/{self.full_day_string}'
 
             self.scintillators = {'NaI': {'eRC': '1490', 'filelist': [],
                                           'time': np.array([]), 'energy': np.array([])},
@@ -46,7 +43,7 @@ class Detector:
 
         elif self.unit[0:4] == 'THOR':
             self.THOR = True
-            self.import_path = f'{sm.T_raw_data_loc()}/{unit}/Data/{day}/'
+            self.import_path = f'{sm.T_raw_data_loc()}/{unit}/Data/{self.full_day_string}'
             self.scintillators = {'NaI': {'eRC': sm.T_eRC(self.unit)[0], 'filelist': [],
                                           'time': np.array([]), 'energy': np.array([])},
                                   'SP': {'eRC': sm.T_eRC(self.unit)[1], 'filelist': [],
@@ -58,16 +55,22 @@ class Detector:
 
         elif self.unit == 'SANTIS':
             self.SANTIS = True
-            self.import_path = f'{sm.S_raw_data_loc()}/{day}/'
+            self.import_path = f'{sm.S_raw_data_loc()}/{self.full_day_string}'
             self.scintillators = {'LP': {'eRC': '2549', 'filelist': [],
                                          'time': np.array([]), 'energy': np.array([])}}
         else:
             print('Not a valid detector')
             exit()
 
+        # Modes
+        self.custom = False
+        self.processed = False
+        self.plastics = False
+        self.template = False
+
         if 'custom' in self.modes:
             self.custom = True  # Not necessary for anything right now
-            self.import_path = f'{sm.C_raw_data_loc()}/'
+            self.import_path = f'{sm.C_raw_data_loc()}'
 
         if 'processed' in self.modes:
             self.processed = True
@@ -89,12 +92,13 @@ class Detector:
 
     # Makes the energy spectra histograms for the LP and NaI scintillators
     def spectra_maker(self, date_timestamp, full_day_string, log):
+        # full_day_string is an attribute of detector, and log should be made an attribute of detector
         lp_energies = np.array([])
         nai_energies = np.array([])
         if self.THOR:
             bin_range = 65535.0
             bin_number = 65536
-            band_starts = [1800, 5600]
+            band_starts = [2000, 5600]
             band_ends = [2500, 6300]
             template_bin_plot_edge = 8000
         else:
@@ -183,8 +187,8 @@ class Detector:
                     sums += (np.roll(energy_hist, i + 1) + np.roll(energy_hist, i - 1))
 
                 # Looks for the location of the maximum sum within the two bands where the peaks are likely to be
-                for th in range(len(band_starts)):
-                    band_max = np.argmax(sums[band_starts[th]:band_ends[th]]) + int(band_starts[th])
+                for i in range(len(band_starts)):
+                    band_max = np.argmax(sums[band_starts[i]:band_ends[i]]) + int(band_starts[i])
                     flagged_indices = np.append(flagged_indices, band_max)
                 nai_energies = energy_bins[flagged_indices.astype(int)]
 
@@ -212,32 +216,34 @@ class Detector:
         return lp_energies, nai_energies
 
     # Imports data from datafiles into arrays
-    def data_importer(self, datetime_logs):
+    def data_importer(self):
         for i in self.scintillators:
             scintillator = self.scintillators[i]
             eRC = scintillator['eRC']
-            sm.print_logger('\n', datetime_logs)
-            sm.print_logger(f'For eRC {eRC} ({i}):', datetime_logs)
+            sm.print_logger('\n', self.log)
+            sm.print_logger(f'For eRC {eRC} ({i}):', self.log)
             # Here in case the data files in a custom location are grouped into daily folders
             try:
                 if self.THOR:
-                    complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}*_lm_{self.day}_*')
+                    complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}*_lm_{self.full_day_string}_*')
                 else:
-                    complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}_lm4_*_{self.day}_*')
+                    complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}_lm4_*_{self.full_day_string}_*')
 
                 assert len(complete_filelist) > 0, 'Empty filelist'
 
             except AssertionError:
                 if self.THOR:
-                    complete_filelist = glob.glob(f'{self.import_path}{self.day}/eRC{eRC}*_lm_{self.day}_*')
+                    complete_filelist = glob.glob(f'{self.import_path}/{self.full_day_string}'
+                                                  f'/eRC{eRC}*_lm_{self.full_day_string}_*')
                 else:
-                    complete_filelist = glob.glob(f'{self.import_path}{self.day}/eRC{eRC}_lm4_*_{self.day}_*')
+                    complete_filelist = glob.glob(f'{self.import_path}/{self.full_day_string}'
+                                                  f'/eRC{eRC}_lm4_*_{self.full_day_string}_*')
 
             # Filters out trace mode files and .txtp files (whatever those are)
             filtered_filelist = []
             unfiltered_filelist = []
-            for u in range(len(complete_filelist)):
-                current_file = complete_filelist[u]
+            for j in range(len(complete_filelist)):
+                current_file = complete_filelist[j]
                 if current_file[-3:] == 'xtr' or current_file[-4:] == 'txtp' or current_file[-5:] == 'xtrpp':
                     continue
                 elif current_file[-7:] == '.txt.gz':
@@ -246,8 +252,8 @@ class Detector:
                     unfiltered_filelist.append(current_file)
 
             # Eliminates duplicate files
-            for h in range(len(unfiltered_filelist)):
-                current_file = unfiltered_filelist[h]
+            for j in range(len(unfiltered_filelist)):
+                current_file = unfiltered_filelist[j]
                 if f'{current_file}.gz' in filtered_filelist:
                     continue
                 else:
@@ -256,8 +262,8 @@ class Detector:
             # Puts the files in the correct order
             files = []
             extensions = []
-            for ik in range(len(filtered_filelist)):
-                file = filtered_filelist[ik]
+            for j in range(len(filtered_filelist)):
+                file = filtered_filelist[j]
                 if file[-4:] == '.txt':
                     files.append(file.replace('.txt', ''))
                     extensions.append('.txt')
@@ -272,8 +278,8 @@ class Detector:
             files.sort()
             extensions = [extensions[s] for s in file_order]
             filelist = []
-            for it in range(len(files)):
-                filelist.append(f'{files[it]}{extensions[it]}')
+            for j in range(len(files)):
+                filelist.append(f'{files[j]}{extensions[j]}')
 
             try:
                 # Tests to make sure that new_filelist isn't empty
@@ -288,7 +294,7 @@ class Detector:
                 last_second = 0.0
                 files_imported = 0
 
-                print('File|File Behavior|File Time Gap (sec)', file=datetime_logs)
+                print('File|File Behavior|File Time Gap (sec)', file=self.log)
                 for day_files in filelist:
                     # Try-except block to log files where GPS and wallclock disagree significantly
                     file_behavior = 'Normal'
@@ -325,7 +331,7 @@ class Detector:
                     files_imported += 1
 
                     print(f'{files_imported}/{len(filelist)} files imported', end='\r')
-                    print(f'{day_files}|{file_behavior}|{file_time_gap}', file=datetime_logs)
+                    print(f'{day_files}|{file_behavior}|{file_time_gap}', file=self.log)
 
                 # Makes the final arrays and exports them
                 scintillator.update({'filelist': filelist})
@@ -340,12 +346,12 @@ class Detector:
                 scintillator.update({'energy': np.concatenate(energy_list)})
                 self.scintillators.update({i: scintillator})
 
-                print('\n', file=datetime_logs)
-                print(f'Total Counts: {len(np.concatenate(time_list))}', file=datetime_logs)
-                print(f'Average time gap: {np.sum(file_time_gaps) / len(file_time_gaps)}', file=datetime_logs)
-                print('\n', file=datetime_logs)
+                print('\n', file=self.log)
+                print(f'Total Counts: {len(np.concatenate(time_list))}', file=self.log)
+                print(f'Average time gap: {np.sum(file_time_gaps) / len(file_time_gaps)}', file=self.log)
+                print('\n', file=self.log)
             except (AssertionError, ValueError):
-                print('Missing data for the specified day.', file=datetime_logs)
+                print('Missing data for the specified day.', file=self.log)
                 print('Missing data for the specified day.', end='\r')
                 continue
 
@@ -358,9 +364,11 @@ class ShortEvent:
         self.scintillator = scintillator
 
     # Makes the short event scatter plots
-    def scatterplot_maker(self, timescales, filelist, times, energies, event_number, first_sec, timestamp, unit, mode):
-        # so many arguments
-        # I should probably just make some of this stuff attributes of the detector object
+    def scatterplot_maker(self, timescales, detector, event_number):
+        filelist = detector.attribute_retriever(self.scintillator, 'filelist')
+        times = detector.attribute_retriever(self.scintillator, 'time')
+        energies = detector.attribute_retriever(self.scintillator, 'energy')
+
         event_times = times[self.start:self.stop]
         event_energies = energies[self.start:self.stop]
         event_length = event_times[-1] - event_times[0]
@@ -368,22 +376,23 @@ class ShortEvent:
 
         figure1 = plt.figure(figsize=[20, 11.0])
         figure1.suptitle(f'{self.scintillator} Event {str(event_number)}, '
-                         f'{datetime.datetime.utcfromtimestamp(times[self.start] + first_sec)} UTC, '
+                         f'{dt.datetime.utcfromtimestamp(times[self.start] + detector.first_sec)} UTC, '
                          f'{len(event_energies)} counts', fontsize=20)
         ax1 = figure1.add_subplot(3, 1, 1)
         ax2 = figure1.add_subplot(3, 1, 2)
         ax3 = figure1.add_subplot(3, 1, 3)
         ax_list = [ax1, ax2, ax3]
 
-        for v in range(len(ax_list)):
-            ts = timescales[v]
-            ax = ax_list[v]
+        for i in range(len(ax_list)):
+            ts = timescales[i]
+            ax = ax_list[i]
             padding = (ts - event_length) / 2
             if event_length >= ts:
                 best_time = event_times[np.argmin(np.abs(event_times - np.roll(event_times, 1)))]
                 ax.set_xlim(xmin=best_time - (ts / 2), xmax=best_time + (ts / 2))
             else:
                 ax.set_xlim(xmin=event_times[0] - padding, xmax=event_times[-1] + padding)
+
             dot_size = 3 if ts == timescales[0] else 1  # makes larger dots for top plot
             ax.set_yscale('log')
             ax.set_ylim([0.5, 1e5])
@@ -401,7 +410,7 @@ class ShortEvent:
         files_examined = 0
         new_filelist = []
         for day_files in filelist:
-            if mode == 'processed':
+            if detector.processed:
                 e, temp_t_array = np.loadtxt(day_files, skiprows=1, usecols=(0, 2), unpack=True)
             else:
                 try:
@@ -431,12 +440,11 @@ class ShortEvent:
 
         # Saves the scatter plot
         # Note: with this code, if an event happens in that 200-300 seconds of the next day that are included in the
-        # last file, the image file will have the wrong date in its name. Though the timestamp in the title will
-        # always be correct.
-        full_day_string = f'{str(timestamp)[2:4]}{str(timestamp)[5:7]}{str(timestamp)[8:10]}'  # Lazy fix
-        scatterpath = f'{sm.results_loc()}Results/{unit}/{full_day_string}/scatterplots/'
+        # last file, the image will have the wrong date in its name (though the timestamp in the title will
+        # always be correct)
+        scatterpath = f'{sm.results_loc()}Results/{detector.unit}/{detector.full_day_string}/scatterplots/'
         sm.path_maker(scatterpath)
-        figure1.savefig(f'{scatterpath}{full_day_string}_{self.scintillator}_event{event_number}.png')
+        figure1.savefig(f'{scatterpath}{detector.full_day_string}_{self.scintillator}_event{event_number}.png')
         plt.close(figure1)
         return new_filelist
 
