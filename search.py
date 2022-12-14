@@ -120,7 +120,7 @@ for year in requested_dates:  # Loops over all requested years
             # Calibrates each scintillator
             print('\n')
             sm.print_logger('Calibrating Scintillators and generating energy spectra...', detector.log)
-            lp_channels, nai_channels = detector.spectra_maker(date_timestamp, full_day_string, detector.log)
+            lp_channels, nai_channels = detector.spectra_maker()
             sm.print_logger('Done.', detector.log)
 
     # Short event algorithm starts here:

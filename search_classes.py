@@ -91,7 +91,7 @@ class Detector:
         return desired_attribute
 
     # Makes the energy spectra histograms for the LP and NaI scintillators
-    def spectra_maker(self, date_timestamp, full_day_string, log):
+    def spectra_maker(self):
         # full_day_string is an attribute of detector, and log should be made an attribute of detector
         lp_energies = np.array([])
         nai_energies = np.array([])
@@ -119,7 +119,7 @@ class Detector:
             flagged_indices = np.array([])
             # Makes a template that can be used in the LP calibration algorithm's cross-correlation
             if self.template and scintillator == 'LP':
-                sm.print_logger('Entering template mode...', log)
+                sm.print_logger('Entering template mode...', self.log)
                 print('\n')
                 iterations = 0
                 bin_plot_edge = template_bin_plot_edge
@@ -176,7 +176,7 @@ class Detector:
                     flagged_indices = edge_indices + shift_amount
                     self.good_lp_calibration = True
                 except FileNotFoundError:
-                    sm.print_logger('No LP template found for this location', log)
+                    sm.print_logger('No LP template found for this location', self.log)
 
                 lp_energies = energy_bins[flagged_indices.astype(int)]
 
@@ -194,7 +194,7 @@ class Detector:
 
             # Plots the actual spectrum
             plt.figure(figsize=[20, 11.0])
-            plt.title(f'Energy Spectrum for {scintillator}, {str(date_timestamp)}', loc='center')
+            plt.title(f'Energy Spectrum for {scintillator}, {self.date_timestamp}', loc='center')
             plt.xlabel('Energy Channel')
             plt.ylabel('Counts/bin')
             plt.yscale('log')
@@ -205,7 +205,7 @@ class Detector:
                 plt.vlines(energy_bins[flagged_indices.astype(int)], 0, 1e6, zorder=2, alpha=0.75)
 
             # Saves the figure
-            sp_path = f'{sm.results_loc()}Results/{self.unit}/{full_day_string}/'
+            sp_path = f'{sm.results_loc()}Results/{self.unit}/{self.full_day_string}/'
             sm.path_maker(sp_path)
             plt.savefig(f'{sp_path}{scintillator}_Spectrum.png', dpi=500)
             plt.clf()
