@@ -1,3 +1,15 @@
+"""Classes for use in the TGF and glow search program.
+
+Classes:
+    Detector:
+        Object used to store all relevant information about the detector and the data.
+    ShortEvent:
+        Object used to store all relevant information about potential short events.
+    PotentialGlow:
+        Object used to store all relevant information about potential glows.
+
+"""
+
 import glob
 import numpy as np
 import pandas as pd
@@ -7,20 +19,70 @@ import search_module as sm
 import DataReaderFinal as dr
 import datetime as dt
 
-# Classes used in search.py
 
-
-# Class used to store all relevant information about the detector and the data
 class Detector:
+    """ Used to store all relevant information about the detector and the data.
+
+    The detector object is used to store the name of the detector, the requested date for analysis in various formats,
+    and the actual data in a single, centralized location. Once data is imported from each file, it, along with the
+    list of files and the eRC serial number, is stored in a nested dictionary structure that makes it very easy to
+    access.
+
+    Parameters
+    ----------
+    unit : str
+        The name of the particular detector that the analysis is being requested for.
+    first_sec : float
+        The first second in EPOCH time of the day that data analysis is being requested for.
+    log : file
+        The .txt file where program actions and findings are logged.
+    modes : list
+        A list of the requested modes that the program should operate under.
+
+    Attributes
+    ----------
+    full_day_string : str
+        The timestamp for the requested day in yymmdd format.
+    date_timestamp : str
+        The timestamp for the requested in day in yyyy-mm-dd format.
+    location : str
+        The location of the detector on the requested day.
+    import_path : str
+        The import path for the location of the requested data files.
+    good_lp_calibration : bool
+        A flag for whether the program was able to calibrate the detector's large plastic scintillator or not.
+    THOR : bool
+        A flag for whether the requested detector is a THOR unit or not.
+    GODOT : bool
+        A flag for whether the requested detector is GODOT or not.
+    SANTIS : bool
+        A flag for whether the requested detector is the Santis instrument or not.
+    custom : bool
+        A flag for whether the program should operate in "custom" mode or not. Custom mode essentially just instructs
+        the program to use a custom file path for importing data instead of the ones that are built-in. This path can be
+        changed in the search_module module under the "C_raw_data" function.
+    processed : bool
+        A flag for whether the program should operate in "processed" mode or not. Under this mode, the program will use
+        the built-in file path for GODOT processed data on Sol.
+    plastics : bool
+        A flag for whether the program should operate in "plastics" mode or not. When this mode is requested, the
+        program will run the short event search algorithm on the small, medium, and large plastic scintillator data
+        as opposed to just the large plastic.
+    template : bool
+        A flag for whether the program should operate in "template" mode or not. This mode allows the user to generate
+        and tweak templates that the program uses to calibrate the large plastic scintillator. These must be made for
+        each new location.
+
+    """
     def __init__(self, unit, first_sec, log, modes):
         # Basic information
         self.unit = unit
         self.first_sec = first_sec
+        self.log = log
+        self.modes = modes
         self.full_day_string = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%y%m%d')  # In format yymmdd
         self.date_timestamp = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%Y-%m-%d')  # In format yyyy-mm-dd
         self.location = 'location'  # Eventually this will be fetched from a function in search_module
-        self.log = log
-        self.modes = modes
         self.import_path = ''
         self.good_lp_calibration = False
 
@@ -84,15 +146,41 @@ class Detector:
         if 'template' in self.modes:
             self.template = True
 
-    # Retrieves the requested attribute for a particular scintillator
     def attribute_retriever(self, scintillator, attribute):  # Make it possible to request multiple attributes at once?
+        """Retrieves the requested attribute for a particular scintillator
+
+        Parameters
+        ----------
+        scintillator : str
+            A string corresponding to the scintillator of interest. Allowed values: 'NaI', 'SP', 'MP', 'LP'.
+        attribute : str
+            A string corresponding to the scintillator attribute of interest. Allowed values: 'eRC', 'filelist', 'time',
+            'energy'.
+
+        Returns
+        -------
+        str, list, np.float
+            String if 'eRC' is requested, list if 'filelist' is requested, or a numpy array full of float values if
+            'time' or 'energy' is requested.
+
+        """
+
         medium = self.scintillators[scintillator]
         desired_attribute = medium[attribute]
         return desired_attribute
 
-    # Makes the energy spectra histograms for the LP and NaI scintillators
     def spectra_maker(self):
-        # full_day_string is an attribute of detector, and log should be made an attribute of detector
+        """Makes the energy spectra histograms for the large plastic and sodium iodide scintillators.
+
+        Returns
+        -------
+        np.float
+            Two numpy arrays. The first array contains the large plastic scintillator energy channels corresponding to
+            the least compton-scattered photons of Potassium-40 and Thorium (i.e. compton edge locations). The second
+            array contains the sodium iodide scintillator energy channels corresponding to the photo peaks of
+            Potassium-40 and Thorium.
+
+        """
         lp_energies = np.array([])
         nai_energies = np.array([])
         if self.THOR:
@@ -215,8 +303,10 @@ class Detector:
 
         return lp_energies, nai_energies
 
-    # Imports data from datafiles into arrays
     def data_importer(self):
+        """Imports data from data files into arrays and then updates them into the nested dictionary structure.
+
+        """
         for i in self.scintillators:
             scintillator = self.scintillators[i]
             eRC = scintillator['eRC']
@@ -357,15 +447,58 @@ class Detector:
 
 
 class ShortEvent:
+    """Object used to store all relevant information about potential short events.
+
+    Parameters
+    ----------
+    event_start : int
+        The index of the time array which corresponds to the start of the event.
+    event_length : int
+        The number of entries in the time array which make up the event.
+    scintillator : str
+        A string corresponding to the scintillator which the event was found in.
+
+    Attributes
+    ----------
+    start : int
+        The index of the time array which corresponds to the start of the event.
+    length : int
+        The number of entries in the time array which make up the event.
+    stop : int
+        The index of the time array which corresponds to the end of the event.
+    scintillator : str
+        A string corresponding to the scintillator which the event was found in.
+
+    """
     def __init__(self, event_start, event_length, scintillator):
         self.start = int(event_start)
         self.length = int(event_length)
         self.stop = int(event_start + event_length)
         self.scintillator = scintillator
 
-    # Makes the short event scatter plots
-    def scatterplot_maker(self, timescales, detector, event_number):
-        filelist = detector.attribute_retriever(self.scintillator, 'filelist')
+    def scatterplot_maker(self, timescales, detector, event_number, filelist):
+        """Makes the short event scatter plots
+
+        Parameters
+        ----------
+        timescales : list
+            A list of the timescales (in seconds) that the scatter plots are generated in.
+        detector : Detector object
+            The detector object used to store all the data and relevant information.
+        event_number : int
+            A number corresponding to the event's number for that particular scintillator (i.e. 1 would be the first
+            event for whatever scintillator, 2 would be the second, and so on).
+        filelist : list
+            A list of all the files to be searched when looking for the beginning of an event. Once the name of the
+            file for an event has been found it is added to the scatter plot title.
+
+        Returns
+        -------
+        list
+            Returns a shorter version of the filelist for the requested scintillator. This new list is
+            eventually used when the next scatter plot is generated to make file finding faster.
+
+        """
         times = detector.attribute_retriever(self.scintillator, 'time')
         energies = detector.attribute_retriever(self.scintillator, 'energy')
 
@@ -450,6 +583,27 @@ class ShortEvent:
 
 
 class PotentialGlow:
+    """Object used to store all relevant information about potential glows
+
+    Parameters
+    ----------
+    glow_start : int
+        The index of the histogram bin which corresponds to the start of the event.
+    glow_length : int
+        The number of histogram bins which make up an event.
+
+    Attributes
+    ----------
+    start : int
+        The index of the histogram bin which corresponds to the start of the event.
+    length : int
+        The number of histogram bins which make up an event.
+    stop : int
+        The index of the histogram bin which corresponds to the end of the event.
+    peak_index : int
+        The location of the bin with the largest z-score among all the bins comprising the event.
+
+    """
     def __init__(self, glow_start, glow_length):
         self.start = int(glow_start)
         self.length = int(glow_length)
@@ -457,12 +611,14 @@ class PotentialGlow:
         self.peak_index = 0
 
     def highest_zscore(self, z_scores):
+        """ Identifies the highest z-score and its corresponding bin for an event."""
         glow_scores = z_scores[self.start:self.stop]
         highest_score = np.max(glow_scores)
         self.peak_index = np.argmax(glow_scores) + self.start
         return highest_score
 
     def glow_length_and_beginning_seconds(self, bins10sec):
+        """ Retrieves the beginning and total length of an event in seconds."""
         glow_times = bins10sec[self.start:self.stop]
         first_sec = glow_times[0]
         length = self.length * 10

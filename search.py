@@ -263,11 +263,12 @@ for year in requested_dates:  # Loops over all requested years
                     ts3 = 0.1  # 100 milliseconds
                     ts_list = [ts1, ts2, ts3]
 
+                    filelist = detector.attribute_retriever(scintillator, 'filelist')
                     plots_made = 0
                     for i in range(len(f_potential_event_list)):
                         print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
                         event = f_potential_event_list[i]
-                        new_filelist = event.scatterplot_maker(ts_list, detector, i+1)
+                        filelist = event.scatterplot_maker(ts_list, detector, i+1, filelist)
                         plots_made += 1
                         print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
 
