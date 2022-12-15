@@ -147,7 +147,7 @@ class Detector:
             self.template = True
 
     def attribute_retriever(self, scintillator, attribute):  # Make it possible to request multiple attributes at once?
-        """Retrieves the requested attribute for a particular scintillator
+        """Retrieves the requested attribute for a particular scintillator.
 
         Parameters
         ----------
@@ -477,7 +477,7 @@ class ShortEvent:
         self.scintillator = scintillator
 
     def scatterplot_maker(self, timescales, detector, event_number, filelist):
-        """Makes the short event scatter plots
+        """Makes the short event scatter plots.
 
         Parameters
         ----------
@@ -583,7 +583,7 @@ class ShortEvent:
 
 
 class PotentialGlow:
-    """Object used to store all relevant information about potential glows
+    """Object used to store all relevant information about potential glows.
 
     Parameters
     ----------
