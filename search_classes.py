@@ -315,7 +315,7 @@ class Detector:
                 if self.THOR:
                     complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}*_lm_{self.full_day_string}_*')
                 else:
-                    complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}_lm4_*_{self.full_day_string}_*')
+                    complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}_lm*_{self.full_day_string}_*')
 
                 assert len(complete_filelist) > 0, 'Empty filelist'
 
@@ -325,7 +325,7 @@ class Detector:
                                                   f'/eRC{eRC}*_lm_{self.full_day_string}_*')
                 else:
                     complete_filelist = glob.glob(f'{self.import_path}/{self.full_day_string}'
-                                                  f'/eRC{eRC}_lm4_*_{self.full_day_string}_*')
+                                                  f'/eRC{eRC}_lm*_{self.full_day_string}_*')
 
             # Filters out trace mode files and .txtp files (whatever those are)
             filtered_filelist = []
