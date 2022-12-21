@@ -159,7 +159,7 @@ class Detector:
 
         Returns
         -------
-        str, list, np.float
+        str, list, np.array
             String if 'eRC' is requested, list if 'filelist' is requested, or a numpy array full of float values if
             'time' or 'energy' is requested.
 
@@ -170,13 +170,13 @@ class Detector:
         return desired_attribute
 
     def spectra_maker(self):
-        """Makes the energy spectra histograms for the large plastic and sodium iodide scintillators.
+        """Makes the energy spectra histograms and calibrates the large plastic and sodium iodide scintillators.
 
         Returns
         -------
-        np.float
+        np.array
             Two numpy arrays. The first array contains the large plastic scintillator energy channels corresponding to
-            the least compton-scattered photons of Potassium-40 and Thorium (i.e. compton edge locations). The second
+            the most compton-scattered photons of Potassium-40 and Thorium (i.e. compton edge locations). The second
             array contains the sodium iodide scintillator energy channels corresponding to the photo peaks of
             Potassium-40 and Thorium.
 
@@ -304,9 +304,7 @@ class Detector:
         return lp_energies, nai_energies
 
     def data_importer(self):
-        """Imports data from data files into arrays and then updates them into the nested dictionary structure.
-
-        """
+        """Imports data from data files into arrays and then updates them into the nested dictionary structure."""
         for i in self.scintillators:
             scintillator = self.scintillators[i]
             eRC = scintillator['eRC']

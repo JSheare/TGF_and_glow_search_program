@@ -24,7 +24,7 @@ day_int = int(input1[-2:])
 year_month = input1[:4]
 
 input2 = str(sys.argv[2])
-year_int2 = int('20' + input2[:2])  # This is probably redundant, but I'll leave it for now
+year_int2 = int('20' + input2[:2])
 month_int2 = int(input2[2:4])
 day_int2 = int(input2[-2:])
 year_month2 = input2[:4]
@@ -33,9 +33,9 @@ year_month2 = input2[:4]
 unit = str(sys.argv[3])
 
 try:
-    mode = sys.argv[4:]
+    modes = sys.argv[4:]
 except IndexError:
-    mode = []
+    modes = []
     pass
 
 # Makes a dictionary of all the requested years, the requested months in each year,
@@ -105,7 +105,7 @@ for year in requested_dates:  # Loops over all requested years
 
             # Imports the data
             print('Importing data...')
-            detector = sc.Detector(unit, first_sec, log, mode)
+            detector = sc.Detector(unit, first_sec, log, modes)
             detector.data_importer()
             if len(detector.scintillators['NaI']['filelist']) == 0 or (detector.scintillators['LP']['filelist']) == 0:
                 print('\n\n')
@@ -263,7 +263,6 @@ for year in requested_dates:  # Loops over all requested years
                     ts3 = 0.1  # 100 milliseconds
                     ts_list = [ts1, ts2, ts3]
 
-                    filelist = detector.attribute_retriever(scintillator, 'filelist')
                     plots_made = 0
                     for i in range(len(f_potential_event_list)):
                         print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
