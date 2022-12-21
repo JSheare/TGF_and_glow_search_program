@@ -48,7 +48,7 @@ class Detector:
     location : str
         The location of the detector on the requested day.
     import_path : str
-        The import path for the location of the requested data files.
+        The directory path for the location of the requested data files.
     good_lp_calibration : bool
         A flag for whether the program was able to calibrate the detector's large plastic scintillator or not.
     THOR : bool
