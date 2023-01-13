@@ -6,6 +6,8 @@
 - [ ] Write an attribute updator method to detector class
 - [ ] Figure out how to fix THOR5 MP eRC number change problem
   - The new one is 4169
+- [ ] Look into increasing band sizes in NaI spectroscopy algorithm
+  - green lines at current band boundaries to see where they fall
 
 ### Completed
 - [x] Fix channel-to-MeV converter function
