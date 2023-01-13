@@ -83,7 +83,7 @@ def T_eRC(unit):
     THOR2 = ['4182', '4172', '4167', '4187']
     THOR3 = ['4169', '4175', '4174', '4185']
     THOR4 = ['4177', '4191', '4192', '4181']
-    THOR5 = ['4188', '4190', '4178', '4173']  # The eRC serial number for the MP changed after Aug b/c is was replaced
+    THOR5 = ['4188', '4190', '4178', '4173']  # The eRC serial number for the MP changed after Aug b/c it was replaced
     THOR6 = ['4186', '4176', '4183', '4180']
 
     THOR_dict = {'THOR1': THOR1, 'THOR2': THOR2, 'THOR3': THOR3, 'THOR4': THOR4, 'THOR5': THOR5, 'THOR6': THOR6}
