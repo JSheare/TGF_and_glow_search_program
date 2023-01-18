@@ -1,11 +1,8 @@
 ### To-do list:
-- [ ] Finish writing README.md 
 - [ ] Write duplicate file eliminator/sorter for general data
 - [ ] Add ability to request a range of dates to the image collector 
 - [ ] Add full list of all locations ever for each detector
 - [ ] Write an attribute updator method to detector class
-- [ ] Figure out how to fix THOR5 MP eRC number change problem
-  - The new one is 4169
 - [ ] Look into increasing band sizes in NaI spectroscopy algorithm
   - green lines at current band boundaries to see where they fall
 
@@ -18,3 +15,5 @@
 - [x] Go through and do what all the improvement comments say
 - [x] Review/change all for-loop variables 
 - [x] Add docstrings to functions/classes
+- [x] Figure out how to fix THOR5 MP eRC number change problem
+- [x] Finish writing README.md 
