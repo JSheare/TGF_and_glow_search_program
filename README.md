@@ -5,7 +5,7 @@
 
 ##**Requirements for use:**
 - python 3.6.6 (or later)
-- All of the following .py files
+- All of the following .py files:
   - search.py (core program)
   - search_module.py (program tools and functions)
   - search_classes.py (program objects)
