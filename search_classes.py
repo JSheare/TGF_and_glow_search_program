@@ -106,13 +106,13 @@ class Detector:
         elif self.unit[0:4] == 'THOR':
             self.THOR = True
             self.import_path = f'{sm.T_raw_data_loc()}/{unit}/Data/{self.full_day_string}'
-            self.scintillators = {'NaI': {'eRC': sm.T_eRC(self.unit)[0], 'filelist': [],
+            self.scintillators = {'NaI': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[0], 'filelist': [],
                                           'time': np.array([]), 'energy': np.array([])},
-                                  'SP': {'eRC': sm.T_eRC(self.unit)[1], 'filelist': [],
+                                  'SP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[1], 'filelist': [],
                                          'time': np.array([]), 'energy': np.array([])},
-                                  'MP': {'eRC': sm.T_eRC(self.unit)[2], 'filelist': [],
+                                  'MP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[2], 'filelist': [],
                                          'time': np.array([]), 'energy': np.array([])},
-                                  'LP': {'eRC': sm.T_eRC(self.unit)[3], 'filelist': [],
+                                  'LP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[3], 'filelist': [],
                                          'time': np.array([]), 'energy': np.array([])}}
 
         elif self.unit == 'SANTIS':
