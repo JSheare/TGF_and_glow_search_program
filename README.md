@@ -43,6 +43,7 @@ Here's an example for THOR5 data from July 1st, 2022 to August 31st, 2022:
 
 ###**Program Modes:**
 The program has several 'modes' that give it enhanced functionality. Here's a list of them all and how to use them:
+<br/>
 ####**'custom' Mode:**
 This mode instructs the program to look for data in a custom, user-specified location (this feature is designed mainly 
 for those using the program who are not on Sol, the primary host of the UCSC TGF groups' raw data).
