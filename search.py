@@ -7,12 +7,6 @@ import matplotlib.patches as mpatches
 import search_classes as sc
 import search_module as sm
 
-# IMPORTANT: when you want to run this program, use the following command:
-# 'python3 search.py yymmdd1 yymmdd2 detector mode'
-# ex: 'python3 search.py 210927 210930 GODOT processed' for 2021 Sept 27 to Sept 30 processed GODOT data
-
-# Note: All import/export paths can be changed in search_module.py
-
 # Disables all warnings in the terminal because they're mostly just annoying
 warnings.filterwarnings('ignore')
 
