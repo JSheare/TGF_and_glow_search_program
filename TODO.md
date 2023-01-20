@@ -5,6 +5,7 @@
 - [ ] Write an attribute updator method to detector class
 - [ ] Look into increasing band sizes in NaI spectroscopy algorithm
   - green lines at current band boundaries to see where they fall
+- [ ] Profile the program for bottlenecks
 
 ### Completed
 - [x] Fix channel-to-MeV converter function
