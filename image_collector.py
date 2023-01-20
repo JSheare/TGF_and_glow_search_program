@@ -35,15 +35,15 @@ except IndexError:
     print('Remember to specify the dates and detector!')
     exit()
 
-s_path = f'{sm.results_loc()}/Collected Images/Scatter Plots/'
+s_path = f"{os.getcwd() if sm.results_loc() == '' else sm.results_loc()}/Collected Images/Scatter Plots/"
 if not os.path.exists(s_path):
     os.makedirs(s_path)
 
-h_path = f'{sm.results_loc()}/Collected Images/Histograms/'
+h_path = f"{os.getcwd() if sm.results_loc() == '' else sm.results_loc()}/Collected Images/Histograms/"
 if not os.path.exists(h_path):
     os.makedirs(h_path)
 
-detector_path = f'{sm.results_loc()}/Results/{detector}/'
+detector_path = f"{os.getcwd() if sm.results_loc() == '' else sm.results_loc()}/Results/{detector}/"
 
 # Makes a dictionary of all the requested years, the requested months in each year,
 # and the requested days in each month
