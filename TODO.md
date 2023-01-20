@@ -1,6 +1,5 @@
 ### To-do list:
 - [ ] Write duplicate file eliminator/sorter for general data
-- [ ] Add ability to request a range of dates to the image collector 
 - [ ] Add full list of all locations ever for each detector
 - [ ] Write an attribute updator method to detector class
 - [ ] Look into increasing band sizes in NaI spectroscopy algorithm
@@ -17,4 +16,5 @@
 - [x] Review/change all for-loop variables 
 - [x] Add docstrings to functions/classes
 - [x] Figure out how to fix THOR5 MP eRC number change problem
-- [x] Finish writing README.md 
+- [x] Finish writing README.md
+- [x] Add ability to request a range of dates to the image collector 
