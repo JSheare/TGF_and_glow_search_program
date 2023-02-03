@@ -101,12 +101,22 @@ for year in requested_dates:  # Loops over all requested years
             print('Importing data...')
             detector = sc.Detector(unit, first_sec, log, modes)
             detector.data_importer()
-            if len(detector.scintillators['NaI']['filelist']) == 0 or (detector.scintillators['LP']['filelist']) == 0:
-                print('\n\n')
-                print('\n', file=detector.log)
-                sm.print_logger('No/Missing data for specified day.', detector.log)
-                print('\n')
-                continue
+
+            if detector.GODOT or detector.THOR:
+                if len(detector.scintillators['NaI']['filelist']) == 0 or\
+                        len(detector.scintillators['LP']['filelist']) == 0:
+                    print('\n\n')
+                    print('\n', file=detector.log)
+                    sm.print_logger('No/Missing data for specified day.', detector.log)
+                    print('\n')
+                    continue
+            else:  # Santis instrument
+                if len(detector.scintillators['LP']['filelist']) == 0:
+                    print('\n\n')
+                    print('\n', file=detector.log)
+                    sm.print_logger('No/Missing data for specified day.', detector.log)
+                    print('\n')
+                    continue
 
             print('\n')
             print('Done.')

@@ -312,7 +312,7 @@ class Detector:
             sm.print_logger(f'For eRC {eRC} ({i}):', self.log)
             # Here in case the data files in a custom location are grouped into daily folders
             try:
-                if self.THOR:
+                if self.THOR or self.SANTIS:
                     complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}*_lm_{self.full_day_string}_*')
                 else:
                     complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}_lm*_{self.full_day_string}_*')
@@ -320,7 +320,7 @@ class Detector:
                 assert len(complete_filelist) > 0, 'Empty filelist'
 
             except AssertionError:
-                if self.THOR:
+                if self.THOR or self.SANTIS:
                     complete_filelist = glob.glob(f'{self.import_path}/{self.full_day_string}'
                                                   f'/eRC{eRC}*_lm_{self.full_day_string}_*')
                 else:
