@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import search_classes as sc
 import search_module as sm
+import pandas as pd
 
 # Disables all warnings in the terminal because they're mostly just annoying
 warnings.filterwarnings('ignore')
@@ -300,13 +301,17 @@ for year in requested_dates:  # Loops over all requested years
                 nai_energies = sm.channel_to_mev(detector.attribute_retriever('NaI', 'energy'), nai_channels, 'NaI')
 
             # Combines large plastic and NaI data for GODOT
+            scint_list = []
             if detector.GODOT:
+                scint_list = ['NaI', 'LP']
                 times = np.append(lp_times, nai_times)
                 energies = np.append(lp_energies, nai_energies)
             elif detector.THOR:
+                scint_list = ['NaI']
                 times = nai_times
                 energies = nai_energies
             else:
+                scint_list = ['LP']
                 times = detector.attribute_retriever('LP', 'time')
                 energies = detector.attribute_retriever('LP', 'energy')
 
@@ -394,13 +399,31 @@ for year in requested_dates:  # Loops over all requested years
                 highest_scores = []
                 print('\n', file=detector.log)
                 print('Potential glows:', file=detector.log)
+                eventpath = f'{sm.results_loc()}Results/{detector.unit}/{detector.full_day_string}/event files/' \
+                            f'long events/'
+                sm.path_maker(eventpath)
+                event_number = 1
                 for glow in potential_glow_list:
                     highest_score = glow.highest_zscore(z_scores)
                     highest_scores.append(highest_score)
                     beginning, length = glow.glow_length_and_beginning_seconds(bins10sec)
+                    event_frame = pd.DataFrame()
+                    for scint in scint_list:
+                        scint_times = detector.attribute_retriever(scint, 'time')
+                        scint_energies = detector.attribute_retriever(scint, 'energy')
+                        indices = np.intersect1d(np.where(scint_times >= beginning),
+                                                 np.where(scint_times <= beginning + length))
+                        event_times = scint_times[indices]
+                        event_energies = scint_energies[indices]
+                        event_frame[f'{scint}_SecondsOfDay'] = pd.Series(event_times)
+                        event_frame[f'{scint}_energies'] = pd.Series(event_energies)
                     print(f'{dt.datetime.utcfromtimestamp(beginning + first_sec)} UTC ({beginning} '
                           f'seconds of day), {length} seconds long, highest z-score: {highest_score}',
                           file=detector.log)
+
+                    event_frame.to_json(
+                        f'{eventpath}{detector.full_day_string}_event{event_number}_zscore{highest_score}.json')
+                    event_number += 1
 
                 glow_sorting_order = np.argsort(highest_scores)
                 glow_sorting_order = glow_sorting_order[::-1]

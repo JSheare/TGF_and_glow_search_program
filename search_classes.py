@@ -370,7 +370,7 @@ class Detector:
                 filelist.append(f'{files[j]}{extensions[j]}')
 
             try:
-                # Tests to make sure that new_filelist isn't empty
+                # Tests to make sure that filelist isn't empty
                 assert len(filelist) > 0, 'No files for this scintillator today'
 
                 # Starts actually importing the data
@@ -425,7 +425,7 @@ class Detector:
                 scintillator.update({'filelist': filelist})
                 times = np.concatenate(time_list)
                 # Corrects for the fact that the first 200-300 seconds of the next day are included in the last file
-                day_change_array = np.array(np.where(np.diff(times) < -80000))
+                day_change_array = np.array(np.where(np.diff(times) < -86400))
                 if day_change_array.size > 0:
                     change_index = int(day_change_array[0]) + 1
                     times = np.append(times[0:change_index], times[change_index:] + 86400.0)
@@ -577,6 +577,15 @@ class ShortEvent:
         sm.path_maker(scatterpath)
         figure1.savefig(f'{scatterpath}{detector.full_day_string}_{self.scintillator}_event{event_number}.png')
         plt.close(figure1)
+
+        # Makes a json file for the event
+        eventpath = f'{sm.results_loc()}Results/{detector.unit}/{detector.full_day_string}/event files/short events/'
+        sm.path_maker(eventpath)
+        event_frame = pd.DataFrame()
+        event_frame['SecondsOfDay'] = event_times
+        event_frame['energies'] = event_energies
+        event_frame.to_json(f'{eventpath}{detector.full_day_string}_{self.scintillator}_event{event_number}.json')
+
         return new_filelist
 
 
