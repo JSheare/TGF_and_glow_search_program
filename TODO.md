@@ -6,7 +6,6 @@
   - green lines at current band boundaries to see where they fall
 - [ ] Profile the program for bottlenecks
 - [ ] Add a dev mode that skips algorithm(s) of choice
-- [ ] Make event file generators more memory efficient
 
 ### Completed
 - [x] Fix channel-to-MeV converter function
@@ -19,4 +18,5 @@
 - [x] Add docstrings to functions/classes
 - [x] Figure out how to fix THOR5 MP eRC number change problem
 - [x] Finish writing README.md
-- [x] Add ability to request a range of dates to the image collector 
+- [x] Add ability to request a range of dates to the image collector
+- [x] Make event file generators more memory efficient
