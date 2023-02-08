@@ -381,12 +381,17 @@ for year in requested_dates:  # Loops over all requested years
                 if glow_length > 0 and bins10sec[flag] - 10 == previous_time:
                     glow_length += 1
                 if glow_length > 0 and bins10sec[flag] - 10 > previous_time:
+                    # Makes glow object and fills it out
                     glow = sc.PotentialGlow(glow_start, glow_length)
+                    glow.highest_score = glow.highest_zscore(z_scores)
+                    glow.start_sec, glow.stop_sec = glow.beginning_and_end_seconds(bins10sec)
                     potential_glow_list.append(glow)
                     glow_start = flag
                     glow_length = 1
                 if flag == z_flags[-1]:
                     glow = sc.PotentialGlow(glow_start, glow_length)
+                    glow.highest_score = glow.highest_zscore(z_scores)
+                    glow.start_sec, glow.stop_sec = glow.beginning_and_end_seconds(bins10sec)
                     potential_glow_list.append(glow)
 
                 previous_time = bins10sec[flag]
@@ -399,30 +404,42 @@ for year in requested_dates:  # Loops over all requested years
                 highest_scores = []
                 print('\n', file=detector.log)
                 print('Potential glows:', file=detector.log)
+                sections = {}
+                # Appends each 'section' of each event to a dictionary for later storage in a file
+                # Meant to cut down on memory usage by only calling the big data arrays a handful of times
+                for scint in scint_list:
+                    scint_times = detector.attribute_retriever(scint, 'time')
+                    scint_energies = detector.attribute_retriever(scint, 'energy')
+                    scint_time_sections = []
+                    scint_energy_sections = []
+                    for glow in potential_glow_list:
+                        indices = np.intersect1d(np.where(scint_times >= glow.start_sec),
+                                                 np.where(scint_times <= glow.stop_sec))
+                        scint_time_sections.append(scint_times[indices])
+                        scint_energy_sections.append(scint_energies[indices])
+
+                    sections[f'{scint}_times'] = scint_time_sections
+                    sections[f'{scint}_energies'] = scint_energy_sections
+
                 eventpath = f'{sm.results_loc()}Results/{detector.unit}/{detector.full_day_string}/event files/' \
                             f'long events/'
                 sm.path_maker(eventpath)
                 event_number = 1
-                for glow in potential_glow_list:
-                    highest_score = glow.highest_zscore(z_scores)
+                for i in range(len(potential_glow_list)):
+                    glow = potential_glow_list[i]
+                    highest_score = glow.highest_score
                     highest_scores.append(highest_score)
-                    beginning, length = glow.glow_length_and_beginning_seconds(bins10sec)
                     event_frame = pd.DataFrame()
-                    for scint in scint_list:
-                        scint_times = detector.attribute_retriever(scint, 'time')
-                        scint_energies = detector.attribute_retriever(scint, 'energy')
-                        indices = np.intersect1d(np.where(scint_times >= beginning),
-                                                 np.where(scint_times <= beginning + length))
-                        event_times = scint_times[indices]
-                        event_energies = scint_energies[indices]
-                        event_frame[f'{scint}_SecondsOfDay'] = pd.Series(event_times)
-                        event_frame[f'{scint}_energies'] = pd.Series(event_energies)
-                    print(f'{dt.datetime.utcfromtimestamp(beginning + first_sec)} UTC ({beginning} '
-                          f'seconds of day), {length} seconds long, highest z-score: {highest_score}',
+                    print(f'{dt.datetime.utcfromtimestamp(glow.start_sec + first_sec)} UTC ({glow.start_sec} seconds of'
+                          f' day), {glow.stop_sec-glow.start_sec} seconds long, highest z-score: {highest_score}',
                           file=detector.log)
+                    for scint in scint_list:
+                        # note: pd.Series will add nan values whenever array lengths don't match
+                        event_frame[f'{scint}_times'] = pd.Series(sections[f'{scint}_times'][i])
+                        event_frame[f'{scint}_energies'] = pd.Series(sections[f'{scint}_energies'][i])
 
                     event_frame.to_json(
-                        f'{eventpath}{detector.full_day_string}_event{event_number}_zscore{highest_score}.json')
+                        f'{eventpath}{detector.full_day_string}_event{event_number}_zscore{int(highest_score)}.json')
                     event_number += 1
 
                 glow_sorting_order = np.argsort(highest_scores)

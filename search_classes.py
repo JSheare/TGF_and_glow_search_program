@@ -609,6 +609,12 @@ class PotentialGlow:
         The index of the histogram bin which corresponds to the end of the event.
     peak_index : int
         The location of the bin with the largest z-score among all the bins comprising the event.
+    highest_score : float
+        The largest z-score in the event.
+    start_sec : int
+        The beginning of the event in seconds.
+    stop_sec : int
+        The end of the event in seconds.
 
     """
     def __init__(self, glow_start, glow_length):
@@ -616,6 +622,9 @@ class PotentialGlow:
         self.length = int(glow_length)
         self.stop = int(glow_start + glow_length - 1) if self.length > 1 else int(glow_start + glow_length)
         self.peak_index = 0
+        self.highest_score = 0
+        self.start_sec = 0
+        self.stop_sec = 0
 
     def highest_zscore(self, z_scores):
         """ Identifies the highest z-score and its corresponding bin for an event."""
@@ -624,9 +633,10 @@ class PotentialGlow:
         self.peak_index = np.argmax(glow_scores) + self.start
         return highest_score
 
-    def glow_length_and_beginning_seconds(self, bins10sec):
+    def beginning_and_end_seconds(self, bins10sec):
         """ Retrieves the beginning and total length of an event in seconds."""
         glow_times = bins10sec[self.start:self.stop]
         first_sec = glow_times[0]
         length = self.length * 10
-        return first_sec, length
+        last_sec = first_sec + length
+        return first_sec, last_sec
