@@ -6,6 +6,7 @@
   - green lines at current band boundaries to see where they fall
 - [ ] Profile the program for bottlenecks
 - [ ] Add a dev mode that skips algorithm(s) of choice
+- [ ] Make event file generators more memory efficient
 
 ### Completed
 - [x] Fix channel-to-MeV converter function
