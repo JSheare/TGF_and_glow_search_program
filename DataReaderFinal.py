@@ -62,7 +62,7 @@ def lmFileToData(lines, mode):
             nextData = getDataFromLM(nextLmString, mode)
             match = data['wc'][0] == nextData['wc'][0]
             if (match):
-                print("duplicate buffer " + str(i))
+                #print("duplicate buffer " + str(i))
                 continue
         data = processDataTiming(data, dateTime, mode=mode)
         dataList.append(data)
