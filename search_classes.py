@@ -264,7 +264,7 @@ class Detector:
                     flagged_indices = edge_indices + shift_amount
                     self.good_lp_calibration = True
                 except FileNotFoundError:
-                    sm.print_logger('No LP template found for this location', self.log)
+                    sm.print_logger('No LP template found for this location...', self.log)
 
                 lp_energies = energy_bins[flagged_indices.astype(int)]
 
@@ -584,6 +584,7 @@ class ShortEvent:
         event_frame = pd.DataFrame()
         event_frame['SecondsOfDay'] = event_times
         event_frame['energies'] = event_energies
+        event_frame['file'] = event_file  # Note: this column will be filled by the same file name over and over again
         event_frame.to_json(f'{eventpath}{detector.full_day_string}_{self.scintillator}_event{event_number}.json')
 
         return new_filelist

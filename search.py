@@ -250,6 +250,9 @@ for year in requested_dates:  # Loops over all requested years
                 print('\n', file=detector.log)
 
                 if len(f_potential_event_list) > 0:
+                    print('\n')
+                    sm.print_logger('Generating scatter plots and event files...', detector.log)
+                    print('\n', file=detector.log)
                     print('Potential short events:', file=detector.log)
                     for event in f_potential_event_list:
                         start_second = times[event.start] - 86400 if times[event.start] > 86400 else times[event.start]
@@ -259,9 +262,6 @@ for year in requested_dates:  # Loops over all requested years
                     print('\n', file=detector.log)
 
                     # Makes scatter plots of the resulting potential events
-                    print('\n')
-                    sm.print_logger('Generating scatter plots...', detector.log)
-
                     # Subplot timescales
                     ts1 = 1e-4  # 100 microseconds
                     ts2 = 0.005  # 5 milliseconds
@@ -401,6 +401,8 @@ for year in requested_dates:  # Loops over all requested years
                 sm.print_logger(f'There were no potential glows for the date {date_timestamp}', detector.log)
             else:
                 # Logs potential glows and sorts them in descending order depending on their highest z-score
+                sm.print_logger('\n', detector.log)
+                sm.print_logger('Generating event files...', detector.log)
                 highest_scores = []
                 print('\n', file=detector.log)
                 print('Potential glows:', file=detector.log)
@@ -425,7 +427,9 @@ for year in requested_dates:  # Loops over all requested years
                             f'long events/'
                 sm.path_maker(eventpath)
                 event_number = 1
+                files_made = 0
                 for i in range(len(potential_glow_list)):
+                    print(f'{files_made}/{len(potential_glow_list)}', end='\r')
                     glow = potential_glow_list[i]
                     highest_score = glow.highest_score
                     highest_scores.append(highest_score)
@@ -441,6 +445,11 @@ for year in requested_dates:  # Loops over all requested years
                     event_frame.to_json(
                         f'{eventpath}{detector.full_day_string}_event{event_number}_zscore{int(highest_score)}.json')
                     event_number += 1
+                    files_made += 1
+                    print(f'{files_made}/{len(potential_glow_list)}', end='\r')
+
+                print('\n', file=detector.log)
+                sm.print_logger('Done.', detector.log)
 
                 glow_sorting_order = np.argsort(highest_scores)
                 glow_sorting_order = glow_sorting_order[::-1]
