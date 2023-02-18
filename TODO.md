@@ -2,10 +2,13 @@
 - [ ] Write duplicate file eliminator/sorter for general data
 - [ ] Add full list of all locations ever for each detector
 - [ ] Write an attribute updator method to detector class
-- [ ] Look into increasing band sizes in NaI spectroscopy algorithm
   - green lines at current band boundaries to see where they fall
 - [ ] Profile the program for bottlenecks
 - [ ] Add a dev mode that skips algorithm(s) of choice
+- [ ] Make a standard for adding more detectors:
+  - the detector class needs to have another attribute for scints used in glow search
+  - also needs to have one for detector file name format
+  - that way the data importer/glow search algo will accept any generic detector you feed it
 
 ### Completed
 - [x] Fix channel-to-MeV converter function
