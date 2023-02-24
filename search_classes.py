@@ -51,6 +51,8 @@ class Detector:
         The directory path for the location of the requested data files.
     good_lp_calibration : bool
         A flag for whether the program was able to calibrate the detector's large plastic scintillator or not.
+    scintillators : dict
+        A nested dictionary containing all the relevant information for a detector's scintillators.
     THOR : bool
         A flag for whether the requested detector is a THOR unit or not.
     GODOT : bool
@@ -98,28 +100,35 @@ class Detector:
             else:
                 self.import_path = f'{sm.G_raw_data_loc()}/{self.full_day_string}'
 
-            self.scintillators = {'NaI': {'eRC': '1490', 'filelist': [],
-                                          'time': np.array([]), 'energy': np.array([])},
-                                  'LP': {'eRC': '1491', 'filelist': [],
-                                         'time': np.array([]), 'energy': np.array([])}}
+            self.scintillators = {'NaI': {'eRC': '1490',
+                                          'filelist': [], 'filetime_extrema': list(),
+                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])},
+                                  'LP': {'eRC': '1491',
+                                         'filelist': [], 'filetime_extrema': list(),
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])}}
 
         elif self.unit[0:4] == 'THOR':
             self.THOR = True
             self.import_path = f'{sm.T_raw_data_loc()}/{unit}/Data/{self.full_day_string}'
-            self.scintillators = {'NaI': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[0], 'filelist': [],
-                                          'time': np.array([]), 'energy': np.array([])},
-                                  'SP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[1], 'filelist': [],
-                                         'time': np.array([]), 'energy': np.array([])},
-                                  'MP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[2], 'filelist': [],
-                                         'time': np.array([]), 'energy': np.array([])},
-                                  'LP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[3], 'filelist': [],
-                                         'time': np.array([]), 'energy': np.array([])}}
+            self.scintillators = {'NaI': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[0],
+                                          'filelist': [], 'filetime_extrema': list(),
+                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])},
+                                  'SP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[1],
+                                         'filelist': [], 'filetime_extrema': list(),
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])},
+                                  'MP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[2],
+                                         'filelist': [], 'filetime_extrema': list(),
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])},
+                                  'LP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[3],
+                                         'filelist': [], 'filetime_extrema': list(),
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])}}
 
         elif self.unit == 'SANTIS':
             self.SANTIS = True
             self.import_path = f'{sm.S_raw_data_loc()}/{self.full_day_string}'
-            self.scintillators = {'LP': {'eRC': '2549', 'filelist': [],
-                                         'time': np.array([]), 'energy': np.array([])}}
+            self.scintillators = {'LP': {'eRC': '2549',
+                                         'filelist': [], 'filetime_extrema': list(),
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])}}
         else:
             print('Not a valid detector')
             exit()
@@ -376,6 +385,8 @@ class Detector:
                 # Starts actually importing the data
                 energy_list = []
                 time_list = []
+                wallclock_list = []
+                filetime_extrema_list = []
 
                 filetimes = np.array([])
                 file_time_gaps = np.array([])
@@ -400,7 +411,9 @@ class Detector:
                                 energy_list.append(data['energy'].to_numpy())
 
                             time_list.append(data['SecondsOfDay'].to_numpy())
+                            wallclock_list.append(data['wc'].to_numpy())
                             filetimes = data['SecondsOfDay'].to_numpy()
+                            filetime_extrema_list.append([filetimes[0], filetimes[-1]])
 
                     except Exception as ex:
                         if str(ex) == 'wallclock and GPS clocks in significant disagreement':
@@ -430,8 +443,19 @@ class Detector:
                     change_index = int(day_change_array[0]) + 1
                     times = np.append(times[0:change_index], times[change_index:] + 86400.0)
 
+                # Does it for the file time extrema too
+                last_file_extrema = filetime_extrema_list[-1]
+                for j in range(2):
+                    extrema = last_file_extrema[j]
+                    if extrema < 500:
+                        last_file_extrema[j] = extrema + 86400
+
+                filetime_extrema_list[-1] = last_file_extrema
+
                 scintillator.update({'time': times})
                 scintillator.update({'energy': np.concatenate(energy_list)})
+                scintillator.update({'wc': np.concatenate(wallclock_list)})
+                scintillator.update({'filetime_extrema': filetime_extrema_list})
                 self.scintillators.update({i: scintillator})
 
                 print('\n', file=self.log)
@@ -474,7 +498,7 @@ class ShortEvent:
         self.stop = int(event_start + event_length)
         self.scintillator = scintillator
 
-    def scatterplot_maker(self, timescales, detector, event_number, filelist):
+    def scatterplot_maker(self, timescales, detector, event_number, filelist, filetime_extrema):
         """Makes the short event scatter plots.
 
         Parameters
@@ -489,6 +513,8 @@ class ShortEvent:
         filelist : list
             A list of all the files to be searched when looking for the beginning of an event. Once the name of the
             file for an event has been found it is added to the scatter plot title.
+        filetime_extrema : list
+            A list of arrays containing the first and last second in each file.
 
         Returns
         -------
@@ -499,9 +525,11 @@ class ShortEvent:
         """
         times = detector.attribute_retriever(self.scintillator, 'time')
         energies = detector.attribute_retriever(self.scintillator, 'energy')
+        wallclock = detector.attribute_retriever(self.scintillator, 'wc')
 
         event_times = times[self.start:self.stop]
         event_energies = energies[self.start:self.stop]
+        event_wallclock = wallclock[self.start:self.stop]
         event_length = event_times[-1] - event_times[0]
         event_time = times[self.start] - 86400 if times[self.start] > 86400 else times[self.start]
 
@@ -537,33 +565,16 @@ class ShortEvent:
 
         # Adds the name of the relevant data file to the scatter plot
         event_file = ''
-        eventfound = False
         files_examined = 0
         new_filelist = []
-        for day_files in filelist:
-            if detector.processed:
-                e, temp_t_array = np.loadtxt(day_files, skiprows=1, usecols=(0, 2), unpack=True)
-            else:
-                try:
-                    data = dr.fileNameToData(day_files)
-                except Exception as ex:
-                    if str(ex) == 'wallclock and GPS clocks in significant disagreement':
-                        pass
-                    else:  # Mostly here so that if the reader ever runs into other errors I'll know about them
-                        print(f'line {ex.__traceback__.tb_lineno}:')
-                        print(f'{type(ex).__name__}: {ex}')
-                        exit()
-
-                temp_t_array = data['SecondsOfDay'].to_numpy()
-
-            for j in temp_t_array:
-                if j == event_time:
-                    event_file = day_files
-                    eventfound = True
-                    break
-
-            if eventfound:
+        new_filetime_extrema = []
+        for i in range(len(filetime_extrema)):
+            first_time = filetime_extrema[i][0]
+            last_time = filetime_extrema[i][1]
+            if first_time <= event_time < last_time:
+                event_file = filelist[i]
                 new_filelist = filelist[files_examined:]
+                new_filetime_extrema = filetime_extrema[files_examined:]
                 break
 
             files_examined += 1
@@ -571,7 +582,7 @@ class ShortEvent:
 
         # Saves the scatter plot
         # Note: with this code, if an event happens in that 200-300 seconds of the next day that are included in the
-        # last file, the image will have the wrong date in its name (though the timestamp in the title will
+        # last file, the image will have the wrong date in its name (though the timestamp in the scatter plot title will
         # always be correct)
         scatterpath = f'{sm.results_loc()}Results/{detector.unit}/{detector.full_day_string}/scatterplots/'
         sm.path_maker(scatterpath)
@@ -582,12 +593,13 @@ class ShortEvent:
         eventpath = f'{sm.results_loc()}Results/{detector.unit}/{detector.full_day_string}/event files/short events/'
         sm.path_maker(eventpath)
         event_frame = pd.DataFrame()
+        event_frame['wc'] = event_wallclock
         event_frame['SecondsOfDay'] = event_times
         event_frame['energies'] = event_energies
         event_frame['file'] = event_file  # Note: this column will be filled by the same file name over and over again
         event_frame.to_json(f'{eventpath}{detector.full_day_string}_{self.scintillator}_event{event_number}.json')
 
-        return new_filelist
+        return new_filelist, new_filetime_extrema
 
 
 class PotentialGlow:

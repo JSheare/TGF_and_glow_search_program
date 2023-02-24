@@ -153,6 +153,7 @@ for year in requested_dates:  # Loops over all requested years
                 times = detector.attribute_retriever(scintillator, 'time')
                 energies = detector.attribute_retriever(scintillator, 'energy')
                 filelist = detector.attribute_retriever(scintillator, 'filelist')
+                filetime_extrema = detector.attribute_retriever(scintillator, 'filetime_extrema')
 
                 # Checks for an event by looking for a certain number of counts (rollgap + 1) in a small timeframe
                 potential_event_list = []
@@ -272,7 +273,8 @@ for year in requested_dates:  # Loops over all requested years
                     for i in range(len(f_potential_event_list)):
                         print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
                         event = f_potential_event_list[i]
-                        filelist = event.scatterplot_maker(ts_list, detector, i+1, filelist)
+                        filelist, filetime_extrema = event.scatterplot_maker(ts_list,
+                                                                             detector, i+1, filelist, filetime_extrema)
                         plots_made += 1
                         print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
 
@@ -301,7 +303,7 @@ for year in requested_dates:  # Loops over all requested years
                 nai_energies = sm.channel_to_mev(detector.attribute_retriever('NaI', 'energy'), nai_channels, 'NaI')
 
             # Combines large plastic and NaI data for GODOT
-            scint_list = []
+            scint_list = []  # This list should really be made into a detector attribute
             if detector.GODOT:
                 scint_list = ['NaI', 'LP']
                 times = np.append(lp_times, nai_times)
@@ -406,22 +408,6 @@ for year in requested_dates:  # Loops over all requested years
                 highest_scores = []
                 print('\n', file=detector.log)
                 print('Potential glows:', file=detector.log)
-                sections = {}
-                # Appends each 'section' of each event to a dictionary for later storage in a file
-                # Meant to cut down on memory usage by only calling the big data arrays a handful of times
-                for scint in scint_list:
-                    scint_times = detector.attribute_retriever(scint, 'time')
-                    scint_energies = detector.attribute_retriever(scint, 'energy')
-                    scint_time_sections = []
-                    scint_energy_sections = []
-                    for glow in potential_glow_list:
-                        indices = np.intersect1d(np.where(scint_times >= glow.start_sec),
-                                                 np.where(scint_times <= glow.stop_sec))
-                        scint_time_sections.append(scint_times[indices])
-                        scint_energy_sections.append(scint_energies[indices])
-
-                    sections[f'{scint}_times'] = scint_time_sections
-                    sections[f'{scint}_energies'] = scint_energy_sections
 
                 eventpath = f'{sm.results_loc()}Results/{detector.unit}/{detector.full_day_string}/event files/' \
                             f'long events/'
@@ -437,13 +423,28 @@ for year in requested_dates:  # Loops over all requested years
                     print(f'{dt.datetime.utcfromtimestamp(glow.start_sec + first_sec)} UTC ({glow.start_sec} seconds of'
                           f' day), {glow.stop_sec-glow.start_sec} seconds long, highest z-score: {highest_score}',
                           file=detector.log)
-                    for scint in scint_list:
-                        # note: pd.Series will add nan values whenever array lengths don't match
-                        event_frame[f'{scint}_times'] = pd.Series(sections[f'{scint}_times'][i])
-                        event_frame[f'{scint}_energies'] = pd.Series(sections[f'{scint}_energies'][i])
 
-                    event_frame.to_json(
-                        f'{eventpath}{detector.full_day_string}_event{event_number}_zscore{int(highest_score)}.json')
+                    event_file = open(f'{eventpath}{detector.full_day_string}_event{event_number}_zscore'
+                                      f'{int(highest_score)}.txt', 'w')
+                    print(f'{dt.datetime.utcfromtimestamp(glow.start_sec + first_sec)} UTC ({glow.start_sec} seconds of'
+                          f' day), {glow.stop_sec - glow.start_sec} seconds long, highest z-score: {highest_score}',
+                          file=event_file)
+                    for scint in scint_list:
+                        print(f'{scint}:', file=event_file)
+                        filelist = detector.attribute_retriever(scint, 'filelist')
+                        filetime_extrema = detector.attribute_retriever(scint, 'filetime_extrema')
+                        files_added = 0
+                        for j in range(len(filetime_extrema)):
+                            first_time = filetime_extrema[j][0]
+                            last_time = filetime_extrema[j][1]
+                            if first_time <= glow.start_sec <= last_time or first_time <= glow.stop_sec <= last_time:
+                                print(filelist[j], file=event_file)
+                                files_added += 1
+                            else:
+                                if files_added > 0:
+                                    break
+
+                    event_file.close()
                     event_number += 1
                     files_made += 1
                     print(f'{files_made}/{len(potential_glow_list)}', end='\r')
