@@ -33,6 +33,20 @@ except IndexError:
     modes = []
     pass
 
+# Modes for skipping over certain algorithms (mostly to speed up testing)
+skcali = False
+skshort = False
+skglow = False
+if 'skcali' in modes:  # Skip detector calibration
+    skcali = True
+    skglow = True  # To prevent things from breaking long events are skipped if calibration is skipped
+
+if 'skshort' in modes:  # Skip short event search
+    skshort = True
+
+if 'skglow' in modes:  # Skip long event search
+    skglow = True
+
 # Makes a dictionary of all the requested years, the requested months in each year,
 # and the requested days in each month
 requested_dates = {}
@@ -123,384 +137,393 @@ for year in requested_dates:  # Loops over all requested years
             print('Done.')
 
             # Calibrates each scintillator
-            print('\n')
-            sm.print_logger('Calibrating Scintillators and generating energy spectra...', detector.log)
-            lp_channels, nai_channels = detector.spectra_maker()
-            sm.print_logger('Done.', detector.log)
-
-    # Short event algorithm starts here:
-            sm.print_logger('\n', detector.log)
-            sm.print_logger('Starting search for short events...', detector.log)
-            sm.print_logger('\n', detector.log)
-
-            # Parameters:
-            rollgap = 4
-            event_time_spacing = 1e-3  # 1 millisecond
-            event_min_counts = 6
-            noise_cutoff_energy = 300
-            min_noise_counts = 3
-            channel_range_width = 300
-            channel_ratio = 0.5
-
-            for scintillator in detector.scintillators:
-                if scintillator != 'LP' and not detector.plastics:
-                    continue
-                elif scintillator == 'NaI' and detector.plastics:
-                    continue
-
-                sm.print_logger(f'For eRC {detector.scintillators[scintillator]["eRC"]} '
-                                f'({scintillator}):', detector.log)
-                times = detector.attribute_retriever(scintillator, 'time')
-                energies = detector.attribute_retriever(scintillator, 'energy')
-                filelist = detector.attribute_retriever(scintillator, 'filelist')
-                filetime_extrema = detector.attribute_retriever(scintillator, 'filetime_extrema')
-
-                # Checks for an event by looking for a certain number of counts (rollgap + 1) in a small timeframe
-                potential_event_list = []
-                event_start = 0
-                event_length = 0
-                event_time = 0
-                total_potential_events = 0
-                total_threshold_reached = 0
-
-                interval = np.abs(times - np.roll(times, rollgap))
-
-                # -1's are meant to band-aid a bug. I pretty much know what's causing it but too lazy to fix right now
-                for i in range(len(interval)):
-                    # Records the beginning index of a potential event
-                    if interval[i] < event_time_spacing and event_length == 0:
-                        event_start = i
-                        event_length += 1
-                        event_time += interval[i]
-                        total_potential_events += 1
-                        print(f'Potential event (#{total_potential_events})')
-                    # Measures the length of a potential event
-                    if interval[i] < event_time_spacing and event_length >= 1:
-                        event_length += 1
-                        event_time += interval[i]
-
-                    # Records the rough length of a potential event
-                    if interval[i] > event_time_spacing and event_length > 0:
-                        # Keeps potential event if it is longer than the specified minimum number of counts
-                        if (event_length - 1) >= event_min_counts:
-                            print(f'Potential event length: {event_time} seconds, {event_length - 1} counts')
-                            potential_event = sc.ShortEvent(event_start, event_length - 1, scintillator)
-                            potential_event_list.append(potential_event)
-
-                        if (event_length - 1) < event_min_counts:
-                            print(f'Potential event removed due to insufficient length ({event_length - 1} counts)')
-
-                        event_start = 0
-                        event_length = 0
-                        event_time = 0
-                    # Counts the total number of times that the detection threshold was reached
-                    if interval[i] < event_time_spacing:
-                        total_threshold_reached += 1
-
-                # Eliminates noisy events
-                f_potential_event_list = []
-                for event in potential_event_list:
-                    event_energies = energies[event.start:event.stop]
-                    event_length = len(event_energies)
-
-                    # Checks that there are fewer counts in the higher energy channels than the low energy channels
-                    # High/low channel ratio is not checked for THOR
-                    good_channel_ratio = True if detector.THOR else False
-                    if event_length >= 30:
-                        low_channel_counts = 0
-                        high_channel_counts = 0
-                        for i in event_energies:
-                            if 200 <= i <= (200 + channel_range_width):
-                                low_channel_counts += 1
-
-                            if (300 + channel_range_width) <= i <= (300 + 2 * channel_range_width):
-                                high_channel_counts += 1
-
-                        try:
-                            if high_channel_counts / low_channel_counts <= channel_ratio:
-                                good_channel_ratio = True
-
-                        except ZeroDivisionError:
-                            pass
-                    # High/low channel ratio is not checked for events with < 30 counts
-                    else:
-                        good_channel_ratio = True
-
-                    # Eliminates the low energy events, which are likely just noise
-                    # These 5 lines can probably be condensed into one, but I'm not going to do it right now
-                    max_indices = (-event_energies).argsort()[:min_noise_counts]
-                    max_energies = np.array([])
-                    for i in max_indices:
-                        max_energies = np.append(max_energies, event_energies[i])
-
-                    is_greater_than_thresh = np.all((max_energies > noise_cutoff_energy))
-
-                    # Adds everything that passed the two tests to a separate array
-                    if is_greater_than_thresh and good_channel_ratio:
-                        f_potential_event_list.append(event)
-                    else:
-                        if not good_channel_ratio and is_greater_than_thresh:
-                            print('Potential event removed due to noise (bad high-to-low channel ratio)')
-                        elif not is_greater_than_thresh and good_channel_ratio:
-                            print('Potential event removed due to noise (minimum energy threshold not reached)')
-                        else:
-                            print('Potential event removed due to noise')
-
-                sm.print_logger(f'\n{len(f_potential_event_list)} potential events recorded', detector.log)
-                sm.print_logger(f'Detection threshold reached {total_threshold_reached} times', detector.log)
-                print('\n', file=detector.log)
-
-                if len(f_potential_event_list) > 0:
-                    print('\n')
-                    sm.print_logger('Generating scatter plots and event files...', detector.log)
-                    print('\n', file=detector.log)
-                    print('Potential short events:', file=detector.log)
-                    for event in f_potential_event_list:
-                        start_second = times[event.start] - 86400 if times[event.start] > 86400 else times[event.start]
-                        print(f'{dt.datetime.utcfromtimestamp(times[event.start] + first_sec)} UTC '
-                              f'({start_second} seconds of day)', file=detector.log)
-
-                    print('\n', file=detector.log)
-
-                    # Makes scatter plots of the resulting potential events
-                    # Subplot timescales
-                    ts1 = 1e-4  # 100 microseconds
-                    ts2 = 0.005  # 5 milliseconds
-                    ts3 = 0.1  # 100 milliseconds
-                    ts_list = [ts1, ts2, ts3]
-
-                    plots_made = 0
-                    for i in range(len(f_potential_event_list)):
-                        print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
-                        event = f_potential_event_list[i]
-                        filelist, filetime_extrema = event.scatterplot_maker(ts_list,
-                                                                             detector, i+1, filelist, filetime_extrema)
-                        plots_made += 1
-                        print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
-
-                    sm.print_logger('Done.', detector.log)
-                    sm.print_logger('\n', detector.log)
-                else:
-                    print('\n')
-
-    # Glow search algorithm starts here
-            sm.print_logger('Starting search for glows...', detector.log)
-
-            # Converts energy channels from volts to MeV using the locations of peaks/edges obtained during calibration
-            # This code could probably be cleaned up
-            if detector.good_lp_calibration:
-                lp_times = detector.attribute_retriever('LP', 'time')
-                lp_energies = sm.channel_to_mev(detector.attribute_retriever('LP', 'energy'), lp_channels, 'LP')
-            else:
-                lp_times = detector.attribute_retriever('LP', 'time')
-                lp_energies = detector.attribute_retriever('LP', 'energy')
-
-            if detector.SANTIS:
-                nai_times = np.array([])
-                nai_energies = np.array([])
-            else:
-                nai_times = detector.attribute_retriever('NaI', 'time')
-                nai_energies = sm.channel_to_mev(detector.attribute_retriever('NaI', 'energy'), nai_channels, 'NaI')
-
-            # Combines large plastic and NaI data for GODOT
-            scint_list = []  # This list should really be made into a detector attribute
-            if detector.GODOT:
-                scint_list = ['NaI', 'LP']
-                times = np.append(lp_times, nai_times)
-                energies = np.append(lp_energies, nai_energies)
-            elif detector.THOR:
-                scint_list = ['NaI']
-                times = nai_times
-                energies = nai_energies
-            else:
-                scint_list = ['LP']
-                times = detector.attribute_retriever('LP', 'time')
-                energies = detector.attribute_retriever('LP', 'energy')
-
-            # Removes entries that are below a certain cutoff energy
-            if not detector.good_lp_calibration and (detector.GODOT or detector.SANTIS):
-                print('Potentially inaccurate large plastic calibration, beware radon washout!', file=detector.log)
-            else:
-                energy_cutoff = 1.9  # MeV
-                cut_indices = np.where(energies < energy_cutoff)
-                times = np.delete(times, cut_indices)
-                energies = np.delete(energies, cut_indices)
-
-            if detector.processed:
-                times = times - first_sec
-
-            # Makes one bin for every ten seconds of the day (plus 30 more for the next day)
-            bins10sec = np.arange(86701, step=10)
-
-            # Creates numerical values for histograms using numpy
-            hist_allday, bins_allday = np.histogram(times, bins=bins10sec)
-
-            # Calculates mean and z-scores
-            hist_allday_nz = hist_allday[hist_allday.nonzero()]
-            mue = sum(hist_allday_nz) / len(hist_allday_nz)  # Mean number of counts/bin
-            sigma = np.sqrt(mue)  # Standard deviation of the distribution
-
-            # Removes outliers (3 sigma) and recalculates mue
-            abs_zscores = np.abs((hist_allday_nz - mue) / sigma)
-            hist_allday_nz = hist_allday_nz[np.argsort(abs_zscores)]
-            hist_allday_nz = hist_allday_nz[::-1]
-            zscores = np.sort(abs_zscores)[::-1]
-            for i in range(len(abs_zscores)):
-                if abs_zscores[i] < 3:
-                    hist_allday_nz = hist_allday_nz[i:]
-                    break
-
-            mue = sum(hist_allday_nz) / len(hist_allday_nz)
-            sigma = np.sqrt(mue)
-
-            z_scores = np.array([])  # The z-scores themselves
-            z_flags = np.array([])
-            p = 0
-            # Flags only those z-scores > 5
-            for i in range(len(hist_allday)):
-                if hist_allday[i] > mue:  # Peak
-                    z_scores = np.append(z_scores, ((hist_allday[i] - mue) / sigma))
-                    if z_scores[i] >= 5:
-                        z_flags = np.append(z_flags, i)
-                        p += 1
-                elif hist_allday[i] < mue:  # Valley
-                    z_scores = np.append(z_scores, ((hist_allday[i] - mue) / sigma))
-
-            # Redefines z_flag to only contain flags from the start to p-1
-            # yeah, but why?
-            z_flags = z_flags[0:p].astype(int)
-
-            # Sorts z-flags into actual potential glows
-            glow_start = 0
-            glow_length = 0
-            glow_time = 0
-            previous_time = 0
-            potential_glow_list = []
-            for flag in z_flags:
-                if glow_length == 0:
-                    glow_start = flag
-                    glow_length += 1
-                if glow_length > 0 and bins10sec[flag] - 10 == previous_time:
-                    glow_length += 1
-                if glow_length > 0 and bins10sec[flag] - 10 > previous_time:
-                    # Makes glow object and fills it out
-                    glow = sc.PotentialGlow(glow_start, glow_length)
-                    glow.highest_score = glow.highest_zscore(z_scores)
-                    glow.start_sec, glow.stop_sec = glow.beginning_and_end_seconds(bins10sec)
-                    potential_glow_list.append(glow)
-                    glow_start = flag
-                    glow_length = 1
-                if flag == z_flags[-1]:
-                    glow = sc.PotentialGlow(glow_start, glow_length)
-                    glow.highest_score = glow.highest_zscore(z_scores)
-                    glow.start_sec, glow.stop_sec = glow.beginning_and_end_seconds(bins10sec)
-                    potential_glow_list.append(glow)
-
-                previous_time = bins10sec[flag]
-
-            sm.print_logger('Done.', detector.log)
-            if len(potential_glow_list) == 0:
-                sm.print_logger(f'There were no potential glows for the date {date_timestamp}', detector.log)
-            else:
-                # Logs potential glows and sorts them in descending order depending on their highest z-score
-                sm.print_logger('\n', detector.log)
-                sm.print_logger('Generating event files...', detector.log)
-                highest_scores = []
-                print('\n', file=detector.log)
-                print('Potential glows:', file=detector.log)
-
-                eventpath = f'{sm.results_loc()}Results/{detector.unit}/{detector.full_day_string}/event files/' \
-                            f'long events/'
-                sm.path_maker(eventpath)
-                event_number = 1
-                files_made = 0
-                for i in range(len(potential_glow_list)):
-                    print(f'{files_made}/{len(potential_glow_list)}', end='\r')
-                    glow = potential_glow_list[i]
-                    highest_score = glow.highest_score
-                    highest_scores.append(highest_score)
-                    event_frame = pd.DataFrame()
-                    print(f'{dt.datetime.utcfromtimestamp(glow.start_sec + first_sec)} UTC ({glow.start_sec} seconds of'
-                          f' day), {glow.stop_sec-glow.start_sec} seconds long, highest z-score: {highest_score}',
-                          file=detector.log)
-
-                    event_file = open(f'{eventpath}{detector.full_day_string}_event{event_number}_zscore'
-                                      f'{int(highest_score)}.txt', 'w')
-                    print(f'{dt.datetime.utcfromtimestamp(glow.start_sec + first_sec)} UTC ({glow.start_sec} seconds of'
-                          f' day), {glow.stop_sec - glow.start_sec} seconds long, highest z-score: {highest_score}',
-                          file=event_file)
-                    for scint in scint_list:
-                        print(f'{scint}:', file=event_file)
-                        filelist = detector.attribute_retriever(scint, 'filelist')
-                        filetime_extrema = detector.attribute_retriever(scint, 'filetime_extrema')
-                        files_added = 0
-                        for j in range(len(filetime_extrema)):
-                            first_time = filetime_extrema[j][0]
-                            last_time = filetime_extrema[j][1]
-                            if first_time <= glow.start_sec <= last_time or first_time <= glow.stop_sec <= last_time:
-                                print(filelist[j], file=event_file)
-                                files_added += 1
-                            else:
-                                if files_added > 0:
-                                    break
-
-                    event_file.close()
-                    event_number += 1
-                    files_made += 1
-                    print(f'{files_made}/{len(potential_glow_list)}', end='\r')
-
-                print('\n', file=detector.log)
+            lp_channels = []
+            nai_channels = []
+            if not skcali:
+                print('\n')
+                sm.print_logger('Calibrating Scintillators and generating energy spectra...', detector.log)
+                lp_channels, nai_channels = detector.spectra_maker()
                 sm.print_logger('Done.', detector.log)
 
-                glow_sorting_order = np.argsort(highest_scores)
-                glow_sorting_order = glow_sorting_order[::-1]
-                potential_glow_list = [potential_glow_list[s] for s in glow_sorting_order]
-
-                # Establishes detector location based on year and detector name
-                location = sm.location(unit, YEAR)
-
-                # Plotting the histograms
+    # Short event algorithm starts here:
+            if not skshort:
                 sm.print_logger('\n', detector.log)
-                sm.print_logger('Generating Histogram...', detector.log)
-                figu = plt.figure(figsize=[20, 11.0])
-                plt.title(f'{unit} {location}, {str(date_timestamp)}', loc='center')
-                plt.tick_params(left=False, right=False, labelleft=False, labelbottom=False, bottom=False)
-                ax1 = figu.add_subplot(5, 1, 1)
-                ax2 = figu.add_subplot(5, 1, 2)
-                ax3 = figu.add_subplot(5, 1, 3)
-                ax4 = figu.add_subplot(5, 1, 4)
-                ax5 = figu.add_subplot(5, 1, 5)
+                sm.print_logger('Starting search for short events...', detector.log)
+                sm.print_logger('\n', detector.log)
 
-                ax_list = [ax2, ax3, ax4, ax5]
+                # Parameters:
+                rollgap = 4
+                event_time_spacing = 1e-3  # 1 millisecond
+                event_min_counts = 6
+                noise_cutoff_energy = 300
+                min_noise_counts = 3
+                channel_range_width = 300
+                channel_ratio = 0.5
 
-                # Plots the histogram for the entire day (just the 1st subplot)
-                n, bins, patches = ax1.hist(times, bins=bins10sec, alpha=0.5, color='r')
-                ax1.set_xlabel('Seconds of Day (UT)')
-                ax1.set_ylabel('Counts/10-second bin')
-                ax1.axhline(y=(mue + 5 * sigma), color='blue', linestyle='dashed', linewidth=2)
-
-                # Creates legend
-                allday_data = mpatches.Patch(color='r', label='All Energies')
-                allday_5sigma = mpatches.Patch(color='blue', label='5 Sigma Above All Energies', linestyle='dashed')
-                ax1.legend(handles=[allday_data, allday_5sigma, ], bbox_to_anchor=(1.05, 1), loc=1, borderaxespad=0.)
-                ax1.grid(True)
-
-                for i in range(4):
-                    try:
-                        glow = potential_glow_list[i]
-                        sm.hist_subplotter(ax_list[i], glow, times, bins10sec, mue, sigma)
-                    except IndexError:
+                for scintillator in detector.scintillators:
+                    if scintillator != 'LP' and not detector.plastics:
+                        continue
+                    elif scintillator == 'NaI' and detector.plastics:
                         continue
 
-                plt.tight_layout()
-                plt.plot()
+                    sm.print_logger(f'For eRC {detector.scintillators[scintillator]["eRC"]} '
+                                    f'({scintillator}):', detector.log)
+                    times = detector.attribute_retriever(scintillator, 'time')
+                    energies = detector.attribute_retriever(scintillator, 'energy')
+                    filelist = detector.attribute_retriever(scintillator, 'filelist')
+                    filetime_extrema = detector.attribute_retriever(scintillator, 'filetime_extrema')
 
-                # Saves the histograms:
-                hist_path = f'{sm.results_loc()}Results/{unit}/{full_day_string}/'
-                sm.path_maker(hist_path)
-                plt.savefig(f'{hist_path}{full_day_string}_histogram.png', dpi=500)
-                plt.close(figu)
-                sm.print_logger('Done', detector.log)
-                sm.print_logger('\n', detector.log)
+                    # Checks for an event by looking for a certain number of counts (rollgap + 1) in a small timeframe
+                    potential_event_list = []
+                    event_start = 0
+                    event_length = 0
+                    event_time = 0
+                    total_potential_events = 0
+                    total_threshold_reached = 0
+
+                    interval = np.abs(times - np.roll(times, rollgap))
+
+                    # -1's are meant to band-aid a bug. I know what's causing it but too lazy to fix right now
+                    # I left this so long ago that I've forgotten what it's talking about
+                    for i in range(len(interval)):
+                        # Records the beginning index of a potential event
+                        if interval[i] < event_time_spacing and event_length == 0:
+                            event_start = i
+                            event_length += 1
+                            event_time += interval[i]
+                            total_potential_events += 1
+                            print(f'Potential event (#{total_potential_events})')
+                        # Measures the length of a potential event
+                        if interval[i] < event_time_spacing and event_length >= 1:
+                            event_length += 1
+                            event_time += interval[i]
+
+                        # Records the rough length of a potential event
+                        if interval[i] > event_time_spacing and event_length > 0:
+                            # Keeps potential event if it is longer than the specified minimum number of counts
+                            if (event_length - 1) >= event_min_counts:
+                                print(f'Potential event length: {event_time} seconds, {event_length - 1} counts')
+                                potential_event = sc.ShortEvent(event_start, event_length - 1, scintillator)
+                                potential_event_list.append(potential_event)
+
+                            if (event_length - 1) < event_min_counts:
+                                print(f'Potential event removed due to insufficient length ({event_length - 1} counts)')
+
+                            event_start = 0
+                            event_length = 0
+                            event_time = 0
+                        # Counts the total number of times that the detection threshold was reached
+                        if interval[i] < event_time_spacing:
+                            total_threshold_reached += 1
+
+                    # Eliminates noisy events
+                    f_potential_event_list = []
+                    for event in potential_event_list:
+                        event_energies = energies[event.start:event.stop]
+                        event_length = len(event_energies)
+
+                        # Checks that there are fewer counts in the higher energy channels than the low energy channels
+                        # High/low channel ratio is not checked for THOR
+                        good_channel_ratio = True if detector.THOR else False
+                        if event_length >= 30:
+                            low_channel_counts = 0
+                            high_channel_counts = 0
+                            for i in event_energies:
+                                if 200 <= i <= (200 + channel_range_width):
+                                    low_channel_counts += 1
+
+                                if (300 + channel_range_width) <= i <= (300 + 2 * channel_range_width):
+                                    high_channel_counts += 1
+
+                            try:
+                                if high_channel_counts / low_channel_counts <= channel_ratio:
+                                    good_channel_ratio = True
+
+                            except ZeroDivisionError:
+                                pass
+                        # High/low channel ratio is not checked for events with < 30 counts
+                        else:
+                            good_channel_ratio = True
+
+                        # Eliminates the low energy events, which are likely just noise
+                        # These 5 lines can probably be condensed into one, but I'm not going to do it right now
+                        max_indices = (-event_energies).argsort()[:min_noise_counts]
+                        max_energies = np.array([])
+                        for i in max_indices:
+                            max_energies = np.append(max_energies, event_energies[i])
+
+                        is_greater_than_thresh = np.all((max_energies > noise_cutoff_energy))
+
+                        # Adds everything that passed the two tests to a separate array
+                        if is_greater_than_thresh and good_channel_ratio:
+                            f_potential_event_list.append(event)
+                        else:
+                            if not good_channel_ratio and is_greater_than_thresh:
+                                print('Potential event removed due to noise (bad high-to-low channel ratio)')
+                            elif not is_greater_than_thresh and good_channel_ratio:
+                                print('Potential event removed due to noise (minimum energy threshold not reached)')
+                            else:
+                                print('Potential event removed due to noise')
+
+                    sm.print_logger(f'\n{len(f_potential_event_list)} potential events recorded', detector.log)
+                    sm.print_logger(f'Detection threshold reached {total_threshold_reached} times', detector.log)
+                    print('\n', file=detector.log)
+
+                    if len(f_potential_event_list) > 0:
+                        print('\n')
+                        sm.print_logger('Generating scatter plots and event files...', detector.log)
+                        print('\n', file=detector.log)
+                        print('Potential short events:', file=detector.log)
+                        for event in f_potential_event_list:
+                            start_second = times[event.start] - 86400 if times[event.start] > 86400 else \
+                                times[event.start]
+                            print(f'{dt.datetime.utcfromtimestamp(times[event.start] + first_sec)} UTC '
+                                  f'({start_second} seconds of day)', file=detector.log)
+
+                        print('\n', file=detector.log)
+
+                        # Makes scatter plots of the resulting potential events
+                        # Subplot timescales
+                        ts1 = 1e-4  # 100 microseconds
+                        ts2 = 0.005  # 5 milliseconds
+                        ts3 = 0.1  # 100 milliseconds
+                        ts_list = [ts1, ts2, ts3]
+
+                        plots_made = 0
+                        for i in range(len(f_potential_event_list)):
+                            print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
+                            event = f_potential_event_list[i]
+                            filelist, filetime_extrema = event.scatterplot_maker(ts_list, detector, i+1,
+                                                                                 filelist, filetime_extrema)
+                            plots_made += 1
+                            print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
+
+                        sm.print_logger('Done.', detector.log)
+                        sm.print_logger('\n', detector.log)
+                    else:
+                        print('\n')
+
+    # Glow search algorithm starts here
+            if not skglow:
+                sm.print_logger('Starting search for glows...', detector.log)
+
+                # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
+                # This code could probably be cleaned up
+                if detector.good_lp_calibration:
+                    lp_times = detector.attribute_retriever('LP', 'time')
+                    lp_energies = sm.channel_to_mev(detector.attribute_retriever('LP', 'energy'), lp_channels, 'LP')
+                else:
+                    lp_times = detector.attribute_retriever('LP', 'time')
+                    lp_energies = detector.attribute_retriever('LP', 'energy')
+
+                if detector.SANTIS:
+                    nai_times = np.array([])
+                    nai_energies = np.array([])
+                else:
+                    nai_times = detector.attribute_retriever('NaI', 'time')
+                    nai_energies = sm.channel_to_mev(detector.attribute_retriever('NaI', 'energy'), nai_channels, 'NaI')
+
+                # Combines large plastic and NaI data for GODOT
+                scint_list = []  # This list should really be made into a detector attribute
+                if detector.GODOT:
+                    scint_list = ['NaI', 'LP']
+                    times = np.append(lp_times, nai_times)
+                    energies = np.append(lp_energies, nai_energies)
+                elif detector.THOR:
+                    scint_list = ['NaI']
+                    times = nai_times
+                    energies = nai_energies
+                else:
+                    scint_list = ['LP']
+                    times = detector.attribute_retriever('LP', 'time')
+                    energies = detector.attribute_retriever('LP', 'energy')
+
+                # Removes entries that are below a certain cutoff energy
+                if not detector.good_lp_calibration and (detector.GODOT or detector.SANTIS):
+                    print('Potentially inaccurate large plastic calibration, beware radon washout!', file=detector.log)
+                else:
+                    energy_cutoff = 1.9  # MeV
+                    cut_indices = np.where(energies < energy_cutoff)
+                    times = np.delete(times, cut_indices)
+                    energies = np.delete(energies, cut_indices)
+
+                if detector.processed:
+                    times = times - first_sec
+
+                # Makes one bin for every ten seconds of the day (plus 30 more for the next day)
+                bins10sec = np.arange(86701, step=10)
+
+                # Creates numerical values for histograms using numpy
+                hist_allday, bins_allday = np.histogram(times, bins=bins10sec)
+
+                # Calculates mean and z-scores
+                hist_allday_nz = hist_allday[hist_allday.nonzero()]
+                mue = sum(hist_allday_nz) / len(hist_allday_nz)  # Mean number of counts/bin
+                sigma = np.sqrt(mue)  # Standard deviation of the distribution
+
+                # Removes outliers (3 sigma) and recalculates mue
+                abs_zscores = np.abs((hist_allday_nz - mue) / sigma)
+                hist_allday_nz = hist_allday_nz[np.argsort(abs_zscores)]
+                hist_allday_nz = hist_allday_nz[::-1]
+                zscores = np.sort(abs_zscores)[::-1]
+                for i in range(len(abs_zscores)):
+                    if abs_zscores[i] < 3:
+                        hist_allday_nz = hist_allday_nz[i:]
+                        break
+
+                mue = sum(hist_allday_nz) / len(hist_allday_nz)
+                sigma = np.sqrt(mue)
+
+                z_scores = np.array([])  # The z-scores themselves
+                z_flags = np.array([])
+                p = 0
+                # Flags only those z-scores > 5
+                for i in range(len(hist_allday)):
+                    if hist_allday[i] > mue:  # Peak
+                        z_scores = np.append(z_scores, ((hist_allday[i] - mue) / sigma))
+                        if z_scores[i] >= 5:
+                            z_flags = np.append(z_flags, i)
+                            p += 1
+                    elif hist_allday[i] < mue:  # Valley
+                        z_scores = np.append(z_scores, ((hist_allday[i] - mue) / sigma))
+
+                # Redefines z_flag to only contain flags from the start to p-1
+                # yeah, but why?
+                z_flags = z_flags[0:p].astype(int)
+
+                # Sorts z-flags into actual potential glows
+                glow_start = 0
+                glow_length = 0
+                glow_time = 0
+                previous_time = 0
+                potential_glow_list = []
+                for flag in z_flags:
+                    if glow_length == 0:
+                        glow_start = flag
+                        glow_length += 1
+                    if glow_length > 0 and bins10sec[flag] - 10 == previous_time:
+                        glow_length += 1
+                    if glow_length > 0 and bins10sec[flag] - 10 > previous_time:
+                        # Makes glow object and fills it out
+                        glow = sc.PotentialGlow(glow_start, glow_length)
+                        glow.highest_score = glow.highest_zscore(z_scores)
+                        glow.start_sec, glow.stop_sec = glow.beginning_and_end_seconds(bins10sec)
+                        potential_glow_list.append(glow)
+                        glow_start = flag
+                        glow_length = 1
+                    if flag == z_flags[-1]:
+                        glow = sc.PotentialGlow(glow_start, glow_length)
+                        glow.highest_score = glow.highest_zscore(z_scores)
+                        glow.start_sec, glow.stop_sec = glow.beginning_and_end_seconds(bins10sec)
+                        potential_glow_list.append(glow)
+
+                    previous_time = bins10sec[flag]
+
+                sm.print_logger('Done.', detector.log)
+                if len(potential_glow_list) == 0:
+                    sm.print_logger(f'There were no potential glows for the date {date_timestamp}', detector.log)
+                else:
+                    # Logs potential glows and sorts them in descending order depending on their highest z-score
+                    sm.print_logger('\n', detector.log)
+                    sm.print_logger('Generating event files...', detector.log)
+                    highest_scores = []
+                    print('\n', file=detector.log)
+                    print('Potential glows:', file=detector.log)
+
+                    eventpath = f'{sm.results_loc()}Results/{detector.unit}/{detector.full_day_string}/event files/' \
+                                f'long events/'
+                    sm.path_maker(eventpath)
+                    event_number = 1
+                    files_made = 0
+                    for i in range(len(potential_glow_list)):
+                        print(f'{files_made}/{len(potential_glow_list)}', end='\r')
+                        glow = potential_glow_list[i]
+                        highest_score = glow.highest_score
+                        highest_scores.append(highest_score)
+                        event_frame = pd.DataFrame()
+                        print(f'{dt.datetime.utcfromtimestamp(glow.start_sec + first_sec)} UTC ({glow.start_sec} '
+                              f'seconds of day), {glow.stop_sec - glow.start_sec} seconds long, highest z-score: '
+                              f'{highest_score}', file=detector.log)
+
+                        event_file = open(f'{eventpath}{detector.full_day_string}_event{event_number}_zscore'
+                                          f'{int(highest_score)}.txt', 'w')
+                        print(f'{dt.datetime.utcfromtimestamp(glow.start_sec + first_sec)} UTC ({glow.start_sec} '
+                              f'seconds of day), {glow.stop_sec - glow.start_sec} seconds long, highest z-score: '
+                              f'{highest_score}', file=event_file)
+                        for scint in scint_list:
+                            print(f'{scint}:', file=event_file)
+                            filelist = detector.attribute_retriever(scint, 'filelist')
+                            filetime_extrema = detector.attribute_retriever(scint, 'filetime_extrema')
+                            files_added = 0
+                            for j in range(len(filetime_extrema)):
+                                first_time = filetime_extrema[j][0]
+                                last_time = filetime_extrema[j][1]
+                                if first_time <= glow.start_sec <= last_time or \
+                                        first_time <= glow.stop_sec <= last_time:
+                                    print(filelist[j], file=event_file)
+                                    files_added += 1
+                                else:
+                                    if files_added > 0:
+                                        break
+
+                        event_file.close()
+                        event_number += 1
+                        files_made += 1
+                        print(f'{files_made}/{len(potential_glow_list)}', end='\r')
+
+                    print('\n', file=detector.log)
+                    sm.print_logger('Done.', detector.log)
+
+                    glow_sorting_order = np.argsort(highest_scores)
+                    glow_sorting_order = glow_sorting_order[::-1]
+                    potential_glow_list = [potential_glow_list[s] for s in glow_sorting_order]
+
+                    # Establishes detector location based on year and detector name
+                    location = sm.location(unit, YEAR)
+
+                    # Plotting the histograms
+                    sm.print_logger('\n', detector.log)
+                    sm.print_logger('Generating Histogram...', detector.log)
+                    figu = plt.figure(figsize=[20, 11.0])
+                    plt.title(f'{unit} {location}, {str(date_timestamp)}', loc='center')
+                    plt.tick_params(left=False, right=False, labelleft=False, labelbottom=False, bottom=False)
+                    ax1 = figu.add_subplot(5, 1, 1)
+                    ax2 = figu.add_subplot(5, 1, 2)
+                    ax3 = figu.add_subplot(5, 1, 3)
+                    ax4 = figu.add_subplot(5, 1, 4)
+                    ax5 = figu.add_subplot(5, 1, 5)
+
+                    ax_list = [ax2, ax3, ax4, ax5]
+
+                    # Plots the histogram for the entire day (just the 1st subplot)
+                    n, bins, patches = ax1.hist(times, bins=bins10sec, alpha=0.5, color='r')
+                    ax1.set_xlabel('Seconds of Day (UT)')
+                    ax1.set_ylabel('Counts/10-second bin')
+                    ax1.axhline(y=(mue + 5 * sigma), color='blue', linestyle='dashed', linewidth=2)
+
+                    # Creates legend
+                    allday_data = mpatches.Patch(color='r', label='All Energies')
+                    allday_5sigma = mpatches.Patch(color='blue', label='5 Sigma Above All Energies', linestyle='dashed')
+                    ax1.legend(handles=[allday_data, allday_5sigma, ], bbox_to_anchor=(1.05, 1), loc=1,
+                               borderaxespad=0.)
+                    ax1.grid(True)
+
+                    for i in range(4):
+                        try:
+                            glow = potential_glow_list[i]
+                            sm.hist_subplotter(ax_list[i], glow, times, bins10sec, mue, sigma)
+                        except IndexError:
+                            continue
+
+                    plt.tight_layout()
+                    plt.plot()
+
+                    # Saves the histograms:
+                    hist_path = f'{sm.results_loc()}Results/{unit}/{full_day_string}/'
+                    sm.path_maker(hist_path)
+                    plt.savefig(f'{hist_path}{full_day_string}_histogram.png', dpi=500)
+                    plt.close(figu)
+                    sm.print_logger('Done', detector.log)
+                    sm.print_logger('\n', detector.log)
 
             log.close()

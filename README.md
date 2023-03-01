@@ -69,7 +69,7 @@ To run the program in this mode, run the program the same as above but add the w
     python search.py yymmdd yymmdd detector plastics
 
 ####**'template' Mode:**
-In order to accurate calibrate the large plastic scintillator, the program needs a template. New templates must be made
+In order to accurately calibrate the large plastic scintillator, the program needs a template. New templates must be made
 for each new detector location, and this mode allows you to make the template.
 <br/>
 To run the program in this mode, run the program the same as above but add the word 'template' to the end:
@@ -87,6 +87,18 @@ It is possible to use as many of these modes in tandem as the user needs
 
     python search.py yymmdd yymmdd detector custom plastics template
 
+###**Additional (developer) modes:**
+The program also includes three bonus modes that can be used to skip various algorithms; 
+they include:
+- skcali: Skips the scintillator calibration algorithm (and therefore the long event search
+algorithm to keep things from breaking).
+
+
+- skshort: Skips the short event search algorithm.
+
+
+- skglow: Skips the long event search algorithm.
+
 ###**Changing the export location of the program results:**
 In order to change the location where the program exports its results 
 (i.e. short event scatterplots, long event histograms, scintillator spectra, logs)
@@ -98,4 +110,4 @@ follow these steps:
     path = '/users/user/desktop'
 - Save and close
 
-The program should now save its results to the custom directory specified. 
+The program should now save its results to the custom directory specified.
