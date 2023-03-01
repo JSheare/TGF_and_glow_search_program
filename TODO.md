@@ -23,3 +23,4 @@
 - [x] Finish writing README.md
 - [x] Add ability to request a range of dates to the image collector
 - [x] Make event file generators more memory efficient
+- [x] Add a dev mode that skips algorithm(s) of choice
