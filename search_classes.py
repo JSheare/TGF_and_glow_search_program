@@ -190,8 +190,6 @@ class Detector:
             Potassium-40 and Thorium.
 
         """
-        lp_energies = np.array([])
-        nai_energies = np.array([])
         if self.THOR:
             bin_range = 65535.0
             bin_number = 65536
@@ -205,12 +203,19 @@ class Detector:
             band_ends = [75, 125]
             template_bin_plot_edge = 200
 
+        energy_bins = np.linspace(0.0, bin_range, num=bin_number)
+        lp_energies = np.array([])
+        nai_energies = np.array([])
+        sp_path = f'{sm.results_loc()}Results/{self.unit}/{self.full_day_string}/'
+        sm.path_maker(sp_path)
+        spectra_conversions = open(f'{sp_path}spectra_conversions.txt', 'w')
+        spectra_frame = pd.DataFrame()
+        spectra_frame['energy bins'] = energy_bins[:-1]
         for scintillator in self.scintillators:
             if scintillator == 'SP' or scintillator == 'MP':
                 continue  # (for now)
 
             energies = self.attribute_retriever(scintillator, 'energy')
-            energy_bins = np.linspace(0.0, bin_range, num=bin_number)
             energy_hist, bin_edges = np.histogram(energies, bins=energy_bins)
             bin_plot_edge = len(energy_bins)
             flagged_indices = np.array([])
@@ -276,6 +281,12 @@ class Detector:
                     sm.print_logger('No LP template found for this location...', self.log)
 
                 lp_energies = energy_bins[flagged_indices.astype(int)]
+                if len(lp_energies) >= 2:
+                    print('For LP:', file=spectra_conversions)
+                    print(f'{lp_energies[0]} V = 1.242 MeV', file=spectra_conversions)
+                    print(f'{lp_energies[1]} V = 2.381 MeV', file=spectra_conversions)
+
+                spectra_frame['LP'] = energy_hist
 
             else:  # NaI scintillator
                 # Takes the sum of each bin with its two closest neighboring bins on either side
@@ -287,7 +298,14 @@ class Detector:
                 for i in range(len(band_starts)):
                     band_max = np.argmax(sums[band_starts[i]:band_ends[i]]) + int(band_starts[i])
                     flagged_indices = np.append(flagged_indices, band_max)
+
                 nai_energies = energy_bins[flagged_indices.astype(int)]
+                if len(nai_energies) >= 2:
+                    print('For NaI:', file=spectra_conversions)
+                    print(f'{nai_energies[0]} V = 1.46 MeV', file=spectra_conversions)
+                    print(f'{nai_energies[1]} V = 2.60 MeV', file=spectra_conversions)
+
+                spectra_frame['NaI'] = energy_hist
 
             # Plots the actual spectrum
             plt.figure(figsize=[20, 11.0])
@@ -302,11 +320,11 @@ class Detector:
                 plt.vlines(energy_bins[flagged_indices.astype(int)], 0, 1e6, zorder=2, alpha=0.75)
 
             # Saves the figure
-            sp_path = f'{sm.results_loc()}Results/{self.unit}/{self.full_day_string}/'
-            sm.path_maker(sp_path)
             plt.savefig(f'{sp_path}{scintillator}_Spectrum.png', dpi=500)
             plt.clf()
 
+        spectra_frame.to_json(f'{sp_path}{self.full_day_string}_spectra.json')
+        spectra_conversions.close()
         if self.template:
             exit()
 

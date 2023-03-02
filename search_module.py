@@ -93,6 +93,7 @@ def T_eRC(unit, day):
 def location(unit, YEAR):
     """Returns the location of a detector for the specified date."""
     # To add another detector/location simply add another if/elif statement
+    # In the future it might be better to just import all of these from a text file or something
     if unit == 'GODOT':
         if YEAR == 2015:
             location = 'at HAWC, Mexico until September, then at Uchinada'
