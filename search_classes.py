@@ -76,6 +76,7 @@ class Detector:
         each new location.
 
     """
+
     def __init__(self, unit, first_sec, log, modes):
         # Basic information
         self.unit = unit
@@ -178,6 +179,25 @@ class Detector:
         desired_attribute = medium[attribute]
         return desired_attribute
 
+    def attribute_updator(self, scintillator, attribute, new_info):
+        """Updates the requested attribute for a particular scintillator.
+
+        Parameters
+        ----------
+        scintillator : str
+            A string corresponding to the scintillator of interest. Allowed values: 'NaI', 'SP', 'MP', 'LP'.
+        attribute : str
+            A string corresponding to the scintillator attribute of interest. Allowed values: 'eRC', 'filelist', 'time',
+            'energy'.
+        new_info : any
+            The new information for the requested attribute.
+
+        """
+
+        medium = self.scintillators[scintillator]
+        medium.update({attribute: new_info})
+        self.scintillators.update({scintillator: medium})
+
     def spectra_maker(self):
         """Makes the energy spectra histograms and calibrates the large plastic and sodium iodide scintillators.
 
@@ -190,6 +210,7 @@ class Detector:
             Potassium-40 and Thorium.
 
         """
+
         if self.THOR:
             bin_range = 65535.0
             bin_number = 65536
@@ -332,6 +353,7 @@ class Detector:
 
     def data_importer(self):
         """Imports data from data files into arrays and then updates them into the nested dictionary structure."""
+
         for i in self.scintillators:
             scintillator = self.scintillators[i]
             eRC = scintillator['eRC']
@@ -453,7 +475,6 @@ class Detector:
                     print(f'{day_files}|{file_behavior}|{file_time_gap}', file=self.log)
 
                 # Makes the final arrays and exports them
-                scintillator.update({'filelist': filelist})
                 times = np.concatenate(time_list)
                 # Corrects for the fact that the first 200-300 seconds of the next day are included in the last file
                 day_change_array = np.array(np.where(np.diff(times) < -86400))
@@ -470,6 +491,7 @@ class Detector:
 
                 filetime_extrema_list[-1] = last_file_extrema
 
+                scintillator.update({'filelist': filelist})
                 scintillator.update({'time': times})
                 scintillator.update({'energy': np.concatenate(energy_list)})
                 scintillator.update({'wc': np.concatenate(wallclock_list)})
@@ -510,6 +532,7 @@ class ShortEvent:
         A string corresponding to the scintillator which the event was found in.
 
     """
+
     def __init__(self, event_start, event_length, scintillator):
         self.start = int(event_start)
         self.length = int(event_length)
@@ -541,6 +564,7 @@ class ShortEvent:
             eventually used when the next scatter plot is generated to make file finding faster.
 
         """
+
         times = detector.attribute_retriever(self.scintillator, 'time')
         energies = detector.attribute_retriever(self.scintillator, 'energy')
         wallclock = detector.attribute_retriever(self.scintillator, 'wc')
@@ -648,6 +672,7 @@ class PotentialGlow:
         The end of the event in seconds.
 
     """
+
     def __init__(self, glow_start, glow_length):
         self.start = int(glow_start)
         self.length = int(glow_length)

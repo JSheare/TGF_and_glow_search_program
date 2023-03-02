@@ -1,8 +1,6 @@
 ### To-do list:
 - [ ] Write duplicate file eliminator/sorter for general data
 - [ ] Add full list of all locations ever for each detector
-- [ ] Write an attribute updator method to detector class
-  - green lines at current band boundaries to see where they fall
 - [ ] Profile the program for bottlenecks
 - [ ] Make a standard for adding more detectors:
   - the detector class needs to have another attribute for scints used in glow search
@@ -23,3 +21,4 @@
 - [x] Add ability to request a range of dates to the image collector
 - [x] Make event file generators more memory efficient
 - [x] Add a dev mode that skips algorithm(s) of choice
+- [x] Write an attribute updator method to detector class
