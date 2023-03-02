@@ -4,7 +4,6 @@
 - [ ] Write an attribute updator method to detector class
   - green lines at current band boundaries to see where they fall
 - [ ] Profile the program for bottlenecks
-- [ ] Add a dev mode that skips algorithm(s) of choice
 - [ ] Make a standard for adding more detectors:
   - the detector class needs to have another attribute for scints used in glow search
   - also needs to have one for detector file name format
