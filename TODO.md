@@ -6,6 +6,7 @@
   - the detector class needs to have another attribute for scints used in glow search
   - also needs to have one for detector file name format
   - that way the data importer/glow search algo will accept any generic detector you feed it
+- [ ] Change detector object to accept yymmdd string instead of first second of day
 
 ### Completed
 - [x] Fix channel-to-MeV converter function
