@@ -112,7 +112,7 @@ for year in requested_dates:  # Loops over all requested years
             sm.print_logger(f'The first second of {YEAR}-{MONTH}-{DAY} is: {int(first_sec)}', log)
             sm.print_logger(f'The last second of {YEAR}-{MONTH}-{DAY} is: {int(first_sec + 86400)}', log)
 
-            # Imports the data
+            # Initializes the detector object and imports the data
             print('Importing data...')
             detector = sc.Detector(unit, first_sec, log, modes)
             detector.data_importer()

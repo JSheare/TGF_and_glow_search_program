@@ -186,16 +186,27 @@ class Detector:
         ----------
         scintillator : str
             A string corresponding to the scintillator of interest. Allowed values: 'NaI', 'SP', 'MP', 'LP'.
-        attribute : str
+        attribute : str/list
             A string corresponding to the scintillator attribute of interest. Allowed values: 'eRC', 'filelist', 'time',
             'energy'.
-        new_info : any
+        new_info : any/list
             The new information for the requested attribute.
 
         """
 
         medium = self.scintillators[scintillator]
-        medium.update({attribute: new_info})
+        if type(attribute) is list and type(new_info) is list:
+            if len(attribute) != len(new_info):
+                raise Exception('Attribute and new info must be the same length')
+
+            for i in range(len(attribute)):
+                medium.update({attribute[i]: new_info[i]})
+
+        elif type(attribute) is str:
+            medium.update({attribute: new_info})
+        else:
+            raise Exception('Attribute and new info must both be either strings or lists')
+
         self.scintillators.update({scintillator: medium})
 
     def spectra_maker(self):
@@ -491,12 +502,10 @@ class Detector:
 
                 filetime_extrema_list[-1] = last_file_extrema
 
-                scintillator.update({'filelist': filelist})
-                scintillator.update({'time': times})
-                scintillator.update({'energy': np.concatenate(energy_list)})
-                scintillator.update({'wc': np.concatenate(wallclock_list)})
-                scintillator.update({'filetime_extrema': filetime_extrema_list})
-                self.scintillators.update({i: scintillator})
+                updated_attributes = ['filelist', 'time', 'energy', 'wc', 'filetime_extrema']
+                updated_info = [filelist, times, np.concatenate(energy_list), np.concatenate(wallclock_list),
+                                filetime_extrema_list]
+                self.attribute_updator(i, updated_attributes, updated_info)
 
                 print('\n', file=self.log)
                 print(f'Total Counts: {len(np.concatenate(time_list))}', file=self.log)
