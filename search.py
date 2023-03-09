@@ -39,7 +39,6 @@ skshort = False
 skglow = False
 if 'skcali' in modes:  # Skip detector calibration
     skcali = True
-    skglow = True  # To prevent things from breaking long events are skipped if calibration is skipped
 
 if 'skshort' in modes:  # Skip short event search
     skshort = True
@@ -309,7 +308,7 @@ for year in requested_dates:  # Loops over all requested years
 
                 # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
                 # This code could probably be cleaned up
-                if detector.good_lp_calibration:
+                if detector.good_lp_calibration and not skcali:
                     lp_times = detector.attribute_retriever('LP', 'time')
                     lp_energies = sm.channel_to_mev(detector.attribute_retriever('LP', 'energy'), lp_channels, 'LP')
                 else:
@@ -319,9 +318,12 @@ for year in requested_dates:  # Loops over all requested years
                 if detector.SANTIS:
                     nai_times = np.array([])
                     nai_energies = np.array([])
-                else:
+                elif not skcali:
                     nai_times = detector.attribute_retriever('NaI', 'time')
                     nai_energies = sm.channel_to_mev(detector.attribute_retriever('NaI', 'energy'), nai_channels, 'NaI')
+                else:
+                    nai_times = detector.attribute_retriever('NaI', 'time')
+                    nai_energies = detector.attribute_retriever('NaI', 'energy')
 
                 # Combines large plastic and NaI data for GODOT
                 scint_list = []  # This list should really be made into a detector attribute
@@ -339,7 +341,7 @@ for year in requested_dates:  # Loops over all requested years
                     energies = detector.attribute_retriever('LP', 'energy')
 
                 # Removes entries that are below a certain cutoff energy
-                if not detector.good_lp_calibration and (detector.GODOT or detector.SANTIS):
+                if (not detector.good_lp_calibration and (detector.GODOT or detector.SANTIS)) or skcali:
                     print('Potentially inaccurate large plastic calibration, beware radon washout!', file=detector.log)
                 else:
                     energy_cutoff = 1.9  # MeV
