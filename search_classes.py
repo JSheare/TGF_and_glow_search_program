@@ -578,6 +578,14 @@ class ShortEvent:
         energies = detector.attribute_retriever(self.scintillator, 'energy')
         wallclock = detector.attribute_retriever(self.scintillator, 'wc')
 
+        # truncated time and energy arrays to speed up scatter plot making
+        fraction_of_day = 1/64
+        spacer = int((len(times)*fraction_of_day)/2)
+        left_edge = 0 if self.start-spacer < 0 else self.start - spacer
+        right_edge = (len(times) - 1) if self.stop + spacer > (len(times) - 1) else self.stop + spacer
+        trunc_times = times[left_edge:right_edge]
+        trunc_energies = energies[left_edge:right_edge]
+
         event_times = times[self.start:self.stop]
         event_energies = energies[self.start:self.stop]
         event_wallclock = wallclock[self.start:self.stop]
@@ -606,7 +614,7 @@ class ShortEvent:
             dot_size = 3 if ts == timescales[0] else 1  # makes larger dots for top plot
             ax.set_yscale('log')
             ax.set_ylim([0.5, 1e5])
-            ax.scatter(times, energies + 0.6, s=dot_size, zorder=1, alpha=1.0)
+            ax.scatter(trunc_times, trunc_energies + 0.6, s=dot_size, zorder=1, alpha=1.0)
             ax.set_xlabel(f'Time (Seconds, {ts}s total)')
             ax.set_ylabel('Energy Channel')
             # Lines appear (100*percent)% to the left or right of event start/stop depending on subplot timescale
