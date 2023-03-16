@@ -153,7 +153,7 @@ for year in requested_dates:  # Loops over all requested years
                 # Parameters:
                 rollgap = 4
                 event_time_spacing = 1e-3  # 1 millisecond
-                event_min_counts = 6
+                event_min_counts = 10
                 noise_cutoff_energy = 300
                 min_noise_counts = 3
                 channel_range_width = 300
@@ -180,40 +180,43 @@ for year in requested_dates:  # Loops over all requested years
                     total_potential_events = 0
                     total_threshold_reached = 0
 
-                    interval = np.abs(times - np.roll(times, rollgap))
-
-                    # -1's are meant to band-aid a bug. I know what's causing it but too lazy to fix right now
-                    # I left this so long ago that I've forgotten what it's talking about
+                    rolled_array = np.roll(times, -rollgap)
+                    interval = rolled_array - times
+                    event_start_time = 0
                     for i in range(len(interval)):
                         # Records the beginning index of a potential event
-                        if interval[i] < event_time_spacing and event_length == 0:
+                        if interval[i] <= event_time_spacing and event_length == 0:
                             event_start = i
-                            event_length += 1
-                            event_time += interval[i]
+                            event_start_time = times[i]
+                            event_length = 1 + rollgap  # 1 for first count, rollgap for the others
+                            event_time = rolled_array[i] - event_start_time
                             total_potential_events += 1
                             print(f'Potential event (#{total_potential_events})')
+
                         # Measures the length of a potential event
-                        if interval[i] < event_time_spacing and event_length >= 1:
+                        if interval[i] <= event_time_spacing and event_length >= 1:
                             event_length += 1
-                            event_time += interval[i]
+                            event_time = rolled_array[i] - event_start_time
+
+                        # Counts the total number of times that the detection threshold was reached
+                        if interval[i] < event_time_spacing:
+                            total_threshold_reached += 1
 
                         # Records the rough length of a potential event
-                        if interval[i] > event_time_spacing and event_length > 0:
-                            # Keeps potential event if it is longer than the specified minimum number of counts
-                            if (event_length - 1) >= event_min_counts:
-                                print(f'Potential event length: {event_time} seconds, {event_length - 1} counts')
-                                potential_event = sc.ShortEvent(event_start, event_length - 1, scintillator)
+                        if interval[
+                            i] > event_time_spacing and event_length > 0:
+                            # Keeps potential event if it's longer than the specified minimum number of counts
+                            if event_length >= event_min_counts:
+                                print(f'Potential event length: {event_time} seconds, {event_length} counts')
+                                potential_event = sc.ShortEvent(event_start, event_length, scintillator)
                                 potential_event_list.append(potential_event)
 
-                            if (event_length - 1) < event_min_counts:
-                                print(f'Potential event removed due to insufficient length ({event_length - 1} counts)')
+                            if event_length < event_min_counts:
+                                print(f'Potential event removed due to insufficient length ({event_length} counts)')
 
                             event_start = 0
                             event_length = 0
                             event_time = 0
-                        # Counts the total number of times that the detection threshold was reached
-                        if interval[i] < event_time_spacing:
-                            total_threshold_reached += 1
 
                     # Eliminates noisy events
                     f_potential_event_list = []
