@@ -706,10 +706,10 @@ class PotentialGlow:
         self.peak_index = np.argmax(glow_scores) + self.start
         return highest_score
 
-    def beginning_and_end_seconds(self, bins10sec):
+    def beginning_and_end_seconds(self, day_bins, binsize):
         """ Retrieves the beginning and total length of an event in seconds."""
-        glow_times = bins10sec[self.start:self.stop]
+        glow_times = day_bins[self.start:self.stop]
         first_sec = glow_times[0]
-        length = self.length * 10
+        length = self.length * binsize
         last_sec = first_sec + length
         return first_sec, last_sec

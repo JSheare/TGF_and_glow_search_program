@@ -34,17 +34,12 @@ except IndexError:
     pass
 
 # Modes for skipping over certain algorithms (mostly to speed up testing)
-skcali = False
-skshort = False
-skglow = False
-if 'skcali' in modes:  # Skip detector calibration
-    skcali = True
+skcali = True if 'skcali' in modes else False  # Skip detector calibration
+skshort = True if 'skshort' in modes else False  # Skip short event search
+skglow = True if 'skglow' in modes else False  # SKip long event search
 
-if 'skshort' in modes:  # Skip short event search
-    skshort = True
-
-if 'skglow' in modes:  # Skip long event search
-    skglow = True
+# Aircraft mode
+aircraft = True if 'aircraft' in modes else False
 
 # Makes a dictionary of all the requested years, the requested months in each year,
 # and the requested days in each month
@@ -151,7 +146,7 @@ for year in requested_dates:  # Loops over all requested years
                 sm.print_logger('\n', detector.log)
 
                 # Parameters:
-                rollgap = 4
+                rollgap = 4 if aircraft else 4
                 event_time_spacing = 1e-3  # 1 millisecond
                 event_min_counts = 10
                 noise_cutoff_energy = 300
@@ -203,8 +198,7 @@ for year in requested_dates:  # Loops over all requested years
                             total_threshold_reached += 1
 
                         # Records the rough length of a potential event
-                        if interval[
-                            i] > event_time_spacing and event_length > 0:
+                        if interval[i] > event_time_spacing and event_length > 0:
                             # Keeps potential event if it's longer than the specified minimum number of counts
                             if event_length >= event_min_counts:
                                 print(f'Potential event length: {event_time} seconds, {event_length} counts')
@@ -267,16 +261,18 @@ for year in requested_dates:  # Loops over all requested years
                             else:
                                 print('Potential event removed due to noise')
 
-                    sm.print_logger(f'\n{len(f_potential_event_list)} potential events recorded', detector.log)
+                    potential_event_list = f_potential_event_list
+
+                    sm.print_logger(f'\n{len(potential_event_list)} potential events recorded', detector.log)
                     sm.print_logger(f'Detection threshold reached {total_threshold_reached} times', detector.log)
                     print('\n', file=detector.log)
 
-                    if len(f_potential_event_list) > 0:
+                    if len(potential_event_list) > 0:
                         print('\n')
                         sm.print_logger('Generating scatter plots and event files...', detector.log)
                         print('\n', file=detector.log)
                         print('Potential short events:', file=detector.log)
-                        for event in f_potential_event_list:
+                        for event in potential_event_list:
                             start_second = times[event.start] - 86400 if times[event.start] > 86400 else \
                                 times[event.start]
                             print(f'{dt.datetime.utcfromtimestamp(times[event.start] + first_sec)} UTC '
@@ -292,13 +288,13 @@ for year in requested_dates:  # Loops over all requested years
                         ts_list = [ts1, ts2, ts3]
 
                         plots_made = 0
-                        for i in range(len(f_potential_event_list)):
+                        for i in range(len(potential_event_list)):
                             print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
-                            event = f_potential_event_list[i]
+                            event = potential_event_list[i]
                             filelist, filetime_extrema = event.scatterplot_maker(ts_list, detector, i+1,
                                                                                  filelist, filetime_extrema)
                             plots_made += 1
-                            print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
+                            print(f'{plots_made}/{len(potential_event_list)}', end='\r')
 
                         sm.print_logger('Done.', detector.log)
                         sm.print_logger('\n', detector.log)
@@ -355,11 +351,12 @@ for year in requested_dates:  # Loops over all requested years
                 if detector.processed:
                     times = times - first_sec
 
-                # Makes one bin for every ten seconds of the day (plus 30 more for the next day)
-                bins10sec = np.arange(86701, step=10)
+                # Makes one bin for every binsize seconds of the day (plus around 300 seconds more for the next day)
+                binsize = 4 if aircraft else 10
+                day_bins = np.arange(0, 86700 + binsize, binsize)
 
                 # Creates numerical values for histograms using numpy
-                hist_allday, bins_allday = np.histogram(times, bins=bins10sec)
+                hist_allday, bins_allday = np.histogram(times, bins=day_bins)
 
                 # Calculates mean and z-scores
                 hist_allday_nz = hist_allday[hist_allday.nonzero()]
@@ -406,23 +403,50 @@ for year in requested_dates:  # Loops over all requested years
                     if glow_length == 0:
                         glow_start = flag
                         glow_length += 1
-                    if glow_length > 0 and bins10sec[flag] - 10 == previous_time:
+                    if glow_length > 0 and day_bins[flag] - binsize == previous_time:
                         glow_length += 1
-                    if glow_length > 0 and bins10sec[flag] - 10 > previous_time:
+                    if glow_length > 0 and day_bins[flag] - binsize > previous_time:
                         # Makes glow object and fills it out
                         glow = sc.PotentialGlow(glow_start, glow_length)
                         glow.highest_score = glow.highest_zscore(z_scores)
-                        glow.start_sec, glow.stop_sec = glow.beginning_and_end_seconds(bins10sec)
+                        glow.start_sec, glow.stop_sec = glow.beginning_and_end_seconds(day_bins, binsize)
                         potential_glow_list.append(glow)
                         glow_start = flag
                         glow_length = 1
                     if flag == z_flags[-1]:
                         glow = sc.PotentialGlow(glow_start, glow_length)
                         glow.highest_score = glow.highest_zscore(z_scores)
-                        glow.start_sec, glow.stop_sec = glow.beginning_and_end_seconds(bins10sec)
+                        glow.start_sec, glow.stop_sec = glow.beginning_and_end_seconds(day_bins, binsize)
                         potential_glow_list.append(glow)
 
-                    previous_time = bins10sec[flag]
+                    previous_time = day_bins[flag]
+
+                # Checks the bins surrounding a long event while in aircraft mode
+                if aircraft:
+                    # Number of neighbors on each side of the long event edges to check
+                    check_neighbor = 10
+                    # Acceptable difference between peak zscore of event and average zscore of surrounding events
+                    tolerance = 1
+
+                    num_bins = len(z_scores)
+                    f_potential_glow_list = []
+                    for glow in potential_glow_list:
+                        z_score_sum = 0
+                        bins_summed = 0
+                        for i in range(check_neighbor):
+                            if not glow.start - (i+1) < 0:
+                                z_score_sum += z_scores[glow.start - (i+1)]
+                                bins_summed += 1
+
+                            if not glow.start + (i+1) > (num_bins - 1):
+                                z_score_sum += z_scores[glow.stop + (i+1)]
+                                bins_summed += 1
+
+                        score_average = z_score_sum/bins_summed
+                        if (np.abs(z_scores[glow.peak_index] - score_average)) >= tolerance:
+                            f_potential_glow_list.append(glow)
+
+                    potential_glow_list = f_potential_glow_list
 
                 sm.print_logger('Done.', detector.log)
                 if len(potential_glow_list) == 0:
@@ -501,7 +525,7 @@ for year in requested_dates:  # Loops over all requested years
                     ax_list = [ax2, ax3, ax4, ax5]
 
                     # Plots the histogram for the entire day (just the 1st subplot)
-                    n, bins, patches = ax1.hist(times, bins=bins10sec, alpha=0.5, color='r')
+                    n, bins, patches = ax1.hist(times, bins=day_bins, alpha=0.5, color='r')
                     ax1.set_xlabel('Seconds of Day (UT)')
                     ax1.set_ylabel('Counts/10-second bin')
                     ax1.axhline(y=(mue + 5 * sigma), color='blue', linestyle='dashed', linewidth=2)
@@ -516,7 +540,7 @@ for year in requested_dates:  # Loops over all requested years
                     for i in range(4):
                         try:
                             glow = potential_glow_list[i]
-                            sm.hist_subplotter(ax_list[i], glow, times, bins10sec, mue, sigma)
+                            sm.hist_subplotter(ax_list[i], glow, times, day_bins, mue, sigma)
                         except IndexError:
                             continue
 
