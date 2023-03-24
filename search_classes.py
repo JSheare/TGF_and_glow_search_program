@@ -205,7 +205,7 @@ class Detector:
         elif type(attribute) is str:
             medium.update({attribute: new_info})
         else:
-            raise Exception('Attribute and new info must both be either strings or lists')
+            raise Exception('Both attribute and new info must be either strings or lists')
 
         self.scintillators.update({scintillator: medium})
 
@@ -216,9 +216,9 @@ class Detector:
         -------
         np.array
             Two numpy arrays. The first array contains the large plastic scintillator energy channels corresponding to
-            the most compton-scattered photons of Potassium-40 and Thorium (i.e. compton edge locations). The second
+            the most compton-scattered photons of potassium-40 and thorium (i.e. Compton edge locations). The second
             array contains the sodium iodide scintillator energy channels corresponding to the photo peaks of
-            Potassium-40 and Thorium.
+            potassium-40 and thorium.
 
         """
 
@@ -227,7 +227,7 @@ class Detector:
             bin_number = 65536
             band_starts = [2000, 5600]
             band_ends = [2500, 6300]
-            template_bin_plot_edge = 8000
+            template_bin_plot_edge = 8000  # placeholder
         else:
             bin_range = 15008.0
             bin_number = 939
