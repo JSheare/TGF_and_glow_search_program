@@ -488,19 +488,20 @@ class Detector:
                 # Makes the final arrays and exports them
                 times = np.concatenate(time_list)
                 # Corrects for the fact that the first 200-300 seconds of the next day are included in the last file
-                day_change_array = np.array(np.where(np.diff(times) < -86400))
+                day_change_array = np.array(np.where(np.diff(times) < -80000))
                 if day_change_array.size > 0:
                     change_index = int(day_change_array[0]) + 1
                     times = np.append(times[0:change_index], times[change_index:] + 86400.0)
 
                 # Does it for the file time extrema too
-                last_file_extrema = filetime_extrema_list[-1]
-                for j in range(2):
-                    extrema = last_file_extrema[j]
-                    if extrema < 500:
-                        last_file_extrema[j] = extrema + 86400
+                for k in range(int(len(filetime_extrema_list)/8)):  # Last eighth of the files
+                    last_file_extrema = filetime_extrema_list[-(k+1)]
+                    for j in range(2):
+                        extrema = last_file_extrema[j]
+                        if extrema < 500:
+                            last_file_extrema[j] = extrema + 86400
 
-                filetime_extrema_list[-1] = last_file_extrema
+                    filetime_extrema_list[-(k+1)] = last_file_extrema
 
                 updated_attributes = ['filelist', 'time', 'energy', 'wc', 'filetime_extrema']
                 updated_info = [filelist, times, np.concatenate(energy_list), np.concatenate(wallclock_list),

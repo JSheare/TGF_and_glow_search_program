@@ -179,22 +179,21 @@ for year in requested_dates:  # Loops over all requested years
                     interval = rolled_array - times
                     event_start_time = 0
                     for i in range(len(interval)):
-                        # Records the beginning index of a potential event
-                        if interval[i] <= event_time_spacing and event_length == 0:
-                            event_start = i
-                            event_start_time = times[i]
-                            event_length = 1 + rollgap  # 1 for first count, rollgap for the others
-                            event_time = rolled_array[i] - event_start_time
-                            total_potential_events += 1
-                            print(f'Potential event (#{total_potential_events})')
+                        if 0 < interval[i] <= event_time_spacing:
+                            # Records the beginning index of a potential event
+                            if event_length == 0:
+                                event_start = i
+                                event_start_time = times[i]
+                                event_length = 1 + rollgap  # 1 for first count, rollgap for the others
+                                event_time = rolled_array[i] - event_start_time
+                                total_potential_events += 1
+                                print(f'Potential event (#{total_potential_events})')
+                            # Measures the length of a potential event
+                            else:
+                                event_length += 1
+                                event_time = rolled_array[i] - event_start_time
 
-                        # Measures the length of a potential event
-                        if interval[i] <= event_time_spacing and event_length >= 1:
-                            event_length += 1
-                            event_time = rolled_array[i] - event_start_time
-
-                        # Counts the total number of times that the detection threshold was reached
-                        if interval[i] < event_time_spacing:
+                            # Counts the total number of times that the detection threshold was reached
                             total_threshold_reached += 1
 
                         # Records the rough length of a potential event
