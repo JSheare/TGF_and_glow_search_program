@@ -15,9 +15,9 @@ import numpy as np
 import pandas as pd
 import scipy.signal as signal
 import matplotlib.pyplot as plt
-import search_module as sm
-import DataReaderFinal as dr
 import datetime as dt
+import DataReaderFinal as dr
+import search_module as sm
 
 
 class Detector:
@@ -51,6 +51,8 @@ class Detector:
         The directory path for the location of the requested data files.
     good_lp_calibration : bool
         A flag for whether the program was able to calibrate the detector's large plastic scintillator or not.
+    long_event_scint_list : list
+        A list of the scintillators used by the long event search algorithm.
     scintillators : dict
         A nested dictionary containing all the relevant information for a detector's scintillators.
     THOR : bool
@@ -88,6 +90,7 @@ class Detector:
         self.location = 'location'  # Eventually this will be fetched from a function in search_module
         self.import_path = ''
         self.good_lp_calibration = False
+        self.long_event_scint_list = ['LP']
 
         # Detector information
         self.THOR = False
@@ -96,39 +99,42 @@ class Detector:
 
         if self.unit == 'GODOT':
             self.GODOT = True
+            self.long_event_scint_list = ['NaI', 'LP']
             if 'processed' in self.modes:
                 self.import_path = f'{sm.G_processed_data_loc()}/{self.full_day_string[0:4]}'
             else:
                 self.import_path = f'{sm.G_raw_data_loc()}/{self.full_day_string}'
 
             self.scintillators = {'NaI': {'eRC': '1490',
-                                          'filelist': [], 'filetime_extrema': list(),
+                                          'filelist': [], 'filetime_extrema': list(), 'calibration': [],
                                           'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])},
                                   'LP': {'eRC': '1491',
-                                         'filelist': [], 'filetime_extrema': list(),
+                                         'filelist': [], 'filetime_extrema': list(), 'calibration': [],
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])}}
 
         elif self.unit[0:4] == 'THOR':
             self.THOR = True
+            self.long_event_scint_list = ['NaI']
             self.import_path = f'{sm.T_raw_data_loc()}/{unit}/Data/{self.full_day_string}'
             self.scintillators = {'NaI': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[0],
-                                          'filelist': [], 'filetime_extrema': list(),
+                                          'filelist': [], 'filetime_extrema': list(), 'calibration': [],
                                           'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])},
                                   'SP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[1],
-                                         'filelist': [], 'filetime_extrema': list(),
+                                         'filelist': [], 'filetime_extrema': list(), 'calibration': [],
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])},
                                   'MP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[2],
-                                         'filelist': [], 'filetime_extrema': list(),
+                                         'filelist': [], 'filetime_extrema': list(), 'calibration': [],
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])},
                                   'LP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[3],
-                                         'filelist': [], 'filetime_extrema': list(),
+                                         'filelist': [], 'filetime_extrema': list(), 'calibration': [],
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])}}
 
         elif self.unit == 'SANTIS':
             self.SANTIS = True
+            self.long_event_scint_list = ['LP']
             self.import_path = f'{sm.S_raw_data_loc()}/{self.full_day_string}'
             self.scintillators = {'LP': {'eRC': '2549',
-                                         'filelist': [], 'filetime_extrema': list(),
+                                         'filelist': [], 'filetime_extrema': list(), 'calibration': [],
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])}}
         else:
             print('Not a valid detector')
@@ -236,14 +242,13 @@ class Detector:
             template_bin_plot_edge = 200
 
         energy_bins = np.linspace(0.0, bin_range, num=bin_number)
-        lp_energies = np.array([])
-        nai_energies = np.array([])
         sp_path = f'{sm.results_loc()}Results/{self.unit}/{self.full_day_string}/'
         sm.path_maker(sp_path)
         spectra_conversions = open(f'{sp_path}spectra_conversions.txt', 'w')
         spectra_frame = pd.DataFrame()
         spectra_frame['energy bins'] = energy_bins[:-1]
         for scintillator in self.scintillators:
+            calibration = []
             if scintillator == 'SP' or scintillator == 'MP':
                 continue  # (for now)
 
@@ -312,13 +317,14 @@ class Detector:
                 except FileNotFoundError:
                     sm.print_logger('No LP template found for this location...', self.log)
 
-                lp_energies = energy_bins[flagged_indices.astype(int)]
-                if len(lp_energies) >= 2:
+                calibration = energy_bins[flagged_indices.astype(int)]
+                if len(calibration) >= 2:
                     print('For LP:', file=spectra_conversions)
-                    print(f'{lp_energies[0]} V = 1.242 MeV', file=spectra_conversions)
-                    print(f'{lp_energies[1]} V = 2.381 MeV', file=spectra_conversions)
+                    print(f'{calibration[0]} V = 1.242 MeV', file=spectra_conversions)
+                    print(f'{calibration[1]} V = 2.381 MeV', file=spectra_conversions)
 
                 spectra_frame['LP'] = energy_hist
+                self.attribute_updator(scintillator, 'calibration', calibration)
 
             else:  # NaI scintillator
                 # Takes the sum of each bin with its two closest neighboring bins on either side
@@ -331,13 +337,14 @@ class Detector:
                     band_max = np.argmax(sums[band_starts[i]:band_ends[i]]) + int(band_starts[i])
                     flagged_indices = np.append(flagged_indices, band_max)
 
-                nai_energies = energy_bins[flagged_indices.astype(int)]
-                if len(nai_energies) >= 2:
+                calibration = energy_bins[flagged_indices.astype(int)]
+                if len(calibration) >= 2:
                     print('For NaI:', file=spectra_conversions)
-                    print(f'{nai_energies[0]} V = 1.46 MeV', file=spectra_conversions)
-                    print(f'{nai_energies[1]} V = 2.60 MeV', file=spectra_conversions)
+                    print(f'{calibration[0]} V = 1.46 MeV', file=spectra_conversions)
+                    print(f'{calibration[1]} V = 2.60 MeV', file=spectra_conversions)
 
                 spectra_frame['NaI'] = energy_hist
+                self.attribute_updator(scintillator, 'calibration', calibration)
 
             # Plots the actual spectrum
             plt.figure(figsize=[20, 11.0])
@@ -359,8 +366,6 @@ class Detector:
         spectra_conversions.close()
         if self.template:
             exit()
-
-        return lp_energies, nai_energies
 
     def data_importer(self):
         """Imports data from data files into arrays and then updates them into the nested dictionary structure."""

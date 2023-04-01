@@ -131,12 +131,10 @@ for year in requested_dates:  # Loops over all requested years
             print('Done.')
 
             # Calibrates each scintillator
-            lp_channels = []
-            nai_channels = []
             if not skcali:
                 print('\n')
                 sm.print_logger('Calibrating Scintillators and generating energy spectra...', detector.log)
-                lp_channels, nai_channels = detector.spectra_maker()
+                detector.spectra_maker()
                 sm.print_logger('Done.', detector.log)
 
     # Short event algorithm starts here:
@@ -303,40 +301,27 @@ for year in requested_dates:  # Loops over all requested years
     # Glow search algorithm starts here
             if not skglow:
                 sm.print_logger('Starting search for glows...', detector.log)
-
                 # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
-                # This code could probably be cleaned up
-                if detector.good_lp_calibration and not skcali:
-                    lp_times = detector.attribute_retriever('LP', 'time')
-                    lp_energies = sm.channel_to_mev(detector.attribute_retriever('LP', 'energy'), lp_channels, 'LP')
-                else:
-                    lp_times = detector.attribute_retriever('LP', 'time')
-                    lp_energies = detector.attribute_retriever('LP', 'energy')
-
-                if detector.SANTIS:
-                    nai_times = np.array([])
-                    nai_energies = np.array([])
-                elif not skcali:
-                    nai_times = detector.attribute_retriever('NaI', 'time')
-                    nai_energies = sm.channel_to_mev(detector.attribute_retriever('NaI', 'energy'), nai_channels, 'NaI')
-                else:
-                    nai_times = detector.attribute_retriever('NaI', 'time')
-                    nai_energies = detector.attribute_retriever('NaI', 'energy')
-
-                # Combines large plastic and NaI data for GODOT
-                scint_list = []  # This list should really be made into a detector attribute
-                if detector.GODOT:
-                    scint_list = ['NaI', 'LP']
-                    times = np.append(lp_times, nai_times)
-                    energies = np.append(lp_energies, nai_energies)
-                elif detector.THOR:
-                    scint_list = ['NaI']
-                    times = nai_times
-                    energies = nai_energies
-                else:
-                    scint_list = ['LP']
-                    times = detector.attribute_retriever('LP', 'time')
-                    energies = detector.attribute_retriever('LP', 'energy')
+                times = np.array([])
+                energies = np.array([])
+                for scint in detector.long_event_scint_list:
+                    if scint == detector.long_event_scint_list[0]:
+                        times = detector.attribute_retriever(scint, 'time')
+                        if skcali:
+                            energies = detector.attribute_retriever(scint, 'energy')
+                        else:
+                            calibration = detector.attribute_retriever(scint, 'calibration')
+                            energies = sm.channel_to_mev(detector.attribute_retriever(scint, 'energy'),
+                                                         calibration, scint)
+                    else:
+                        times = np.append(times, detector.attribute_retriever(scint, 'time'))
+                        if skcali:
+                            energies = np.append(energies, detector.attribute_retriever(scint, 'energy'))
+                        else:
+                            calibration = detector.attribute_retriever(scint, 'calibration')
+                            energies = np.append(energies,
+                                                 sm.channel_to_mev(detector.attribute_retriever(scint, 'energy'),
+                                                                   calibration, scint))
 
                 # Removes entries that are below a certain cutoff energy
                 if (not detector.good_lp_calibration and (detector.GODOT or detector.SANTIS)) or skcali:
@@ -478,7 +463,7 @@ for year in requested_dates:  # Loops over all requested years
                         print(f'{dt.datetime.utcfromtimestamp(glow.start_sec + first_sec)} UTC ({glow.start_sec} '
                               f'seconds of day), {glow.stop_sec - glow.start_sec} seconds long, highest z-score: '
                               f'{highest_score}', file=event_file)
-                        for scint in scint_list:
+                        for scint in detector.long_event_scint_list:
                             print(f'{scint}:', file=event_file)
                             filelist = detector.attribute_retriever(scint, 'filelist')
                             filetime_extrema = detector.attribute_retriever(scint, 'filetime_extrema')
