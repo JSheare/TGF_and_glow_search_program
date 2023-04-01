@@ -34,13 +34,13 @@ class Detector:
         The name of the particular detector that the analysis is being requested for.
     first_sec : float
         The first second in EPOCH time of the day that data analysis is being requested for.
-    log : file
-        The .txt file where program actions and findings are logged.
     modes : list
         A list of the requested modes that the program should operate under.
 
     Attributes
     ----------
+    log : file/str
+        The .txt file where program actions and findings are logged.
     full_day_string : str
         The timestamp for the requested day in yymmdd format.
     date_timestamp : str
@@ -79,11 +79,11 @@ class Detector:
 
     """
 
-    def __init__(self, unit, first_sec, log, modes):
+    def __init__(self, unit, first_sec, modes):
         # Basic information
         self.unit = unit
         self.first_sec = first_sec
-        self.log = log
+        self.log = ''
         self.modes = modes
         self.full_day_string = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%y%m%d')  # In format yymmdd
         self.date_timestamp = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%Y-%m-%d')  # In format yyyy-mm-dd

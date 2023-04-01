@@ -145,7 +145,8 @@ def days_per_month(month, year):
 def print_logger(string, logfile):
     """Prints the specified string to both the console and the specified text file."""
     print(string)
-    print(string, file=logfile)
+    if type(logfile) == str:
+        print(string, file=logfile)
 
 
 def path_maker(path):

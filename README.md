@@ -99,6 +99,10 @@ algorithm to keep things from breaking).
 
 - skglow: Skips the long event search algorithm.
 
+
+- pickle: Pickles and saves the detector object for later use OR imports an 
+  already-pickled detector object
+
 ###**Changing the export location of the program results:**
 In order to change the location where the program exports its results 
 (i.e. short event scatterplots, long event histograms, scintillator spectra, logs)

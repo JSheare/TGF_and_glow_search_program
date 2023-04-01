@@ -1,6 +1,8 @@
 import sys
 import warnings
 import datetime as dt
+import pickle as pickle
+import glob as glob
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -40,6 +42,9 @@ skglow = True if 'skglow' in modes else False  # SKip long event search
 
 # Aircraft mode
 aircraft = True if 'aircraft' in modes else False
+
+# Pickle mode
+picklem = True if 'pickle' in modes else False
 
 # Makes a dictionary of all the requested years, the requested months in each year,
 # and the requested days in each month
@@ -108,8 +113,25 @@ for year in requested_dates:  # Loops over all requested years
 
             # Initializes the detector object and imports the data
             print('Importing data...')
-            detector = sc.Detector(unit, first_sec, log, modes)
-            detector.data_importer()
+            detector = sc.Detector(unit, first_sec, modes)
+            if picklem:
+                pickle_path = glob.glob(f'{sm.results_loc()}Results/{unit}/{full_day_string}/detector.pickle')
+                if len(pickle_path) > 0:
+                    detector_pickle = open(pickle_path[0], 'rb')
+                    detector = pickle.load(detector_pickle)
+                    detector_pickle.close()
+                    detector.log = log
+                else:
+                    detector.log = log
+                    detector.data_importer()
+                    detector_pickle = open(f'{sm.results_loc()}Results/{unit}/{full_day_string}/detector.pickle', 'wb')
+                    detector.log = ''
+                    pickle.dump(detector, detector_pickle)
+                    detector_pickle.close()
+                    detector.log = log
+            else:
+                detector.log = log
+                detector.data_importer()
 
             if detector.GODOT or detector.THOR:
                 if len(detector.scintillators['NaI']['filelist']) == 0 or\
