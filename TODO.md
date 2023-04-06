@@ -3,12 +3,9 @@
 - [ ] Add full list of all locations ever for each detector
 - [ ] Profile the program for bottlenecks
 - [ ] Make a standard for adding more detectors:
-  - the detector class needs to have another attribute for scints used in glow search
   - also needs to have one for detector file name format
   - that way the data importer/glow search algo will accept any generic detector you feed it
 - [ ] Change detector object to accept yymmdd string instead of first second of day
-- [ ] Pickle detector object even when not in low memory mode?
-  - Maybe a 'pickle' mode for testing at the very least, in case memory is an issue
 
 ### Completed
 - [x] Fix channel-to-MeV converter function
@@ -25,3 +22,4 @@
 - [x] Make event file generators more memory efficient
 - [x] Add a dev mode that skips algorithm(s) of choice
 - [x] Write an attribute updator method to detector class
+- [x] Pickle detector object even when not in low memory mode?

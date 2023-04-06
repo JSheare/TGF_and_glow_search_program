@@ -10,7 +10,9 @@ Classes:
 
 """
 
-import glob
+import glob as glob
+import os as os
+import psutil as psutil
 import numpy as np
 import pandas as pd
 import scipy.signal as signal
@@ -25,8 +27,8 @@ class Detector:
 
     The detector object is used to store the name of the detector, the requested date for analysis in various formats,
     and the actual data in a single, centralized location. Once data is imported from each file, it, along with the
-    list of files and the eRC serial number, is stored in a nested dictionary structure that makes it very easy to
-    access.
+    list of files, eRC serial number, and some other information, is stored in a nested dictionary structure that makes
+    it very easy to access.
 
     Parameters
     ----------
@@ -39,7 +41,7 @@ class Detector:
 
     Attributes
     ----------
-    log : file/str
+    log : file
         The .txt file where program actions and findings are logged.
     full_day_string : str
         The timestamp for the requested day in yymmdd format.
@@ -83,7 +85,7 @@ class Detector:
         # Basic information
         self.unit = unit
         self.first_sec = first_sec
-        self.log = ''
+        self.log = None
         self.modes = modes
         self.full_day_string = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%y%m%d')  # In format yymmdd
         self.date_timestamp = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%Y-%m-%d')  # In format yyyy-mm-dd
@@ -107,10 +109,13 @@ class Detector:
 
             self.scintillators = {'NaI': {'eRC': '1490',
                                           'filelist': [], 'filetime_extrema': list(), 'calibration': [],
-                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])},
+                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                          },
                                   'LP': {'eRC': '1491',
                                          'filelist': [], 'filetime_extrema': list(), 'calibration': [],
-                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])}}
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                         }
+                                  }
 
         elif self.unit[0:4] == 'THOR':
             self.THOR = True
@@ -118,16 +123,21 @@ class Detector:
             self.import_path = f'{sm.T_raw_data_loc()}/{unit}/Data/{self.full_day_string}'
             self.scintillators = {'NaI': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[0],
                                           'filelist': [], 'filetime_extrema': list(), 'calibration': [],
-                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])},
+                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                          },
                                   'SP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[1],
                                          'filelist': [], 'filetime_extrema': list(), 'calibration': [],
-                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])},
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                         },
                                   'MP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[2],
                                          'filelist': [], 'filetime_extrema': list(), 'calibration': [],
-                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])},
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                         },
                                   'LP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[3],
                                          'filelist': [], 'filetime_extrema': list(), 'calibration': [],
-                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])}}
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                         }
+                                  }
 
         elif self.unit == 'SANTIS':
             self.SANTIS = True
@@ -135,7 +145,9 @@ class Detector:
             self.import_path = f'{sm.S_raw_data_loc()}/{self.full_day_string}'
             self.scintillators = {'LP': {'eRC': '2549',
                                          'filelist': [], 'filetime_extrema': list(), 'calibration': [],
-                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])}}
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                         }
+                                  }
         else:
             print('Not a valid detector')
             exit()
@@ -162,99 +174,195 @@ class Detector:
         if 'template' in self.modes:
             self.template = True
 
-    def attribute_retriever(self, scintillator, attribute):  # Make it possible to request multiple attributes at once?
-        """Retrieves the requested attribute for a particular scintillator.
+    # String casting magic method
+    def __str__(self):
+        return f'Detector({self.unit}, {self.first_sec}, {self.modes})'
+
+    # Debugging string magic method
+    def __repr__(self):
+        data_attributes = ['time', 'energy', 'wc']
+        scintillators_with_data = []
+        has_data = False
+        for scintillator in self.scintillators:
+            medium = self.scintillators[scintillator]
+            for attribute in data_attributes:
+                if len(medium[attribute]) > 0:
+                    has_data = True
+                    scintillators_with_data.append(scintillator)
+                    break
+
+        default_string = self.__str__()
+        data_string = f' in {scintillators_with_data}' if has_data else ''
+        return default_string + f' Has data = {has_data}' + data_string
+
+    def attribute_retriever(self, scintillator, attribute):  # Make it possible to request entire scintillators?
+        """Retrieves the requested attribute for a particular scintillator
+
+        \n
+        Attribute summary:
+            eRC: the scintillator's serial number.
+
+            filelist: the list of files for the day.
+
+            filetime_extrema: a list of lists. Each sublist contains the first and last second present in every file.
+
+            calibration: a list of two energies (in Volts) used to calibrate the scintillator.
+
+            time: a numpy array of each count's time (in seconds since start of day).
+
+            energy: a numpy array of each count's energy (in Volts).
+
+            wc: a numpy array of each count's wallclock time.
 
         Parameters
         ----------
         scintillator : str
-            A string corresponding to the scintillator of interest. Allowed values: 'NaI', 'SP', 'MP', 'LP'.
+            A string corresponding to the scintillator of interest. Allowed values (detector dependent):
+            'NaI', 'SP', 'MP', 'LP'.
         attribute : str
-            A string corresponding to the scintillator attribute of interest. Allowed values: 'eRC', 'filelist', 'time',
-            'energy'.
+            A string corresponding to the scintillator attribute of interest. Allowed values: 'eRC', 'filelist',
+            'filetime_extrema', 'calibration', 'time', 'energy', and 'wc'.
 
         Returns
         -------
         str, list, np.array
-            String if 'eRC' is requested, list if 'filelist' is requested, or a numpy array full of float values if
-            'time' or 'energy' is requested.
+            String if 'eRC' is requested; list if 'filelist', 'calibration', or 'filetime_extrema' is requested;
+            numpy array  if 'time', 'energy', or 'wc' is requested.
 
         """
 
-        medium = self.scintillators[scintillator]
-        desired_attribute = medium[attribute]
-        return desired_attribute
+        if scintillator in self.scintillators:
+            medium = self.scintillators[scintillator]
+            if attribute in medium:
+                desired_attribute = medium[attribute]
+                return desired_attribute
+            else:
+                raise AttributeError('AttributeError: not a valid attribute')
+
+        else:
+            raise AttributeError('AttributeError: not a valid scintillator')
 
     def attribute_updator(self, scintillator, attribute, new_info):
         """Updates the requested attribute for a particular scintillator.
 
+        \n
+        Attribute summary:
+            eRC: the scintillator's serial number.
+
+            filelist: the list of files for the day.
+
+            filetime_extrema: a list of lists. Each sublist contains the first and last second present in every file.
+
+            calibration: a list of two energies (in Volts) used to calibrate the scintillator.
+
+            time: a numpy array of each count's time (in seconds since start of day).
+
+            energy: a numpy array of each count's energy (in Volts).
+
+            wc: a numpy array of each count's wallclock time.
+
         Parameters
         ----------
         scintillator : str
-            A string corresponding to the scintillator of interest. Allowed values: 'NaI', 'SP', 'MP', 'LP'.
+            A string corresponding to the scintillator of interest. Allowed values (detector dependent):
+            'NaI', 'SP', 'MP', 'LP'.
         attribute : str/list
-            A string corresponding to the scintillator attribute of interest. Allowed values: 'eRC', 'filelist', 'time',
-            'energy'.
+            For only one attribute: a string corresponding to the scintillator attribute of interest. Allowed values:
+            'eRC', 'filelist', 'filetime_extrema', 'calibration', 'time', 'energy', and 'wc'.
+            For multiple attributes: a list of strings corresponding to the scintillator attributes of interest.
         new_info : any/list
-            The new information for the requested attribute.
+            For only one attribute: the new information for the requested attribute.
+            For multiple attributes: a list of the new information for each requested attribute.
 
         """
 
-        medium = self.scintillators[scintillator]
-        if type(attribute) is list and type(new_info) is list:
-            if len(attribute) != len(new_info):
-                raise Exception('Attribute and new info must be the same length')
+        if scintillator in self.scintillators:
+            medium = self.scintillators[scintillator]
+            if type(attribute) is list and type(new_info) is list:
+                if len(attribute) != len(new_info):
+                    raise Exception('Attribute and new info must be the same length')
 
-            for i in range(len(attribute)):
-                medium.update({attribute[i]: new_info[i]})
+                for i in range(len(attribute)):
+                    if attribute[i] in medium:
+                        medium.update({attribute[i]: new_info[i]})
+                    else:
+                        raise AttributeError('AttributeError: not a valid attribute')
 
-        elif type(attribute) is str:
-            medium.update({attribute: new_info})
+            elif type(attribute) is str:
+                if attribute in medium:
+                    medium.update({attribute: new_info})
+                else:
+                    raise AttributeError('AttributeError: not a valid attribute')
+
+            else:
+                raise TypeError('TypeError: if attribute is a list, new_info must also be a list')
+
+            self.scintillators.update({scintillator: medium})
+
         else:
-            raise Exception('Both attribute and new info must be either strings or lists')
+            raise AttributeError('AttributeError: not a valid scintillator')
 
-        self.scintillators.update({scintillator: medium})
-
-    def spectra_maker(self):
+    def spectra_maker(self, existing_hist=None, low_mem=False):
         """Makes the energy spectra histograms and calibrates the large plastic and sodium iodide scintillators.
+        Calibration energies for each scintillator are saved to the 'calibration' attribute of the detector object's
+        nested dictionary structure.
+
+        Parameters
+        ------
+        existing_hist : dict
+            Optional. A dictionary whose entries correspond to energy spectra histograms for each scintillator.
+        low_mem : bool
+            Optional. Meant to be used when breaking the day into chunks. If True, and if existing_hist is not None,
+            function will return an updated existing_hist containing the histogram information for the newest chunk.
 
         Returns
         -------
-        np.array
-            Two numpy arrays. The first array contains the large plastic scintillator energy channels corresponding to
-            the most compton-scattered photons of potassium-40 and thorium (i.e. Compton edge locations). The second
-            array contains the sodium iodide scintillator energy channels corresponding to the photo peaks of
-            potassium-40 and thorium.
+        dict
+            Only returned if existing_hist is not None and low_mem is True. A dictionary whose entries correspond to
+            energy spectra histograms for each scintillator.
 
         """
 
         if self.THOR:
             bin_range = 65535.0
-            bin_number = 65536
+            bin_size = 1
             band_starts = [2000, 5600]
             band_ends = [2500, 6300]
             template_bin_plot_edge = 8000  # placeholder
         else:
             bin_range = 15008.0
-            bin_number = 939
+            bin_size = 16
             band_starts = [38, 94]
             band_ends = [75, 125]
             template_bin_plot_edge = 200
 
-        energy_bins = np.linspace(0.0, bin_range, num=bin_number)
+        energy_bins = np.arange(0.0, bin_range, bin_size)
         sp_path = f'{sm.results_loc()}Results/{self.unit}/{self.full_day_string}/'
         sm.path_maker(sp_path)
         spectra_conversions = open(f'{sp_path}spectra_conversions.txt', 'w')
         spectra_frame = pd.DataFrame()
         spectra_frame['energy bins'] = energy_bins[:-1]
         for scintillator in self.scintillators:
-            calibration = []
             if scintillator == 'SP' or scintillator == 'MP':
                 continue  # (for now)
 
             energies = self.attribute_retriever(scintillator, 'energy')
-            energy_hist, bin_edges = np.histogram(energies, bins=energy_bins)
-            bin_plot_edge = len(energy_bins)
+            if existing_hist is not None and low_mem:
+                energy_hist, bin_edges = np.histogram(energies, bins=energy_bins)
+                current_hist = existing_hist[scintillator]
+                if len(current_hist) == 0:
+                    existing_hist.update({'bins': energy_bins})
+                    existing_hist[scintillator] = energy_hist
+                else:
+                    existing_hist[scintillator] = energy_hist + current_hist
+
+                continue
+            elif existing_hist is not None:
+                energy_hist = existing_hist[scintillator]
+            else:
+                energy_hist, bin_edges = np.histogram(energies, bins=energy_bins)
+
+            bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1 (no idea why)
             flagged_indices = np.array([])
             # Makes a template that can be used in the LP calibration algorithm's cross-correlation
             if self.template and scintillator == 'LP':
@@ -289,8 +397,9 @@ class Detector:
                     plt.xlabel('Energy Channel')
                     plt.ylabel('Counts/bin')
                     plt.yscale('log')
-                    plt.hist(energies, bins=energy_bins[0:bin_plot_edge], color='r', rwidth=0.5, zorder=1)
-                    plt.vlines(energy_bins[flagged_indices.astype(int)], 0, 1e6, zorder=2, alpha=0.75)
+                    plt.bar(energy_bins[0:bin_plot_edge], energy_hist[0:bin_plot_edge], color='r',
+                            width=int(bin_size/2), zorder=1)
+                    plt.vlines(energy_bins[flagged_indices.astype(int)], 0, np.amax(energy_hist), zorder=2, alpha=0.75)
                     plt.show()
 
                     adequate = input('Are these good locations? (y/n): ')
@@ -352,11 +461,12 @@ class Detector:
             plt.xlabel('Energy Channel')
             plt.ylabel('Counts/bin')
             plt.yscale('log')
-            plt.hist(energies, bins=energy_bins[0:bin_plot_edge], color='r', rwidth=0.5, zorder=1)
+            plt.bar(energy_bins[0:bin_plot_edge], energy_hist[0:bin_plot_edge], color='r',
+                    width=int(bin_size/2), zorder=1)
 
             # Plots the energy bins corresponding to the desired energies as vertical lines
             if flagged_indices.size > 0:
-                plt.vlines(energy_bins[flagged_indices.astype(int)], 0, 1e6, zorder=2, alpha=0.75)
+                plt.vlines(energy_bins[flagged_indices.astype(int)], 0, np.amax(energy_hist), zorder=2, alpha=0.75)
 
             # Saves the figure
             plt.savefig(f'{sp_path}{scintillator}_Spectrum.png', dpi=500)
@@ -367,14 +477,28 @@ class Detector:
         if self.template:
             exit()
 
-    def data_importer(self):
-        """Imports data from data files into arrays and then updates them into the nested dictionary structure."""
+        if existing_hist is not None and low_mem:
+            return existing_hist
 
-        for i in self.scintillators:
-            scintillator = self.scintillators[i]
-            eRC = scintillator['eRC']
-            sm.print_logger('\n', self.log)
-            sm.print_logger(f'For eRC {eRC} ({i}):', self.log)
+    def data_importer(self, existing_filelists=False):
+        """Imports data from data files into arrays and then updates them into the detector object's
+        nested dictionary structure.
+
+        Parameters
+        ----------
+        existing_filelists : bool
+            Optional. If True, the function will use the file lists already stored in the detector object's nested
+            dictionary structure.
+
+        """
+
+        total_file_size = 0
+        for scintillator_name in self.scintillators:
+            if existing_filelists:
+                break
+
+            scintillator = self.scintillators[scintillator_name]
+            eRC = self.attribute_retriever(scintillator_name, 'eRC')
             # Here in case the data files in a custom location are grouped into daily folders
             try:
                 if self.THOR or self.SANTIS:
@@ -433,6 +557,22 @@ class Detector:
             filelist = []
             for j in range(len(files)):
                 filelist.append(f'{files[j]}{extensions[j]}')
+                total_file_size += os.path.getsize(f'{files[j]}{extensions[j]}')
+
+            self.attribute_updator(scintillator_name, 'filelist', filelist)
+
+        # Determines whether there is enough free memory to load the entire dataset
+        operating_memory = sm.memory_allowance()
+        available_memory = psutil.virtual_memory()[1]
+        if (operating_memory + total_file_size) > available_memory:
+            raise MemoryError('MemoryError: not enough free memory to hold complete dataset')
+
+        for scintillator_name in self.scintillators:
+            scintillator = self.scintillators[scintillator_name]
+            eRC = self.attribute_retriever(scintillator_name, 'eRC')
+            filelist = self.attribute_retriever(scintillator_name, 'filelist')
+            sm.print_logger('\n', self.log)
+            sm.print_logger(f'For eRC {eRC} ({scintillator_name}):', self.log)
 
             try:
                 # Tests to make sure that filelist isn't empty
@@ -508,10 +648,10 @@ class Detector:
 
                     filetime_extrema_list[-(k+1)] = last_file_extrema
 
-                updated_attributes = ['filelist', 'time', 'energy', 'wc', 'filetime_extrema']
-                updated_info = [filelist, times, np.concatenate(energy_list), np.concatenate(wallclock_list),
+                updated_attributes = ['time', 'energy', 'wc', 'filetime_extrema']
+                updated_info = [times, np.concatenate(energy_list), np.concatenate(wallclock_list),
                                 filetime_extrema_list]
-                self.attribute_updator(i, updated_attributes, updated_info)
+                self.attribute_updator(scintillator_name, updated_attributes, updated_info)
 
                 print('\n', file=self.log)
                 print(f'Total Counts: {len(np.concatenate(time_list))}', file=self.log)
@@ -553,6 +693,14 @@ class ShortEvent:
         self.length = int(event_length)
         self.stop = int(event_start + event_length)
         self.scintillator = scintillator
+
+    # String casting magic method
+    def __str__(self):
+        return f'{self.scintillator} short event at index {self.start}'
+
+    # Debugging string magic method
+    def __repr__(self):
+        return f'{self.scintillator} short event; start:{self.start}; stop:{self.stop}; length:{self.length}'
 
     def scatterplot_maker(self, timescales, detector, event_number, filelist, filetime_extrema):
         """Makes the short event scatter plots.
@@ -704,6 +852,14 @@ class PotentialGlow:
         self.highest_score = 0
         self.start_sec = 0
         self.stop_sec = 0
+
+    # String casting magic method
+    def __str__(self):
+        return f'Long event at index {self.start}'
+
+    # Debugging string magic method
+    def __repr__(self):
+        return f'Long event; start:{self.start}; stop:{self.stop}; length:{self.length}'
 
     def highest_zscore(self, z_scores):
         """ Identifies the highest z-score and its corresponding bin for an event."""

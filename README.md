@@ -17,6 +17,7 @@
   - matplotlib
   - warnings
   - datetime
+  - psutil
 
 ##**Instructions for Use:**
 First, open a command line and navigate to the directory where search.py is located.
