@@ -89,7 +89,7 @@ It is possible to use as many of these modes in tandem as the user needs
     python search.py yymmdd yymmdd detector custom plastics template
 
 ###**Additional (developer) modes:**
-The program also includes three bonus modes that can be used to skip various algorithms; 
+The program also includes several bonus modes that can be used to skip various algorithms; 
 they include:
 - skcali: Skips the scintillator calibration algorithm (and therefore the long event search
 algorithm to keep things from breaking).
