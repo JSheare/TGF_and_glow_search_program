@@ -111,6 +111,7 @@ follow these steps:
 - Once you've found the function, look for the variable called 'path' and enter your custom path inside the single 
   quotes to the right of the = sign
 - The final result should look something like this (with example path /users/user/desktop):
+
     path = '/users/user/desktop'
 - Save and close
 
