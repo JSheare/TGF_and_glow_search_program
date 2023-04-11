@@ -115,4 +115,4 @@ follow these steps:
     path = '/users/user/desktop'
 - Save and close
 
-The program should now save its results to the custom directory specified.
+The program should now save its results to the specified custom directory.
