@@ -375,7 +375,7 @@ class Detector:
                         print(f'Previous line locations: K40: {int(flagged_indices[0])}, T: {int(flagged_indices[1])}')
                     else:
                         if self.THOR:
-                            print('0 and 0 are good starting positions for THOR')  # fix this
+                            print('0 and 0 are good starting positions for THOR')  # placeholder
                         else:
                             print('41 and 83 are good starting positions for GODOT')
 
@@ -398,7 +398,7 @@ class Detector:
                     plt.ylabel('Counts/bin')
                     plt.yscale('log')
                     plt.bar(energy_bins[0:bin_plot_edge], energy_hist[0:bin_plot_edge], color='r',
-                            width=int(bin_size/2), zorder=1)
+                            width=bin_size/2, zorder=1)
                     plt.vlines(energy_bins[flagged_indices.astype(int)], 0, np.amax(energy_hist), zorder=2, alpha=0.75)
                     plt.show()
 
@@ -462,7 +462,7 @@ class Detector:
             plt.ylabel('Counts/bin')
             plt.yscale('log')
             plt.bar(energy_bins[0:bin_plot_edge], energy_hist[0:bin_plot_edge], color='r',
-                    width=int(bin_size/2), zorder=1)
+                    width=bin_size/2, zorder=1)
 
             # Plots the energy bins corresponding to the desired energies as vertical lines
             if flagged_indices.size > 0:

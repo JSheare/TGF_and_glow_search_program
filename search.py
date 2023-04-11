@@ -14,7 +14,7 @@ import search_module as sm
 
 def short_event_search(detector_obj, prev_event_numbers=None):
     # Parameters:
-    rollgap = 4 if aircraft else 4
+    rollgap = 4 if aircraft else 4  # will eventually get changed to something more aircraft appropriate
     event_time_spacing = 1e-3  # 1 millisecond
     event_min_counts = 10
     noise_cutoff_energy = 300
@@ -355,7 +355,7 @@ def long_event_search(detector_obj, times, existing_hist=None):
         # Plots the histogram for the entire day (just the 1st subplot)
         ax1.bar(day_bins[:-1], hist_allday, alpha=0.5, color='r', width=binsize)
         ax1.set_xlabel('Seconds of Day (UT)')
-        ax1.set_ylabel('Counts/10-second bin')
+        ax1.set_ylabel('Counts/bin')
         ax1.axhline(y=(mue + 5 * sigma), color='blue', linestyle='dashed', linewidth=2)
 
         # Creates legend

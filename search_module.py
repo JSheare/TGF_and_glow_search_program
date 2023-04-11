@@ -237,6 +237,6 @@ def hist_subplotter(ax, glow, day_bins, hist_allday, mue, sigma):
     binsize = int(day_bins[1]-day_bins[0])
     ax.bar(subbins, subhist, alpha=0.5, color='c', width=binsize)
     ax.set_xlabel('Seconds of Day (UT)')
-    ax.set_ylabel('Counts/10-sec', )
+    ax.set_ylabel('Counts/bin', )
     ax.axhline(y=(mue + 5 * sigma), color='blue', linestyle='dashed', linewidth=2)
     ax.grid(True)
