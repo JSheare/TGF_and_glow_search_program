@@ -279,6 +279,7 @@ def long_event_search(detector_obj, times, existing_hist=None):
 
     sm.print_logger('Done.', detector_obj.log)
     if len(potential_glow_list) == 0:
+        sm.print_logger('\n', detector_obj.log)
         sm.print_logger(f'There were no potential glows for the date {date_timestamp}', detector_obj.log)
     else:
         # Logs potential glows and sorts them in descending order depending on their highest z-score
@@ -527,7 +528,7 @@ for year in requested_dates:  # Loops over all requested years
                         print('\n')
                         continue
 
-                print('\n')
+                print('\n\n')
                 print('Done.')
 
                 # Calibrates each scintillator
@@ -593,7 +594,7 @@ for year in requested_dates:  # Loops over all requested years
                     # Calling the long event search algorithm
                     long_event_search(detector, le_times)
 
-                    sm.print_logger('Done', detector.log)
+                    sm.print_logger('Done.', detector.log)
                     sm.print_logger('\n', detector.log)
 
                 log.close()
@@ -632,7 +633,7 @@ for year in requested_dates:  # Loops over all requested years
 
                 operating_memory = sm.memory_allowance()
                 available_memory = psutil.virtual_memory()[1]
-                allowed_memory = available_memory
+                allowed_memory = available_memory/2  # to avoid making the computer unusable
 
                 num_chunks = 2  # minimum number of chunks to split the day into
                 max_chunks = 16
@@ -795,7 +796,7 @@ for year in requested_dates:  # Loops over all requested years
                     # Calling the long event search algorithm
                     long_event_search(detector, np.array([]), existing_hist=le_hist)
 
-                    sm.print_logger('Done', detector.log)
+                    sm.print_logger('Done.', detector.log)
                     sm.print_logger('\n', detector.log)
 
                 log.close()
