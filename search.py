@@ -12,7 +12,7 @@ import search_classes as sc
 import search_module as sm
 
 
-def short_event_search(detector_obj, prev_event_numbers=None):
+def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
     # Parameters:
     rollgap = 4 if aircraft else 4  # will eventually get changed to something more aircraft appropriate
     event_time_spacing = 1e-3  # 1 millisecond
@@ -175,10 +175,11 @@ def short_event_search(detector_obj, prev_event_numbers=None):
             print('\n')
             event_numbers.update({scintillator: 0})
 
-    return event_numbers
+    if low_mem:
+        return event_numbers
 
 
-def long_event_search(detector_obj, times, existing_hist=None):
+def long_event_search(detector_obj, times, existing_hist=None, low_mem=False):
     # Makes one bin for every binsize seconds of the day (plus around 300 seconds more for the next day)
     binsize = 4 if aircraft else 10
     day_bins = np.arange(0, 86700 + binsize, binsize)
@@ -188,6 +189,8 @@ def long_event_search(detector_obj, times, existing_hist=None):
         hist_allday = existing_hist
     else:
         hist_allday, bins_allday = np.histogram(times, bins=day_bins)
+        if low_mem:
+            return hist_allday
 
     # Calculates mean and z-scores
     hist_allday_nz = hist_allday[hist_allday.nonzero()]
@@ -543,7 +546,7 @@ for year in requested_dates:  # Loops over all requested years
                     sm.print_logger('\n', detector.log)
 
                     # Calling the short event search algorithm
-                    dummy = short_event_search(detector)
+                    short_event_search(detector)
 
                     sm.print_logger('Done.', detector.log)
                     sm.print_logger('\n', detector.log)
@@ -692,17 +695,24 @@ for year in requested_dates:  # Loops over all requested years
                 if not skcali:
                     print('\n')
                     sm.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
-                    existing_scint_hist = {}
+                    existing_spectra = {}
                     for scint in chunk_scint_list:
-                        existing_scint_hist.update({scint: np.array([])})
+                        existing_spectra.update({scint: np.array([])})
 
                     for chunk_path in chunk_path_list:
                         chunk = sm.chunk_unpickler(chunk_path)
-                        existing_scint_hist = chunk.spectra_maker(existing_hist=existing_scint_hist, low_mem=True)
+                        chunk_spectra = chunk.spectra_maker(low_mem=True)
+                        for scint in chunk_spectra:
+                            current_hist = existing_spectra[scint]
+                            if len(current_hist) == 0:
+                                existing_spectra[scint] = chunk_spectra[scint]
+                            else:
+                                existing_spectra[scint] = current_hist + chunk_spectra[scint]
+
                         del chunk
 
                     # Calling the calibration algorithm
-                    detector.spectra_maker(existing_hist=existing_scint_hist)
+                    detector.spectra_maker(existing_spectra=existing_spectra)
 
                     sm.print_logger('Done.', detector.log)
 
@@ -723,7 +733,7 @@ for year in requested_dates:  # Loops over all requested years
                         print('\n')
 
                         # Calling the short event search algorithm
-                        existing_event_numbers = short_event_search(chunk, existing_event_numbers)
+                        existing_event_numbers = short_event_search(chunk, existing_event_numbers, low_mem=True)
 
                         print('\n\n', file=detector.log)
 
@@ -737,8 +747,6 @@ for year in requested_dates:  # Loops over all requested years
                 if not skglow:
                     sm.print_logger('Starting search for glows...', detector.log)
                     le_hist = np.array([])
-                    le_binsize = 4 if aircraft else 10
-                    le_day_bins = np.arange(0, 86700 + le_binsize, le_binsize)
                     for chunk_path in chunk_path_list:
                         chunk = sm.chunk_unpickler(chunk_path)
                         # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
@@ -778,7 +786,7 @@ for year in requested_dates:  # Loops over all requested years
                             le_times = le_times - first_sec
 
                         # Histograms the counts from each chunk and combines them with the main one
-                        chunk_hist, chunk_bins = np.histogram(le_times, bins=le_day_bins)
+                        chunk_hist = long_event_search(detector, le_times, low_mem=True)
                         le_hist = chunk_hist if len(le_hist) == 0 else le_hist + chunk_hist
 
                         del chunk

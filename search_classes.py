@@ -302,14 +302,14 @@ class Detector:
         else:
             raise AttributeError('AttributeError: not a valid scintillator')
 
-    def spectra_maker(self, existing_hist=None, low_mem=False):
+    def spectra_maker(self, existing_spectra=None, low_mem=False):
         """Makes the energy spectra histograms and calibrates the large plastic and sodium iodide scintillators.
         Calibration energies for each scintillator are saved to the 'calibration' attribute of the detector object's
         nested dictionary structure.
 
         Parameters
         ------
-        existing_hist : dict
+        existing_spectra : dict
             Optional. A dictionary whose entries correspond to energy spectra histograms for each scintillator.
         low_mem : bool
             Optional. Meant to be used when breaking the day into chunks. If True, and if existing_hist is not None,
@@ -323,18 +323,18 @@ class Detector:
 
         """
 
-        if self.THOR:
-            bin_range = 65535.0
-            bin_size = 1
-            band_starts = [2000, 5600]
-            band_ends = [2500, 6300]
-            template_bin_plot_edge = 8000  # placeholder
-        else:
+        if self.GODOT:
             bin_range = 15008.0
             bin_size = 16
             band_starts = [38, 94]
             band_ends = [75, 125]
             template_bin_plot_edge = 200
+        else:
+            bin_range = 65535.0
+            bin_size = 1
+            band_starts = [2000, 5600]
+            band_ends = [2500, 6300]
+            template_bin_plot_edge = 8000  # placeholder
 
         energy_bins = np.arange(0.0, bin_range, bin_size)
         sp_path = f'{sm.results_loc()}Results/{self.unit}/{self.full_day_string}/'
@@ -342,25 +342,19 @@ class Detector:
         spectra_conversions = open(f'{sp_path}spectra_conversions.txt', 'w')
         spectra_frame = pd.DataFrame()
         spectra_frame['energy bins'] = energy_bins[:-1]
+        hist_dict = {}
         for scintillator in self.scintillators:
             if scintillator == 'SP' or scintillator == 'MP':
                 continue  # (for now)
 
             energies = self.attribute_retriever(scintillator, 'energy')
-            if existing_hist is not None and low_mem:
-                energy_hist, bin_edges = np.histogram(energies, bins=energy_bins)
-                current_hist = existing_hist[scintillator]
-                if len(current_hist) == 0:
-                    existing_hist.update({'bins': energy_bins})
-                    existing_hist[scintillator] = energy_hist
-                else:
-                    existing_hist[scintillator] = energy_hist + current_hist
-
-                continue
-            elif existing_hist is not None:
-                energy_hist = existing_hist[scintillator]
+            if existing_spectra is not None:
+                energy_hist = existing_spectra[scintillator]
             else:
                 energy_hist, bin_edges = np.histogram(energies, bins=energy_bins)
+                if low_mem:
+                    hist_dict.update({scintillator: energy_hist})
+                    continue
 
             bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1 (no idea why)
             flagged_indices = np.array([])
@@ -477,8 +471,8 @@ class Detector:
         if self.template:
             exit()
 
-        if existing_hist is not None and low_mem:
-            return existing_hist
+        if low_mem:
+            return hist_dict
 
     def data_importer(self, existing_filelists=False):
         """Imports data from data files into arrays and then updates them into the detector object's
