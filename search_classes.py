@@ -108,11 +108,11 @@ class Detector:
                 self.import_path = f'{sm.G_raw_data_loc()}/{self.full_day_string}'
 
             self.scintillators = {'NaI': {'eRC': '1490',
-                                          'filelist': [], 'filetime_extrema': list(), 'calibration': [],
+                                          'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                           'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
                                           },
                                   'LP': {'eRC': '1491',
-                                         'filelist': [], 'filetime_extrema': list(), 'calibration': [],
+                                         'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
                                          }
                                   }
@@ -122,19 +122,19 @@ class Detector:
             self.long_event_scint_list = ['NaI']
             self.import_path = f'{sm.T_raw_data_loc()}/{unit}/Data/{self.full_day_string}'
             self.scintillators = {'NaI': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[0],
-                                          'filelist': [], 'filetime_extrema': list(), 'calibration': [],
+                                          'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                           'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
                                           },
                                   'SP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[1],
-                                         'filelist': [], 'filetime_extrema': list(), 'calibration': [],
+                                         'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
                                          },
                                   'MP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[2],
-                                         'filelist': [], 'filetime_extrema': list(), 'calibration': [],
+                                         'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
                                          },
                                   'LP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[3],
-                                         'filelist': [], 'filetime_extrema': list(), 'calibration': [],
+                                         'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
                                          }
                                   }
@@ -144,7 +144,7 @@ class Detector:
             self.long_event_scint_list = ['LP']
             self.import_path = f'{sm.S_raw_data_loc()}/{self.full_day_string}'
             self.scintillators = {'LP': {'eRC': '2549',
-                                         'filelist': [], 'filetime_extrema': list(), 'calibration': [],
+                                         'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
                                          }
                                   }
