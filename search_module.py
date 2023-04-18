@@ -14,6 +14,8 @@ Functions:
         Returns the path where THOR raw data is stored on Sol.
     S_raw_data_loc:
         Returns the path where Santis instrument raw data is stored on Sol.
+    CR_raw_data_loc:
+        Returns the path where Croatia instrument raw data is stored on Sol.
     G_processed_data_loc:
         Returns the path where GODOT processed data is stored on Sol.
     memory_allowance:
@@ -71,6 +73,12 @@ def T_raw_data_loc():
 
 def S_raw_data_loc():
     """Location of Santis instrument raw data on Sol."""
+    path = '/media/AllDetectorData/Detectors/SANTIS/Data'
+    return path
+
+
+def CR_raw_data_loc():
+    '''Location of Croatia instrument raw data on Sol.'''
     path = '/media/AllDetectorData/Detectors/SANTIS/Data'
     return path
 

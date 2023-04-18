@@ -65,6 +65,8 @@ class Detector:
         A flag for whether the requested detector is GODOT or not.
     SANTIS : bool
         A flag for whether the requested detector is the Santis instrument or not.
+    CROATIA : bool
+        A flag for whether the requested detector is the Croatia instrument or not.
     custom : bool
         A flag for whether the program should operate in "custom" mode or not. Custom mode essentially just instructs
         the program to use a custom file path for importing data instead of the ones that are built-in. This path can be
@@ -100,6 +102,7 @@ class Detector:
         self.THOR = False
         self.GODOT = False
         self.SANTIS = False
+        self.CROATIA = False
 
         if self.unit == 'GODOT':
             self.GODOT = True
@@ -153,6 +156,22 @@ class Detector:
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
                                          }
                                   }
+
+        elif self.unit == 'CROATIA':
+            self.CROATIA = True
+            self.long_event_scint_list = ['LP']
+            self.import_path = f'{sm.CR_raw_data_loc()}/{self.full_day_string}'
+            self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.full_day_string}_*'
+            self.scintillators = {'MP': {'eRC': '4193',
+                                         'filelist': [], 'filetime_extrema': [], 'calibration': [],
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                         },
+                                  'LP': {'eRC': '2549',
+                                         'filelist': [], 'filetime_extrema': [], 'calibration': [],
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                         },
+                                  }
+
         else:
             print('Not a valid detector')
             exit()

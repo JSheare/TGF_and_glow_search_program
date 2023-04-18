@@ -416,6 +416,8 @@ skcali = True if 'skcali' in modes else False  # Skip detector calibration
 skshort = True if 'skshort' in modes else False  # Skip short event search
 skglow = True if 'skglow' in modes else False  # SKip long event search
 
+skcali = True if unit == 'CROATIA' else False  # temp
+
 # Aircraft mode
 aircraft = True if 'aircraft' in modes else False
 
