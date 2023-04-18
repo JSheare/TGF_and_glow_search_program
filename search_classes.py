@@ -51,6 +51,8 @@ class Detector:
         The location of the detector on the requested day.
     import_path : str
         The directory path for the location of the requested data files.
+    regex : function
+        A lambda function that, when given the eRC serial number, returns the regex for a scintillator's files.
     good_lp_calibration : bool
         A flag for whether the program was able to calibrate the detector's large plastic scintillator or not.
     long_event_scint_list : list
@@ -107,6 +109,7 @@ class Detector:
             else:
                 self.import_path = f'{sm.G_raw_data_loc()}/{self.full_day_string}'
 
+            self.regex = lambda eRC: f'eRC{eRC}_lm*_{self.full_day_string}_*'
             self.scintillators = {'NaI': {'eRC': '1490',
                                           'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                           'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
@@ -121,6 +124,7 @@ class Detector:
             self.THOR = True
             self.long_event_scint_list = ['NaI']
             self.import_path = f'{sm.T_raw_data_loc()}/{unit}/Data/{self.full_day_string}'
+            self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.full_day_string}_*'
             self.scintillators = {'NaI': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[0],
                                           'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                           'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
@@ -143,6 +147,7 @@ class Detector:
             self.SANTIS = True
             self.long_event_scint_list = ['LP']
             self.import_path = f'{sm.S_raw_data_loc()}/{self.full_day_string}'
+            self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.full_day_string}_*'
             self.scintillators = {'LP': {'eRC': '2549',
                                          'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
@@ -495,20 +500,12 @@ class Detector:
             eRC = self.attribute_retriever(scintillator_name, 'eRC')
             # Here in case the data files in a custom location are grouped into daily folders
             try:
-                if self.THOR or self.SANTIS:
-                    complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}*_lm_{self.full_day_string}_*')
-                else:
-                    complete_filelist = glob.glob(f'{self.import_path}/eRC{eRC}_lm*_{self.full_day_string}_*')
-
+                complete_filelist = glob.glob(f'{self.import_path}/{self.regex(eRC)}')
                 assert len(complete_filelist) > 0, 'Empty filelist'
 
             except AssertionError:
-                if self.THOR or self.SANTIS:
-                    complete_filelist = glob.glob(f'{self.import_path}/{self.full_day_string}'
-                                                  f'/eRC{eRC}*_lm_{self.full_day_string}_*')
-                else:
-                    complete_filelist = glob.glob(f'{self.import_path}/{self.full_day_string}'
-                                                  f'/eRC{eRC}_lm*_{self.full_day_string}_*')
+                complete_filelist = glob.glob(f'{self.import_path}/{self.full_day_string}'
+                                              f'{self.regex(eRC)}')
 
             # Filters out trace mode files and .txtp files (whatever those are)
             filtered_filelist = []
