@@ -518,9 +518,11 @@ for year in requested_dates:  # Loops over all requested years
 
                 # Checking to see if there is actually data for the day
                 data_present = True
-                necessary_scintillators = \
-                    detector.long_event_scint_list.append('LP') if \
-                    'LP' not in detector.long_event_scint_list else detector.long_event_scint_list
+                if 'LP' in detector.long_event_scint_list:
+                    necessary_scintillators = detector.long_event_scint_list
+                else:
+                    necessary_scintillators = detector.long_event_scint_list + ['LP']
+
                 for scint in necessary_scintillators:
                     if len(detector.attribute_retriever(scint, 'filelist')) == 0:
                         data_present = False
@@ -528,7 +530,7 @@ for year in requested_dates:  # Loops over all requested years
                         print('\n', file=detector.log)
                         sm.print_logger('No/Missing data for specified day.', detector.log)
                         print('\n')
-                        continue
+                        break
 
                 if not data_present:
                     log.close()
@@ -622,9 +624,11 @@ for year in requested_dates:  # Loops over all requested years
 
                 # Checks to see if there is actually data for the day
                 data_present = True
-                necessary_scintillators = \
-                    detector.long_event_scint_list.append('LP') if \
-                    'LP' not in detector.long_event_scint_list else detector.long_event_scint_list
+                if 'LP' in detector.long_event_scint_list:
+                    necessary_scintillators = detector.long_event_scint_list
+                else:
+                    necessary_scintillators = detector.long_event_scint_list + ['LP']
+
                 for scint in necessary_scintillators:
                     if len(detector.attribute_retriever(scint, 'filelist')) == 0:
                         data_present = False
@@ -632,7 +636,7 @@ for year in requested_dates:  # Loops over all requested years
                         print('\n', file=detector.log)
                         sm.print_logger('No/Missing data for specified day.', detector.log)
                         print('\n')
-                        continue
+                        break
 
                 if not data_present:
                     log.close()

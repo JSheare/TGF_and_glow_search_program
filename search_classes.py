@@ -524,7 +524,7 @@ class Detector:
 
             except AssertionError:
                 complete_filelist = glob.glob(f'{self.import_path}/{self.full_day_string}'
-                                              f'{self.regex(eRC)}')
+                                              f'/{self.regex(eRC)}')
 
             # Filters out trace mode files and .txtp files (whatever those are)
             filtered_filelist = []
@@ -626,9 +626,7 @@ class Detector:
                             file_behavior = 'Disagreement'
                             pass
                         else:  # Mostly here so that if the reader ever runs into other errors I'll know about them
-                            print(f'line {ex.__traceback__.tb_lineno}:')
-                            print(f'{type(ex).__name__}: {ex}')
-                            exit()
+                            raise
 
                     # Determines the time gaps between adjacent files
                     first_second = filetimes[0]
