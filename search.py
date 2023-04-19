@@ -517,16 +517,22 @@ for year in requested_dates:  # Loops over all requested years
                     detector.data_importer()
 
                 # Checking to see if there is actually data for the day
+                data_present = True
                 necessary_scintillators = \
                     detector.long_event_scint_list.append('LP') if \
                     'LP' not in detector.long_event_scint_list else detector.long_event_scint_list
                 for scint in necessary_scintillators:
                     if len(detector.attribute_retriever(scint, 'filelist')) == 0:
+                        data_present = False
                         print('\n\n')
                         print('\n', file=detector.log)
                         sm.print_logger('No/Missing data for specified day.', detector.log)
                         print('\n')
                         continue
+
+                if not data_present:
+                    log.close()
+                    continue
 
                 print('\n\n')
                 print('Done.')
@@ -615,16 +621,22 @@ for year in requested_dates:  # Loops over all requested years
                         total_file_size += os.path.getsize(file)
 
                 # Checks to see if there is actually data for the day
+                data_present = True
                 necessary_scintillators = \
                     detector.long_event_scint_list.append('LP') if \
                     'LP' not in detector.long_event_scint_list else detector.long_event_scint_list
                 for scint in necessary_scintillators:
                     if len(detector.attribute_retriever(scint, 'filelist')) == 0:
+                        data_present = False
                         print('\n\n')
                         print('\n', file=detector.log)
                         sm.print_logger('No/Missing data for specified day.', detector.log)
                         print('\n')
                         continue
+
+                if not data_present:
+                    log.close()
+                    continue
 
                 operating_memory = sm.memory_allowance()
                 available_memory = psutil.virtual_memory()[1]
