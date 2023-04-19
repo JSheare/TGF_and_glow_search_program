@@ -1,6 +1,6 @@
 # TGF and Glow Search Program
 ## This program was written to search raw data from the intstruments of the terrestrial gamma-ray flash group at UCSC.
-## Currently supported detectors: THOR, GODOT, Santis Instrument (after adafruit update)
+## Currently supported detectors: THOR, GODOT, Santis Instrument (after adafruit update), Croatia instrument
 <br/>
 
 ##**Requirements for use:**
