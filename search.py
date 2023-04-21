@@ -181,7 +181,7 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
 
 def long_event_search(detector_obj, times, existing_hist=None, low_mem=False):
     # Makes one bin for every binsize seconds of the day (plus around 300 seconds more for the next day)
-    binsize = 4 if aircraft else 10
+    binsize = 4
     day_bins = np.arange(0, 86700 + binsize, binsize)
 
     # Creates numerical values for histograms using numpy
@@ -416,7 +416,7 @@ skcali = True if 'skcali' in modes else False  # Skip detector calibration
 skshort = True if 'skshort' in modes else False  # Skip short event search
 skglow = True if 'skglow' in modes else False  # SKip long event search
 
-skcali = True if unit == 'CROATIA' else False  # temp
+skcali = True if unit == 'CROATIA' else skcali  # temp
 
 # Aircraft mode
 aircraft = True if 'aircraft' in modes else False
