@@ -347,7 +347,7 @@ class Detector:
 
         """
 
-        if self.GODOT:
+        if self.GODOT or self.CROATIA:  # these values should be another detector attribute (maybe a dictionary)
             bin_range = 15008.0
             bin_size = 16
             band_starts = [38, 94]

@@ -416,8 +416,6 @@ skcali = True if 'skcali' in modes else False  # Skip detector calibration
 skshort = True if 'skshort' in modes else False  # Skip short event search
 skglow = True if 'skglow' in modes else False  # SKip long event search
 
-skcali = True if unit == 'CROATIA' else skcali  # temp
-
 # Aircraft mode
 aircraft = True if 'aircraft' in modes else False
 
@@ -568,9 +566,11 @@ for year in requested_dates:  # Loops over all requested years
                     le_times = np.array([])
                     le_energies = np.array([])
                     for scint in detector.long_event_scint_list:
+                        existing_calibration = True if len(
+                            detector.attribute_retriever(scint, 'calibration')) == 2 else False
                         if scint == detector.long_event_scint_list[0]:
                             le_times = detector.attribute_retriever(scint, 'time')
-                            if skcali:
+                            if skcali or not existing_calibration:
                                 le_energies = detector.attribute_retriever(scint, 'energy')
                             else:
                                 calibration = detector.attribute_retriever(scint, 'calibration')
@@ -578,7 +578,7 @@ for year in requested_dates:  # Loops over all requested years
                                                                 calibration, scint)
                         else:
                             le_times = np.append(le_times, detector.attribute_retriever(scint, 'time'))
-                            if skcali:
+                            if skcali or not existing_calibration:
                                 le_energies = np.append(le_energies, detector.attribute_retriever(scint, 'energy'))
                             else:
                                 calibration = detector.attribute_retriever(scint, 'calibration')
@@ -587,8 +587,8 @@ for year in requested_dates:  # Loops over all requested years
                                                                           calibration, scint))
 
                     # Removes entries that are below a certain cutoff energy
-                    if (not detector.good_lp_calibration and (detector.GODOT or detector.SANTIS)) or skcali:
-                        print('Potentially inaccurate large plastic calibration, beware radon washout!',
+                    if (not detector.good_lp_calibration and 'LP' in detector.long_event_scint_list) or skcali:
+                        print('Missing large plastic calibration, beware radon washout!',
                               file=detector.log)
                     else:
                         energy_cutoff = 1.9  # MeV
@@ -771,9 +771,11 @@ for year in requested_dates:  # Loops over all requested years
                         le_times = np.array([])
                         le_energies = np.array([])
                         for scint in chunk.long_event_scint_list:
+                            existing_calibration = True if len(
+                                detector.attribute_retriever(scint, 'calibration')) == 2 else False
                             if scint == chunk.long_event_scint_list[0]:
                                 le_times = chunk.attribute_retriever(scint, 'time')
-                                if skcali:
+                                if skcali or not existing_calibration:
                                     le_energies = chunk.attribute_retriever(scint, 'energy')
                                 else:
                                     calibration = detector.attribute_retriever(scint, 'calibration')
@@ -781,7 +783,7 @@ for year in requested_dates:  # Loops over all requested years
                                                                     calibration, scint)
                             else:
                                 le_times = np.append(le_times, chunk.attribute_retriever(scint, 'time'))
-                                if skcali:
+                                if skcali or not existing_calibration:
                                     le_energies = np.append(le_energies, chunk.attribute_retriever(scint, 'energy'))
                                 else:
                                     calibration = detector.attribute_retriever(scint, 'calibration')
@@ -791,8 +793,8 @@ for year in requested_dates:  # Loops over all requested years
                                                                 calibration, scint))
 
                         # Removes entries that are below a certain cutoff energy
-                        if (not detector.good_lp_calibration and (detector.GODOT or detector.SANTIS)) or skcali:
-                            print('Potentially inaccurate large plastic calibration, beware radon washout!',
+                        if (not detector.good_lp_calibration and 'LP' in detector.long_event_scint_list) or skcali:
+                            print('Missing large plastic calibration, beware radon washout!',
                                   file=detector.log)
                         else:
                             energy_cutoff = 1.9  # MeV
