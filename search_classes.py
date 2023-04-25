@@ -18,7 +18,7 @@ import pandas as pd
 import scipy.signal as signal
 import matplotlib.pyplot as plt
 import datetime as dt
-import DataReaderFinal as dr
+import DataReaderTimetrack1 as dr
 import search_module as sm
 
 
@@ -600,6 +600,8 @@ class Detector:
                 files_imported = 0
 
                 print('File|File Behavior|File Time Gap (sec)', file=self.log)
+                passtime = {"lastsod": -1.0, "ppssod": -1.0, "lastunix": -1.0, "ppsunix": -1.0, "lastwc": 0, "ppswc": 0,
+                            "hz": 8e7, "started": 0}
                 for day_files in filelist:
                     # Try-except block to log files where GPS and wallclock disagree significantly
                     file_behavior = 'Normal'
@@ -610,7 +612,7 @@ class Detector:
                             time_list.append(t)
                             filetimes = t
                         else:
-                            data = dr.fileNameToData(day_files)
+                            data, passtime = dr.fileNameToData(day_files, passtime)
                             if 'energies' in data.columns:
                                 energy_list.append(data['energies'].to_numpy())
                             else:

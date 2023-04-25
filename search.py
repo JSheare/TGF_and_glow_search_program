@@ -22,7 +22,6 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
     channel_range_width = 300
     channel_ratio = 0.5
 
-    # this should probably just not be returned if we're not in low memory mode
     event_numbers = prev_event_numbers if prev_event_numbers is not None else {}
     for scintillator in detector_obj.scintillators:
         if scintillator != 'LP' and not detector_obj.plastics:
@@ -505,6 +504,7 @@ for year in requested_dates:  # Loops over all requested years
                         detector.log = log
                         detector.data_importer()
                         detector.log = None  # serializing open file objects results in errors
+                        detector.regex = None  # serializing anonymous functions results in errors too
                         detector_pickle = open(f'{sm.results_loc()}Results/{unit}/{full_day_string}/detector.pickle',
                                                'wb')
                         pickle.dump(detector, detector_pickle)
@@ -588,7 +588,7 @@ for year in requested_dates:  # Loops over all requested years
 
                     # Removes entries that are below a certain cutoff energy
                     if (not detector.good_lp_calibration and 'LP' in detector.long_event_scint_list) or skcali:
-                        print('Missing large plastic calibration, beware radon washout!',
+                        print('Missing calibration(s), beware radon washout!',
                               file=detector.log)
                     else:
                         energy_cutoff = 1.9  # MeV
@@ -794,7 +794,7 @@ for year in requested_dates:  # Loops over all requested years
 
                         # Removes entries that are below a certain cutoff energy
                         if (not detector.good_lp_calibration and 'LP' in detector.long_event_scint_list) or skcali:
-                            print('Missing large plastic calibration, beware radon washout!',
+                            print('Missing calibration(s), beware radon washout!',
                                   file=detector.log)
                         else:
                             energy_cutoff = 1.9  # MeV
