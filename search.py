@@ -233,12 +233,12 @@ def long_event_search(detector_obj, times, existing_hist=None, low_mem=False):
     previous_time = 0
     potential_glow_list = []
     for flag in z_flags:
-        if glow_length == 0:
+        if glow_length == 0:  # First zscore only
             glow_start = flag
             glow_length += 1
-        if glow_length > 0 and day_bins[flag] - binsize == previous_time:
+        elif glow_length > 0 and day_bins[flag] - binsize == previous_time:
             glow_length += 1
-        if glow_length > 0 and day_bins[flag] - binsize > previous_time:
+        elif (glow_length > 0 and day_bins[flag] - binsize > previous_time) or flag == z_flags[-1]:
             # Makes glow object and fills it out
             glow = sc.PotentialGlow(glow_start, glow_length)
             glow.highest_score = glow.highest_zscore(z_scores)
@@ -246,11 +246,6 @@ def long_event_search(detector_obj, times, existing_hist=None, low_mem=False):
             potential_glow_list.append(glow)
             glow_start = flag
             glow_length = 1
-        if flag == z_flags[-1]:
-            glow = sc.PotentialGlow(glow_start, glow_length)
-            glow.highest_score = glow.highest_zscore(z_scores)
-            glow.start_sec, glow.stop_sec = glow.beginning_and_end_seconds(day_bins, binsize)
-            potential_glow_list.append(glow)
 
         previous_time = day_bins[flag]
 
@@ -505,6 +500,12 @@ for year in requested_dates:  # Loops over all requested years
                         detector = pickle.load(detector_pickle)
                         detector_pickle.close()
                         detector.log = log
+                        # The rest of these are for the modes (which might not necessarily be the same
+                        # for the serialized detector)
+                        detector.modes = modes
+                        detector.custom = True if 'custom' in modes else False
+                        detector.plastics = True if 'plastics' in modes else False
+                        detector.template = True if 'template' in modes else False
                     else:
                         detector.log = log
                         detector.data_importer()

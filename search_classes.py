@@ -352,7 +352,7 @@ class Detector:
             bin_size = 16
             band_starts = [38, 94]
             band_ends = [75, 125]
-            template_bin_plot_edge = 200
+            template_bin_plot_edge = 200 if self.GODOT else 400
         else:
             bin_range = 65535.0
             bin_size = 1
@@ -387,7 +387,6 @@ class Detector:
                 sm.print_logger('Entering template mode...', self.log)
                 print('\n')
                 iterations = 0
-                bin_plot_edge = template_bin_plot_edge
                 while True:
                     if iterations > 0:
                         print(f'Previous line locations: K40: {int(flagged_indices[0])}, T: {int(flagged_indices[1])}')
@@ -415,7 +414,7 @@ class Detector:
                     plt.xlabel('Energy Channel')
                     plt.ylabel('Counts/bin')
                     plt.yscale('log')
-                    plt.bar(energy_bins[0:bin_plot_edge], energy_hist[0:bin_plot_edge], color='r',
+                    plt.bar(energy_bins[0:template_bin_plot_edge], energy_hist[0:template_bin_plot_edge], color='r',
                             width=bin_size/2, zorder=1)
                     plt.vlines(energy_bins[flagged_indices.astype(int)], 0, np.amax(energy_hist), zorder=2, alpha=0.75)
                     plt.show()
@@ -426,8 +425,9 @@ class Detector:
                         break
                     iterations += 1
 
-                template = pd.DataFrame(data={'energy_hist': energy_hist, 'bins': energy_bins[0:938],
-                                              'indices': np.append(flagged_indices, np.zeros(len(energy_hist)-2))})
+                template = pd.DataFrame(data={'energy_hist': energy_hist, 'bins': energy_bins[0:bin_plot_edge],
+                                              'indices': np.append(flagged_indices,
+                                                                   np.zeros(len(energy_hist[0:bin_plot_edge])-2))})
                 sm.path_maker('Templates')
                 template.to_csv(f'Templates/{self.unit}_{self.location}_template.csv', index=False)
                 print('Template made')
