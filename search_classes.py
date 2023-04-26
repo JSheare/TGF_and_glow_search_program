@@ -57,6 +57,8 @@ class Detector:
         A flag for whether the program was able to calibrate the detector's large plastic scintillator or not.
     long_event_scint_list : list
         A list of the scintillators used by the long event search algorithm.
+    calibration_params : dict
+        A dictionary containing various parameters used in the detector calibration algorithm.
     scintillators : dict
         A nested dictionary containing all the relevant information for a detector's scintillators.
     THOR : bool
@@ -94,9 +96,7 @@ class Detector:
         self.full_day_string = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%y%m%d')  # In format yymmdd
         self.date_timestamp = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%Y-%m-%d')  # In format yyyy-mm-dd
         self.location = 'location'  # Eventually this will be fetched from a function in search_module
-        self.import_path = ''
         self.good_lp_calibration = False
-        self.long_event_scint_list = ['LP']
 
         # Detector information
         self.THOR = False
@@ -107,6 +107,8 @@ class Detector:
         if self.unit == 'GODOT':
             self.GODOT = True
             self.long_event_scint_list = ['NaI', 'LP']
+            self.calibration_params = {'bin_range': 15008.0, 'bin_size': 16, 'band_starts': [38, 94],
+                                       'band_ends': [75, 125], 'template_bin_plot_edge': 200}
             if 'processed' in self.modes:
                 self.import_path = f'{sm.G_processed_data_loc()}/{self.full_day_string[0:4]}'
             else:
@@ -126,6 +128,8 @@ class Detector:
         elif self.unit[0:4] == 'THOR':
             self.THOR = True
             self.long_event_scint_list = ['NaI']
+            self.calibration_params = {'bin_range': 65535.0, 'bin_size': 1, 'band_starts': [2000, 5600],
+                                       'band_ends': [2500, 6300], 'template_bin_plot_edge': 8000}  # placeholder
             self.import_path = f'{sm.T_raw_data_loc()}/{unit}/Data/{self.full_day_string}'
             self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.full_day_string}_*'
             self.scintillators = {'NaI': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[0],
@@ -149,6 +153,8 @@ class Detector:
         elif self.unit == 'SANTIS':
             self.SANTIS = True
             self.long_event_scint_list = ['LP']
+            self.calibration_params = {'bin_range': 15008.0, 'bin_size': 16, 'band_starts': [38, 94],
+                                       'band_ends': [75, 125], 'template_bin_plot_edge': 400}
             self.import_path = f'{sm.S_raw_data_loc()}/{self.full_day_string}'
             self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.full_day_string}_*'
             self.scintillators = {'LP': {'eRC': '2549',
@@ -160,6 +166,8 @@ class Detector:
         elif self.unit == 'CROATIA':
             self.CROATIA = True
             self.long_event_scint_list = ['LP']
+            self.calibration_params = {'bin_range': 15008.0, 'bin_size': 16, 'band_starts': [38, 94],
+                                       'band_ends': [75, 125], 'template_bin_plot_edge': 400}
             self.import_path = f'{sm.CR_raw_data_loc()}/{self.full_day_string}'
             self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.full_day_string}_*'
             self.scintillators = {'MP': {'eRC': '4193',
@@ -179,8 +187,6 @@ class Detector:
         # Modes
         self.custom = False
         self.processed = False
-        self.plastics = False
-        self.template = False
 
         if 'custom' in self.modes:
             self.custom = True  # Not necessary for anything right now
@@ -195,8 +201,9 @@ class Detector:
         if 'plastics' in self.modes:
             self.plastics = True
 
-        if 'template' in self.modes:
-            self.template = True
+        self.plastics = True if 'plastics' in self.modes else False
+
+        self.template = True if 'template' in self.modes else False
 
     # String casting magic method
     def __str__(self):
@@ -347,18 +354,12 @@ class Detector:
 
         """
 
-        if self.GODOT or self.CROATIA:  # these values should be another detector attribute (maybe a dictionary)
-            bin_range = 15008.0
-            bin_size = 16
-            band_starts = [38, 94]
-            band_ends = [75, 125]
-            template_bin_plot_edge = 200 if self.GODOT else 400
-        else:
-            bin_range = 65535.0
-            bin_size = 1
-            band_starts = [2000, 5600]
-            band_ends = [2500, 6300]
-            template_bin_plot_edge = 8000  # placeholder
+        # Fetching calibration parameters
+        bin_range = self.calibration_params['bin_range']
+        bin_size = self.calibration_params['bin_size']
+        band_starts = self.calibration_params['band_starts']
+        band_ends = self.calibration_params['band_ends']
+        template_bin_plot_edge = self.calibration_params['template_bin_plot_edge']
 
         energy_bins = np.arange(0.0, bin_range, bin_size)
         sp_path = f'{sm.results_loc()}Results/{self.unit}/{self.full_day_string}/'
