@@ -14,7 +14,7 @@ import search_module as sm
 
 def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
     # Parameters:
-    rollgap = 4 if aircraft else 4  # will eventually get changed to something more aircraft appropriate
+    rollgap = 20 if aircraft else 4  # will eventually get changed to something more aircraft appropriate
     event_time_spacing = 1e-3  # 1 millisecond
     event_min_counts = 10
     noise_cutoff_energy = 300
@@ -105,12 +105,12 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
 
                 except ZeroDivisionError:
                     pass
-            # High/low channel ratio is not checked for events with < 30 counts
+            # High/low channel ratio is also not checked for events with < 30 counts
             else:
                 good_channel_ratio = True
 
             # Eliminates the low energy events, which are likely just noise
-            # These 5 lines can probably be condensed into one, but I'm not going to do it right now
+            # At least min_noise_counts must be above noise_cutoff_energy
             max_indices = (-event_energies).argsort()[:min_noise_counts]
             max_energies = np.array([])
             for i in max_indices:
@@ -205,17 +205,19 @@ def long_event_search(detector_obj, times, existing_hist=None, low_mem=False):
             hist_allday_nz = hist_allday_nz[i:]
             break
 
+    # Parameters
+    flag_threshold = 5
     mue = sum(hist_allday_nz) / len(hist_allday_nz)
     sigma = np.sqrt(mue)
 
     z_scores = np.array([])  # The z-scores themselves
     z_flags = np.array([])
     p = 0
-    # Flags only those z-scores > 5
+    # Flags only those z-scores > flag_threshold
     for i in range(len(hist_allday)):
         if hist_allday[i] > mue:  # Peak
             z_scores = np.append(z_scores, ((hist_allday[i] - mue) / sigma))
-            if z_scores[i] >= 5:
+            if z_scores[i] >= flag_threshold:
                 z_flags = np.append(z_flags, i)
                 p += 1
         elif hist_allday[i] < mue:  # Valley
@@ -257,7 +259,7 @@ def long_event_search(detector_obj, times, existing_hist=None, low_mem=False):
         # Number of neighbors on each side of the long event edges to check
         check_neighbor = 10
         # Acceptable difference between peak zscore of event and average zscore of surrounding events
-        tolerance = 1
+        tolerance = flag_threshold  # This might need to be re-tuned
 
         num_bins = len(z_scores)
         f_potential_glow_list = []
@@ -265,10 +267,12 @@ def long_event_search(detector_obj, times, existing_hist=None, low_mem=False):
             z_score_sum = 0
             bins_summed = 0
             for i in range(check_neighbor):
+                # Checking left side bins
                 if not glow.start - (i + 1) < 0:
                     z_score_sum += z_scores[glow.start - (i + 1)]
                     bins_summed += 1
 
+                # Checking right side bins
                 if not glow.start + (i + 1) > (num_bins - 1):
                     z_score_sum += z_scores[glow.stop + (i + 1)]
                     bins_summed += 1
@@ -359,19 +363,20 @@ def long_event_search(detector_obj, times, existing_hist=None, low_mem=False):
         ax1.bar(day_bins[:-1], hist_allday, alpha=0.5, color='r', width=binsize)
         ax1.set_xlabel('Seconds of Day (UT)')
         ax1.set_ylabel('Counts/bin')
-        ax1.axhline(y=(mue + 5 * sigma), color='blue', linestyle='dashed', linewidth=2)
+        ax1.axhline(y=(mue + flag_threshold * sigma), color='blue', linestyle='dashed', linewidth=2)
 
         # Creates legend
         allday_data = mpatches.Patch(color='r', label='All Energies')
-        allday_5sigma = mpatches.Patch(color='blue', label='5 Sigma Above All Energies', linestyle='dashed')
-        ax1.legend(handles=[allday_data, allday_5sigma, ], bbox_to_anchor=(1.05, 1), loc=1,
+        allday_thresh_sigma = mpatches.Patch(color='blue', label=f'{flag_threshold} Sigma Above All Energies',
+                                             linestyle='dashed')
+        ax1.legend(handles=[allday_data, allday_thresh_sigma, ], bbox_to_anchor=(1.05, 1), loc=1,
                    borderaxespad=0.)
         ax1.grid(True)
 
         for i in range(4):
             try:
                 glow = potential_glow_list[i]
-                sm.hist_subplotter(ax_list[i], glow, day_bins, hist_allday, mue, sigma)
+                sm.hist_subplotter(ax_list[i], glow, day_bins, hist_allday, mue, sigma, flag_threshold)
             except IndexError:
                 continue
 
