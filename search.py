@@ -14,7 +14,7 @@ import search_module as sm
 
 def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
     # Parameters:
-    rollgap = 20 if aircraft else 4  # will eventually get changed to something more aircraft appropriate
+    rollgap = 18 if aircraft else 4  # will eventually get changed to something more aircraft appropriate
     event_time_spacing = 1e-3  # 1 millisecond
     event_min_counts = 10
     noise_cutoff_energy = 300
@@ -220,7 +220,7 @@ def long_event_search(detector_obj, times, existing_hist=None, low_mem=False):
             if z_scores[i] >= flag_threshold:
                 z_flags = np.append(z_flags, i)
                 p += 1
-        elif hist_allday[i] < mue:  # Valley
+        else:
             z_scores = np.append(z_scores, ((hist_allday[i] - mue) / sigma))
 
     # Redefines z_flag to only contain flags from the start to p-1
@@ -503,7 +503,6 @@ for year in requested_dates:  # Loops over all requested years
                         # The rest of these are for the modes (which might not necessarily be the same
                         # for the serialized detector)
                         detector.modes = modes
-                        detector.custom = True if 'custom' in modes else False
                         detector.plastics = True if 'plastics' in modes else False
                         detector.template = True if 'template' in modes else False
                     else:
@@ -511,6 +510,8 @@ for year in requested_dates:  # Loops over all requested years
                         detector.data_importer()
                         detector.log = None  # serializing open file objects results in errors
                         detector.regex = None  # serializing anonymous functions results in errors too
+                        detector.plastics = False  # Setting this and template to false ensures no odd behaviors
+                        detector.template = False
                         detector_pickle = open(f'{sm.results_loc()}Results/{unit}/{full_day_string}/detector.pickle',
                                                'wb')
                         pickle.dump(detector, detector_pickle)
@@ -690,20 +691,34 @@ for year in requested_dates:  # Loops over all requested years
                 print('\n')
                 chunk_num = 1
                 chunk_path_list = []
+                # Keeps timings consistent between chunks
+                passtime = {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0, 'ppsunix': -1.0, 'lastwc': 0, 'ppswc': 0,
+                            'hz': 8e7, 'started': 0}
+                passtime_dict = {}
+                for scint in chunk_scint_list:
+                    passtime_dict.update({scint: passtime.copy()})
+
                 for chunk in chunk_list:
+                    # Updates chunk to include previous chunk's passtime
+                    for scint in chunk.scintillators:
+                        chunk.attribute_updator(scint, 'passtime', passtime_dict[scint])
+
                     sm.print_logger(f'Chunk {chunk_num}:', detector.log)
                     chunk.data_importer(existing_filelists=True)
                     print('\n\n')
-                    # Makes a full list of filetime extrema for long event search
+                    # Makes a full list of filetime extrema for long event search and updates passtime
                     for scint in chunk.scintillators:
                         extrema = detector.attribute_retriever(scint, 'filetime_extrema')
                         extrema = extrema + chunk.attribute_retriever(scint, 'filetime_extrema')
                         detector.attribute_updator(scint, 'filetime_extrema', extrema)
+                        temp_passtime = chunk.attribute_retriever(scint, 'passtime')
+                        passtime_dict.update({scint: temp_passtime})
 
                     chunk_pickle_path = f'{sm.results_loc()}Results/{unit}/{full_day_string}/chunk{chunk_num}.pickle'
                     chunk_path_list.append(chunk_pickle_path)
                     chunk_pickle = open(chunk_pickle_path, 'wb')
                     chunk.log = None
+                    chunk.regex = None
                     pickle.dump(chunk, chunk_pickle)
                     chunk_pickle.close()
 

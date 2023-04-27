@@ -117,11 +117,16 @@ class Detector:
             self.regex = lambda eRC: f'eRC{eRC}_lm*_{self.full_day_string}_*'
             self.scintillators = {'NaI': {'eRC': '1490',
                                           'filelist': [], 'filetime_extrema': [], 'calibration': [],
-                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([]),
+                                          'passtime': {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0,
+                                                       'ppsunix': -1.0, 'lastwc': 0, 'ppswc': 0, 'hz': 8e7,
+                                                       'started': 0}
                                           },
                                   'LP': {'eRC': '1491',
                                          'filelist': [], 'filetime_extrema': [], 'calibration': [],
-                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([]),
+                                         'passtime': {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0,
+                                                      'ppsunix': -1.0, 'lastwc': 0, 'ppswc': 0, 'hz': 8e7, 'started': 0}
                                          }
                                   }
 
@@ -134,19 +139,28 @@ class Detector:
             self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.full_day_string}_*'
             self.scintillators = {'NaI': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[0],
                                           'filelist': [], 'filetime_extrema': [], 'calibration': [],
-                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([]),
+                                          'passtime': {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0,
+                                                       'ppsunix': -1.0, 'lastwc': 0, 'ppswc': 0, 'hz': 8e7,
+                                                       'started': 0}
                                           },
                                   'SP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[1],
                                          'filelist': [], 'filetime_extrema': [], 'calibration': [],
-                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([]),
+                                         'passtime': {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0,
+                                                      'ppsunix': -1.0, 'lastwc': 0, 'ppswc': 0, 'hz': 8e7, 'started': 0}
                                          },
                                   'MP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[2],
                                          'filelist': [], 'filetime_extrema': [], 'calibration': [],
-                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([]),
+                                         'passtime': {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0,
+                                                      'ppsunix': -1.0, 'lastwc': 0, 'ppswc': 0, 'hz': 8e7, 'started': 0}
                                          },
                                   'LP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[3],
                                          'filelist': [], 'filetime_extrema': [], 'calibration': [],
-                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([]),
+                                         'passtime': {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0,
+                                                      'ppsunix': -1.0, 'lastwc': 0, 'ppswc': 0, 'hz': 8e7, 'started': 0}
                                          }
                                   }
 
@@ -159,7 +173,9 @@ class Detector:
             self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.full_day_string}_*'
             self.scintillators = {'LP': {'eRC': '2549',
                                          'filelist': [], 'filetime_extrema': [], 'calibration': [],
-                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([]),
+                                         'passtime': {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0,
+                                                      'ppsunix': -1.0, 'lastwc': 0, 'ppswc': 0, 'hz': 8e7, 'started': 0}
                                          }
                                   }
 
@@ -172,11 +188,15 @@ class Detector:
             self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.full_day_string}_*'
             self.scintillators = {'MP': {'eRC': '4193',
                                          'filelist': [], 'filetime_extrema': [], 'calibration': [],
-                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([]),
+                                         'passtime': {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0,
+                                                      'ppsunix': -1.0, 'lastwc': 0, 'ppswc': 0, 'hz': 8e7, 'started': 0}
                                          },
                                   'LP': {'eRC': '2549',
                                          'filelist': [], 'filetime_extrema': [], 'calibration': [],
-                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([])
+                                         'time': np.array([]), 'energy': np.array([]), 'wc': np.array([]),
+                                         'passtime': {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0,
+                                                      'ppsunix': -1.0, 'lastwc': 0, 'ppswc': 0, 'hz': 8e7, 'started': 0}
                                          },
                                   }
 
@@ -245,6 +265,8 @@ class Detector:
 
             wc: a numpy array of each count's wallclock time.
 
+            passtime: timing information for the previous file imported.
+
         Parameters
         ----------
         scintillator : str
@@ -291,6 +313,8 @@ class Detector:
             energy: a numpy array of each count's energy (in Volts).
 
             wc: a numpy array of each count's wallclock time.
+
+            passtime: timing information for the previous file imported.
 
         Parameters
         ----------
@@ -613,7 +637,9 @@ class Detector:
                             time_list.append(t)
                             filetimes = t
                         else:
-                            data, passtime = dr.fileNameToData(day_files, passtime)
+                            data, passtime = dr.fileNameToData(day_files,
+                                                               self.attribute_retriever(scintillator_name, 'passtime'))
+                            self.attribute_updator(scintillator_name, 'passtime', passtime)
                             if 'energies' in data.columns:
                                 energy_list.append(data['energies'].to_numpy())
                             else:

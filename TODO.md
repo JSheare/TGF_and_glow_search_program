@@ -2,9 +2,7 @@
 - [ ] Write duplicate file eliminator/sorter for general data
 - [ ] Add full list of all locations ever for each detector
 - [ ] Profile the program for bottlenecks
-- [ ] Make a standard for adding more detectors:
-  - also needs to have one for detector file name format
-  - that way the data importer/glow search algo will accept any generic detector you feed it
+- [ ] Make a child class of Detector called 'Chunk' for the low memory mode
 - [ ] Change detector object to accept yymmdd string instead of first second of day
 
 ### Completed
@@ -23,3 +21,4 @@
 - [x] Add a dev mode that skips algorithm(s) of choice
 - [x] Write an attribute updator method to detector class
 - [x] Pickle detector object even when not in low memory mode?
+- [x] Make a standard for adding more detectors:
