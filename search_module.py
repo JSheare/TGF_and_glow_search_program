@@ -91,7 +91,7 @@ def G_processed_data_loc():
 
 def memory_allowance():
     """Returns maximum amount of memory that the program is allowed to use (in bytes), not including data."""
-    memory = 10e6
+    memory = 100e6
     return memory
 
 

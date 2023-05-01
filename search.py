@@ -5,6 +5,7 @@ import pickle as pickle
 import glob as glob
 import os as os
 import psutil as psutil
+import gc as gc
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -629,6 +630,8 @@ for year in requested_dates:  # Loops over all requested years
                     for file in master_filelist:
                         total_file_size += os.path.getsize(file)
 
+                gc.collect()
+
                 # Checks to see if there is actually data for the day
                 data_present = True
                 if 'LP' in detector.long_event_scint_list:
@@ -650,8 +653,8 @@ for year in requested_dates:  # Loops over all requested years
                     continue
 
                 operating_memory = sm.memory_allowance()
-                available_memory = psutil.virtual_memory()[1]
-                allowed_memory = available_memory/2  # to avoid making the computer unusable
+                available_memory = psutil.virtual_memory()[1]/4
+                allowed_memory = available_memory
 
                 num_chunks = 2  # minimum number of chunks to split the day into
                 max_chunks = 16
@@ -724,6 +727,7 @@ for year in requested_dates:  # Loops over all requested years
 
                     # Eliminates the chunk from active memory
                     del chunk
+                    gc.collect()
                     chunk_list[chunk_num - 1] = 0
 
                     chunk_num += 1
@@ -777,6 +781,7 @@ for year in requested_dates:  # Loops over all requested years
                         print('\n\n', file=detector.log)
 
                         del chunk
+                        gc.collect()
                         chunk_num += 1
 
                     sm.print_logger('Done.', detector.log)
@@ -831,6 +836,7 @@ for year in requested_dates:  # Loops over all requested years
                         le_hist = chunk_hist if len(le_hist) == 0 else le_hist + chunk_hist
 
                         del chunk
+                        gc.collect()
 
                     # Calling the long event search algorithm
                     long_event_search(detector, np.array([]), existing_hist=le_hist)

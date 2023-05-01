@@ -598,7 +598,7 @@ class Detector:
 
         # Determines whether there is enough free memory to load the entire dataset
         operating_memory = sm.memory_allowance()
-        available_memory = psutil.virtual_memory()[1]
+        available_memory = psutil.virtual_memory()[1]/4
         if (operating_memory + total_file_size) > available_memory:
             raise MemoryError('MemoryError: not enough free memory to hold complete dataset')
 
