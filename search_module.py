@@ -138,7 +138,7 @@ def location(unit, YEAR):
     elif unit == 'SANTIS':
         location = 'Santis, Switzerland'
     else:
-        location = 'at no listed location'
+        location = 'at no location listed'
 
     return location
 

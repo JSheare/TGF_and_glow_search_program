@@ -3,6 +3,8 @@
 Classes:
     Detector:
         Object used to store all relevant information about the detector and the data.
+    Chunk:
+        Object used to store all relevant information about the detector and the data for a chunk of the day.
     ShortEvent:
         Object used to store all relevant information about potential short events.
     PotentialGlow:
@@ -273,14 +275,13 @@ class Detector:
             A string corresponding to the scintillator of interest. Allowed values (detector dependent):
             'NaI', 'SP', 'MP', 'LP'.
         attribute : str
-            A string corresponding to the scintillator attribute of interest. Allowed values: 'eRC', 'filelist',
-            'filetime_extrema', 'calibration', 'time', 'energy', and 'wc'.
-
+            A string corresponding to the scintillator attribute of interest. See attribute
+            summary above for a full list of allowed values.
         Returns
         -------
-        str, list, np.array
+        str, list, np.array, dict
             String if 'eRC' is requested; list if 'filelist', 'calibration', or 'filetime_extrema' is requested;
-            numpy array  if 'time', 'energy', or 'wc' is requested.
+            numpy array  if 'time', 'energy', or 'wc' is requested; dictionary if 'passtime' is requested.
 
         """
 
@@ -322,8 +323,8 @@ class Detector:
             A string corresponding to the scintillator of interest. Allowed values (detector dependent):
             'NaI', 'SP', 'MP', 'LP'.
         attribute : str/list
-            For only one attribute: a string corresponding to the scintillator attribute of interest. Allowed values:
-            'eRC', 'filelist', 'filetime_extrema', 'calibration', 'time', 'energy', and 'wc'.
+            For only one attribute: a string corresponding to the scintillator attribute of interest. See attribute
+            summary above for a full list of allowed values.
             For multiple attributes: a list of strings corresponding to the scintillator attributes of interest.
         new_info : any/list
             For only one attribute: the new information for the requested attribute.
@@ -357,7 +358,7 @@ class Detector:
         else:
             raise AttributeError('AttributeError: not a valid scintillator')
 
-    def spectra_maker(self, existing_spectra=None, low_mem=False):
+    def spectra_maker(self, existing_spectra=None):
         """Makes the energy spectra histograms and calibrates the large plastic and sodium iodide scintillators.
         Calibration energies for each scintillator are saved to the 'calibration' attribute of the detector object's
         nested dictionary structure.
@@ -366,15 +367,6 @@ class Detector:
         ------
         existing_spectra : dict
             Optional. A dictionary whose entries correspond to energy spectra histograms for each scintillator.
-        low_mem : bool
-            Optional. Meant to be used when breaking the day into chunks. If True, and if existing_hist is not None,
-            function will return an updated existing_hist containing the histogram information for the newest chunk.
-
-        Returns
-        -------
-        dict
-            Only returned if existing_hist is not None and low_mem is True. A dictionary whose entries correspond to
-            energy spectra histograms for each scintillator.
 
         """
 
@@ -391,7 +383,6 @@ class Detector:
         spectra_conversions = open(f'{sp_path}spectra_conversions.txt', 'w')
         spectra_frame = pd.DataFrame()
         spectra_frame['energy bins'] = energy_bins[:-1]
-        hist_dict = {}
         for scintillator in self.scintillators:
             if scintillator == 'SP' or scintillator == 'MP':
                 continue  # (for now)
@@ -401,9 +392,6 @@ class Detector:
                 energy_hist = existing_spectra[scintillator]
             else:
                 energy_hist, bin_edges = np.histogram(energies, bins=energy_bins)
-                if low_mem:
-                    hist_dict.update({scintillator: energy_hist})
-                    continue
 
             bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1 (no idea why)
             flagged_indices = np.array([])
@@ -520,9 +508,6 @@ class Detector:
         if self.template:
             exit()
 
-        if low_mem:
-            return hist_dict
-
     def data_importer(self, existing_filelists=False):
         """Imports data from data files into arrays and then updates them into the detector object's
         nested dictionary structure.
@@ -625,8 +610,6 @@ class Detector:
                 files_imported = 0
 
                 print('File|File Behavior|File Time Gap (sec)', file=self.log)
-                passtime = {"lastsod": -1.0, "ppssod": -1.0, "lastunix": -1.0, "ppsunix": -1.0, "lastwc": 0, "ppswc": 0,
-                            "hz": 8e7, "started": 0}
                 for day_files in filelist:
                     # Try-except block to log files where GPS and wallclock disagree significantly
                     file_behavior = 'Normal'
@@ -698,6 +681,97 @@ class Detector:
                 print('Missing data for the specified day.', file=self.log)
                 print('Missing data for the specified day.', end='\r')
                 continue
+
+
+class Chunk(Detector):
+    """ Used to store all relevant information about the detector and the data for a chunk of the day.
+
+    This is a child class of Detector, see Detector documentation for full list of methods and attributes. Chunk is used
+    to store information and data for a particular chunk of the day. It is meant to be used in search.py's low memory
+    mode in place of regular Detector objects, and as such it contains a few extra features.
+
+
+    Parameters
+    ----------
+    unit : str
+        The name of the particular detector that the analysis is being requested for.
+    first_sec : float
+        The first second in EPOCH time of the day that data analysis is being requested for.
+    modes : list
+        A list of the requested modes that the program should operate under.
+
+    Attributes
+    ----------
+    scint_list : list
+        A list of the detector's scintillators.
+
+    """
+
+    def __init__(self, unit, first_sec, modes):
+        super().__init__(unit, first_sec, modes)
+        self.scint_list = list(self.scintillators.keys())
+
+    def return_passtime(self):
+        """Returns a dictionary containing the passtime attributes for each of the detector's scintillators.
+
+        Returns
+        ----------
+        dict
+            A dictionary containing the passtime dictionaries for each of the detector's scintillators.
+
+        """
+
+        passtime_dict = {}
+        for scintillator in self.scintillators:
+            passtime = self.attribute_retriever(scintillator, 'passtime')
+            passtime_dict.update({scintillator: passtime})
+
+        return passtime_dict
+
+    def update_passtime(self, passtime_dict):
+        """Updates the passtime attributes for each of the detector's scintillators.
+
+        Parameters
+        ----------
+        passtime_dict : dict
+            A dictionary containing the passtime dictionaries for each of the detector's scintillators.
+
+        """
+
+        for scintillator in self.scintillators:
+            self.attribute_updator(scintillator, 'passtime', passtime_dict[scintillator])
+
+    def make_spectra_hist(self, existing_spectra_dict):
+        """Makes the energy spectra histograms for a chunk of the day (no calibration). Returns the histograms in a
+        dictionary.
+
+        Parameters
+        ----------
+        existing_spectra_dict : dict
+            A dictionary containing energy spectra histograms for previous chunks of the day.
+
+        Returns
+        -------
+        dict
+            An updated version of existing_spectra_dict featuring the current's chunk's contribution to the energy
+            spectra histograms.
+
+        """
+
+        bin_range = self.calibration_params['bin_range']
+        bin_size = self.calibration_params['bin_size']
+
+        energy_bins = np.arange(0.0, bin_range, bin_size)
+        for scintillator in self.scintillators:
+            energies = self.attribute_retriever(scintillator, 'energy')
+            chunk_hist, bin_edges = np.histogram(energies, bins=energy_bins)
+            if len(existing_spectra_dict[scintillator]) == 0:
+                existing_spectra_dict.update({scintillator: chunk_hist})
+            else:
+                new_hist = existing_spectra_dict[scintillator] + chunk_hist
+                existing_spectra_dict.update({scintillator: new_hist})
+
+        return existing_spectra_dict
 
 
 class ShortEvent:

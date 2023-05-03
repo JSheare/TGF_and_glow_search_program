@@ -13,6 +13,46 @@ import search_classes as sc
 import search_module as sm
 
 
+def long_event_cutoff(detector_obj, chunk_obj=None):
+    operating_obj = chunk_obj if chunk_obj is not None else detector_obj
+    # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
+    le_times = np.array([])
+    le_energies = np.array([])
+    for scintillator in operating_obj.long_event_scint_list:
+        existing_calibration = True if len(
+            detector_obj.attribute_retriever(scintillator, 'calibration')) == 2 else False
+        if scintillator == operating_obj.long_event_scint_list[0]:
+            le_times = operating_obj.attribute_retriever(scintillator, 'time')
+            if skcali or not existing_calibration:
+                le_energies = operating_obj.attribute_retriever(scintillator, 'energy')
+            else:
+                calibration = detector_obj.attribute_retriever(scintillator, 'calibration')
+                le_energies = sm.channel_to_mev(operating_obj.attribute_retriever(scintillator, 'energy'), calibration,
+                                                scintillator)
+        else:
+            le_times = np.append(le_times, operating_obj.attribute_retriever(scintillator, 'time'))
+            if skcali or not existing_calibration:
+                le_energies = np.append(le_energies, operating_obj.attribute_retriever(scintillator, 'energy'))
+            else:
+                calibration = detector_obj.attribute_retriever(scintillator, 'calibration')
+                le_energies = np.append(le_energies, sm.channel_to_mev(operating_obj.attribute_retriever(
+                    scintillator, 'energy'), calibration, scintillator))
+
+    # Removes entries that are below a certain cutoff energy
+    if (not detector_obj.good_lp_calibration and 'LP' in detector_obj.long_event_scint_list) or skcali:
+        print('Missing calibration(s), beware radon washout!',
+              file=detector_obj.log)
+    else:
+        energy_cutoff = 1.9  # MeV
+        cut_indices = np.where(le_energies < energy_cutoff)
+        le_times = np.delete(le_times, cut_indices)
+
+    if detector.processed:
+        le_times = le_times - first_sec
+
+    return le_times
+
+
 def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
     # Parameters:
     rollgap = 18 if aircraft else 4  # will eventually get changed to something more aircraft appropriate
@@ -179,7 +219,7 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
         return event_numbers
 
 
-def long_event_search(detector_obj, times, existing_hist=None, low_mem=False):
+def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False):
     # Makes one bin for every binsize seconds of the day (plus around 300 seconds more for the next day)
     binsize = 4
     day_bins = np.arange(0, 86700 + binsize, binsize)
@@ -188,7 +228,7 @@ def long_event_search(detector_obj, times, existing_hist=None, low_mem=False):
     if existing_hist is not None:
         hist_allday = existing_hist
     else:
-        hist_allday, bins_allday = np.histogram(times, bins=day_bins)
+        hist_allday, bins_allday = np.histogram(le_times, bins=day_bins)
         if low_mem:
             return hist_allday
 
@@ -571,49 +611,16 @@ for year in requested_dates:  # Loops over all requested years
                 if not skglow:
                     sm.print_logger('Starting search for glows...', detector.log)
                     # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
-                    le_times = np.array([])
-                    le_energies = np.array([])
-                    for scint in detector.long_event_scint_list:
-                        existing_calibration = True if len(
-                            detector.attribute_retriever(scint, 'calibration')) == 2 else False
-                        if scint == detector.long_event_scint_list[0]:
-                            le_times = detector.attribute_retriever(scint, 'time')
-                            if skcali or not existing_calibration:
-                                le_energies = detector.attribute_retriever(scint, 'energy')
-                            else:
-                                calibration = detector.attribute_retriever(scint, 'calibration')
-                                le_energies = sm.channel_to_mev(detector.attribute_retriever(scint, 'energy'),
-                                                                calibration, scint)
-                        else:
-                            le_times = np.append(le_times, detector.attribute_retriever(scint, 'time'))
-                            if skcali or not existing_calibration:
-                                le_energies = np.append(le_energies, detector.attribute_retriever(scint, 'energy'))
-                            else:
-                                calibration = detector.attribute_retriever(scint, 'calibration')
-                                le_energies = np.append(le_energies,
-                                                        sm.channel_to_mev(detector.attribute_retriever(scint, 'energy'),
-                                                                          calibration, scint))
-
-                    # Removes entries that are below a certain cutoff energy
-                    if (not detector.good_lp_calibration and 'LP' in detector.long_event_scint_list) or skcali:
-                        print('Missing calibration(s), beware radon washout!',
-                              file=detector.log)
-                    else:
-                        energy_cutoff = 1.9  # MeV
-                        cut_indices = np.where(le_energies < energy_cutoff)
-                        le_times = np.delete(le_times, cut_indices)
-                        le_energies = np.delete(le_energies, cut_indices)
-
-                    if detector.processed:
-                        le_times = le_times - first_sec
+                    times = long_event_cutoff(detector)
 
                     # Calling the long event search algorithm
-                    long_event_search(detector, le_times)
+                    long_event_search(detector, times)
 
                     sm.print_logger('Done.', detector.log)
                     sm.print_logger('\n', detector.log)
 
                 log.close()
+                gc.collect()
 
             # Low memory mode:
             except MemoryError:
@@ -658,7 +665,7 @@ for year in requested_dates:  # Loops over all requested years
 
                 num_chunks = 2  # minimum number of chunks to split the day into
                 max_chunks = 16
-                while num_chunks <= max_chunks:
+                while num_chunks < max_chunks:
                     mem_per_chunk = total_file_size/num_chunks
                     if allowed_memory/(mem_per_chunk + operating_memory) >= 1:
                         break
@@ -669,11 +676,11 @@ for year in requested_dates:  # Loops over all requested years
                 chunk_list = []
 
                 for chunk_num in range(1, num_chunks + 1):
-                    chunk = sc.Detector(unit, first_sec, modes)
+                    chunk = sc.Chunk(unit, first_sec, modes)
                     chunk.log = log
                     chunk_list.append(chunk)
 
-                chunk_scint_list = chunk_list[0].scintillators
+                chunk_scint_list = chunk_list[0].scint_list
 
                 for scint in detector.scintillators:
                     current_filelist = detector.attribute_retriever(scint, 'filelist')
@@ -695,27 +702,24 @@ for year in requested_dates:  # Loops over all requested years
                 chunk_num = 1
                 chunk_path_list = []
                 # Keeps timings consistent between chunks
-                passtime = {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0, 'ppsunix': -1.0, 'lastwc': 0, 'ppswc': 0,
-                            'hz': 8e7, 'started': 0}
-                passtime_dict = {}
-                for scint in chunk_scint_list:
-                    passtime_dict.update({scint: passtime.copy()})
+                passtime = chunk_list[0].attribute_retriever(chunk_scint_list[0], 'passtime')
+                passtime_dict = {scint: passtime.copy() for scint in chunk_scint_list}
 
                 for chunk in chunk_list:
                     # Updates chunk to include previous chunk's passtime
-                    for scint in chunk.scintillators:
-                        chunk.attribute_updator(scint, 'passtime', passtime_dict[scint])
+                    chunk.update_passtime(passtime_dict)
 
                     sm.print_logger(f'Chunk {chunk_num}:', detector.log)
                     chunk.data_importer(existing_filelists=True)
                     print('\n\n')
-                    # Makes a full list of filetime extrema for long event search and updates passtime
+                    # Makes a full list of filetime extrema for long event search
                     for scint in chunk.scintillators:
                         extrema = detector.attribute_retriever(scint, 'filetime_extrema')
-                        extrema = extrema + chunk.attribute_retriever(scint, 'filetime_extrema')
+                        extrema += chunk.attribute_retriever(scint, 'filetime_extrema')
                         detector.attribute_updator(scint, 'filetime_extrema', extrema)
-                        temp_passtime = chunk.attribute_retriever(scint, 'passtime')
-                        passtime_dict.update({scint: temp_passtime})
+
+                    # Updates passtime
+                    passtime_dict = chunk.return_passtime()
 
                     chunk_pickle_path = f'{sm.results_loc()}Results/{unit}/{full_day_string}/chunk{chunk_num}.pickle'
                     chunk_path_list.append(chunk_pickle_path)
@@ -738,20 +742,10 @@ for year in requested_dates:  # Loops over all requested years
                 if not skcali:
                     print('\n')
                     sm.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
-                    existing_spectra = {}
-                    for scint in chunk_scint_list:
-                        existing_spectra.update({scint: np.array([])})
-
+                    existing_spectra = {scint: np.array([]) for scint in chunk_scint_list}
                     for chunk_path in chunk_path_list:
                         chunk = sm.chunk_unpickler(chunk_path)
-                        chunk_spectra = chunk.spectra_maker(low_mem=True)
-                        for scint in chunk_spectra:
-                            current_hist = existing_spectra[scint]
-                            if len(current_hist) == 0:
-                                existing_spectra[scint] = chunk_spectra[scint]
-                            else:
-                                existing_spectra[scint] = current_hist + chunk_spectra[scint]
-
+                        chunk_spectra = chunk.make_spectra_hist(existing_spectra)
                         del chunk
 
                     # Calling the calibration algorithm
@@ -764,9 +758,7 @@ for year in requested_dates:  # Loops over all requested years
                     sm.print_logger('\n', detector.log)
                     sm.print_logger('Starting search for short events...', detector.log)
                     sm.print_logger('\n', detector.log)
-                    existing_event_numbers = {}
-                    for scint in chunk_scint_list:
-                        existing_event_numbers.update({scint: 0})
+                    existing_event_numbers = {scint: 0 for scint in chunk_scint_list}
 
                     chunk_num = 1
                     for chunk_path in chunk_path_list:
@@ -794,45 +786,10 @@ for year in requested_dates:  # Loops over all requested years
                     for chunk_path in chunk_path_list:
                         chunk = sm.chunk_unpickler(chunk_path)
                         # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
-                        le_times = np.array([])
-                        le_energies = np.array([])
-                        for scint in chunk.long_event_scint_list:
-                            existing_calibration = True if len(
-                                detector.attribute_retriever(scint, 'calibration')) == 2 else False
-                            if scint == chunk.long_event_scint_list[0]:
-                                le_times = chunk.attribute_retriever(scint, 'time')
-                                if skcali or not existing_calibration:
-                                    le_energies = chunk.attribute_retriever(scint, 'energy')
-                                else:
-                                    calibration = detector.attribute_retriever(scint, 'calibration')
-                                    le_energies = sm.channel_to_mev(chunk.attribute_retriever(scint, 'energy'),
-                                                                    calibration, scint)
-                            else:
-                                le_times = np.append(le_times, chunk.attribute_retriever(scint, 'time'))
-                                if skcali or not existing_calibration:
-                                    le_energies = np.append(le_energies, chunk.attribute_retriever(scint, 'energy'))
-                                else:
-                                    calibration = detector.attribute_retriever(scint, 'calibration')
-                                    le_energies = np.append(le_energies,
-                                                            sm.channel_to_mev(
-                                                                chunk.attribute_retriever(scint, 'energy'),
-                                                                calibration, scint))
-
-                        # Removes entries that are below a certain cutoff energy
-                        if (not detector.good_lp_calibration and 'LP' in detector.long_event_scint_list) or skcali:
-                            print('Missing calibration(s), beware radon washout!',
-                                  file=detector.log)
-                        else:
-                            energy_cutoff = 1.9  # MeV
-                            cut_indices = np.where(le_energies < energy_cutoff)
-                            le_times = np.delete(le_times, cut_indices)
-                            le_energies = np.delete(le_energies, cut_indices)
-
-                        if detector.processed:
-                            le_times = le_times - first_sec
+                        times = long_event_cutoff(detector, chunk)
 
                         # Histograms the counts from each chunk and combines them with the main one
-                        chunk_hist = long_event_search(detector, le_times, low_mem=True)
+                        chunk_hist = long_event_search(detector, times, low_mem=True)
                         le_hist = chunk_hist if len(le_hist) == 0 else le_hist + chunk_hist
 
                         del chunk
