@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 import scipy.signal as signal
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
 import datetime as dt
 import DataReaderTimetrack1 as dr
 import search_module as sm
@@ -399,44 +400,58 @@ class Detector:
             if self.template and scintillator == 'LP':
                 sm.print_logger('Entering template mode...', self.log)
                 print('\n')
-                iterations = 0
-                while True:
-                    if iterations > 0:
-                        print(f'Previous line locations: K40: {int(flagged_indices[0])}, T: {int(flagged_indices[1])}')
-                    else:
-                        if self.THOR:
-                            print('0 and 0 are good starting positions for THOR')  # placeholder
-                        else:
-                            print('41 and 83 are good starting positions')
 
-                    flagged_indices = np.array([])
-                    edge1 = 0
-                    edge2 = 0
-                    while True:
-                        try:  # Only accept valid input
-                            edge1 = int(input('K40 Line Location: '))
-                            edge2 = int(input('T Line Location: '))
-                            break
-                        except ValueError:
-                            print('Only one NUMBER at a time please')
-                            continue
+                def line_locs(e1, e2):
+                    return energy_bins[np.array([e1, e2]).astype(int)]
 
-                    flagged_indices = np.append(flagged_indices, edge1)
-                    flagged_indices = np.append(flagged_indices, edge2)
+                # Initial vertical line positions
+                edge1 = 0
+                edge2 = 0
+                fig, ax = plt.subplots()
+                ax.set_xlabel('Energy Channel')
+                ax.set_ylabel('Counts/bin')
+                ax.set_yscale('log')
+                ax.bar(energy_bins[0:template_bin_plot_edge], energy_hist[0:template_bin_plot_edge], color='r',
+                       width=bin_size/2, zorder=1)
+                lines = ax.vlines(line_locs(edge1, edge2), 0, np.amax(energy_hist), zorder=2, alpha=0.75)
 
-                    plt.xlabel('Energy Channel')
-                    plt.ylabel('Counts/bin')
-                    plt.yscale('log')
-                    plt.bar(energy_bins[0:template_bin_plot_edge], energy_hist[0:template_bin_plot_edge], color='r',
-                            width=bin_size/2, zorder=1)
-                    plt.vlines(energy_bins[flagged_indices.astype(int)], 0, np.amax(energy_hist), zorder=2, alpha=0.75)
-                    plt.show()
+                fig.subplots_adjust(bottom=0.30)
 
-                    adequate = input('Are these good locations? (y/n): ')
-                    print('\n')
-                    if adequate in ['Y', 'y']:
-                        break
-                    iterations += 1
+                # Slider for the Potassium 40 line
+                ax1 = fig.add_axes([0.25, 0.15, 0.65, 0.03])
+                edge1_slider = Slider(
+                    ax=ax1,
+                    label='K40',
+                    valmin=0,
+                    valmax=len(energy_bins[0:template_bin_plot_edge]) - 1,
+                    valinit=edge1,
+                    valstep=1,
+                )
+
+                # Slider for the Thorium line
+                ax2 = fig.add_axes([0.25, 0.1, 0.65, 0.03])
+                edge2_slider = Slider(
+                    ax=ax2,
+                    label='T',
+                    valmin=0,
+                    valmax=len(energy_bins[0:template_bin_plot_edge]) - 1,
+                    valinit=edge2,
+                    valstep=1,
+                )
+
+                def update(val):
+                    nonlocal lines
+                    lines.remove()
+                    lines = ax.vlines(line_locs(edge1_slider.val, edge2_slider.val), 0, np.amax(energy_hist),
+                                      zorder=2, alpha=0.75)
+                    fig.canvas.draw_idle()
+
+                edge1_slider.on_changed(update)
+                edge2_slider.on_changed(update)
+
+                plt.show()
+
+                flagged_indices = np.array([edge1_slider.val, edge2_slider.val])
 
                 template = pd.DataFrame(data={'energy_hist': energy_hist, 'bins': energy_bins[0:bin_plot_edge],
                                               'indices': np.append(flagged_indices,
