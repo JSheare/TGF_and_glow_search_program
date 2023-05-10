@@ -292,7 +292,7 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
 
     # Checks the bins surrounding a long event while in aircraft mode
     if aircraft:
-        # Number of neighbors on each side of the long event edges to check
+        # Number of neighbors on each side of the long event to check
         check_neighbor = 10
         # Acceptable difference between peak zscore of event and average zscore of surrounding events
         tolerance = flag_threshold  # This might need to be re-tuned
@@ -409,10 +409,11 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
                    borderaxespad=0.)
         ax1.grid(True)
 
+        # Makes the histogram subplots
         for i in range(4):
             try:
                 glow = potential_glow_list[i]
-                sm.hist_subplotter(ax_list[i], glow, day_bins, hist_allday, mue, sigma, flag_threshold)
+                glow.hist_subplotter(ax_list[i], day_bins, hist_allday, mue, sigma, flag_threshold)
             except IndexError:
                 continue
 
@@ -709,7 +710,7 @@ for year in requested_dates:  # Loops over all requested years
                     # Updates chunk to include previous chunk's passtime
                     chunk.update_passtime(passtime_dict)
 
-                    sm.print_logger(f'Chunk {chunk_num}:', detector.log)
+                    sm.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
                     chunk.data_importer(existing_filelists=True)
                     print('\n\n')
                     # Makes a full list of filetime extrema for long event search
