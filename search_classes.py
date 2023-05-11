@@ -400,6 +400,7 @@ class Detector:
             if self.template and scintillator == 'LP':
                 sm.print_logger('Entering template mode...', self.log)
                 print('\n')
+                print('Use the sliders to adjust the line positions. The K40 line comes first.')
 
                 def line_locs(e1, e2):
                     return energy_bins[np.array([e1, e2]).astype(int)]
@@ -407,6 +408,7 @@ class Detector:
                 # Initial vertical line positions
                 edge1 = 0
                 edge2 = 0
+
                 fig, ax = plt.subplots()
                 ax.set_xlabel('Energy Channel')
                 ax.set_ylabel('Counts/bin')
