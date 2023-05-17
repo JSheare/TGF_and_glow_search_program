@@ -172,6 +172,78 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
 
         potential_event_list = f_potential_event_list
 
+        # Eliminates events that are just successive cosmic ray showers
+        if aircraft:
+            a_potential_event_list = []
+            for event in potential_event_list:
+                time_slice = times[event.start:event.stop] - times[event.start]
+                energy_slice = energies[event.start:event.stop]
+                # Calculates first pass mean
+                fp_mean = 0
+                prev_time = 0
+                for time in time_slice:
+                    fp_mean += time - prev_time
+                    prev_time = time
+
+                fp_mean /= len(time_slice) - 1
+
+                # Calculates second pass mean (to eliminate outliers)
+                sp_mean = 0
+                n_counted = 0
+                prev_time = 0
+                for time in time_slice:
+                    time_diff = time - prev_time
+                    prev_time = time
+                    if time_diff < fp_mean:
+                        sp_mean += time_diff
+                        n_counted += 1
+
+                sp_mean /= n_counted - 1
+
+                # Records where clusters are
+                slice_indices = []
+                prev_time = 0
+                for i in range(len(time_slice)):
+                    time = time_slice[i]
+                    time_diff = time - prev_time
+                    prev_time = time
+                    if time_diff > sp_mean:
+                        slice_indices.append(i)
+
+                valid_list = []
+                # Detects cosmic ray showers and rejects events which include them
+                for i in range(len(slice_indices)):
+                    if i == 0:
+                        cluster = energy_slice[0:slice_indices[i]]
+                    elif slice_indices[i] == slice_indices[-1]:
+                        cluster = energy_slice[slice_indices[i]:]
+                    else:
+                        cluster = energy_slice[slice_indices[i-1]:slice_indices[i]]
+
+                    first_energy = 0.
+                    if len(cluster) == 1:
+                        valid_list.append(True)
+                        continue
+                    else:
+                        valid_list.append(False)
+
+                    for j in range(len(cluster)):
+                        count = cluster[j]
+                        if i == 0:
+                            first_energy = count
+                        else:
+                            if count >= first_energy:
+                                valid_list.pop()
+                                valid_list.append(True)
+                                break
+
+                if False in valid_list:
+                    print('Potential Event Removed (Successive CRS)')
+                else:
+                    a_potential_event_list.append(event)
+
+            potential_event_list = a_potential_event_list
+
         sm.print_logger(f'\n{len(potential_event_list)} potential events recorded', detector_obj.log)
         sm.print_logger(f'Detection threshold reached {total_threshold_reached} times', detector_obj.log)
         print('\n', file=detector_obj.log)
@@ -203,7 +275,7 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
 
             plots_made = 0
             for i in range(len(potential_event_list)):
-                print(f'{plots_made}/{len(f_potential_event_list)}', end='\r')
+                print(f'{plots_made}/{len(potential_event_list)}', end='\r')
                 event = potential_event_list[i]
                 filelist, filetime_extrema = event.scatterplot_maker(ts_list, detector_obj, i + 1 + plots_already_made,
                                                                      filelist, filetime_extrema)
@@ -620,9 +692,6 @@ for year in requested_dates:  # Loops over all requested years
                     sm.print_logger('Done.', detector.log)
                     sm.print_logger('\n', detector.log)
 
-                log.close()
-                gc.collect()
-
             # Low memory mode:
             except MemoryError:
                 sm.print_logger('\n', detector.log)
@@ -806,3 +875,8 @@ for year in requested_dates:  # Loops over all requested years
                 # Deletes chunk .pickle files
                 for chunk_path in chunk_path_list:
                     os.remove(chunk_path)
+
+            finally:
+                del detector
+                log.close()
+                gc.collect()

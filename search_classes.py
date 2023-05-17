@@ -21,7 +21,8 @@ import scipy.signal as signal
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 import datetime as dt
-import DataReaderTimetrack1 as dr
+# import DataReaderTimetrack1 as dr
+import DataReaderFinal as dr
 import search_module as sm
 
 
@@ -637,9 +638,10 @@ class Detector:
                             time_list.append(t)
                             filetimes = t
                         else:
-                            data, passtime = dr.fileNameToData(file,
-                                                               self.attribute_retriever(scintillator_name, 'passtime'))
-                            self.attribute_updator(scintillator_name, 'passtime', passtime)
+                            # data, passtime = dr.fileNameToData(file,
+                            #                                    self.attribute_retriever(scintillator_name, 'passtime'))
+                            data = dr.fileNameToData(file)
+                            # self.attribute_updator(scintillator_name, 'passtime', passtime)
                             if 'energies' in data.columns:
                                 energy_list.append(data['energies'].to_numpy())
                             else:
