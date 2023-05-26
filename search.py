@@ -9,6 +9,7 @@ import gc as gc
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from scipy.optimize import curve_fit
 import search_classes as sc
 import search_module as sm
 
@@ -364,30 +365,44 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
 
     # Checks the bins surrounding a long event while in aircraft mode
     if aircraft:
-        # Number of neighbors on each side of the long event to check
-        check_neighbor = 10
-        # Acceptable difference between peak zscore of event and average zscore of surrounding events
+        # Fraction of long event length on each side of the event to check
+        length_fraction = 0.25
+        # Acceptable difference between event z-scores and local z-score of the fit mean curve
         tolerance = flag_threshold  # This might need to be re-tuned
 
-        num_bins = len(z_scores)
+        so_poly = lambda t, a, b, c: a*t**2 + b*t + c
         f_potential_glow_list = []
+        num_bins = len(day_bins)
+
         for glow in potential_glow_list:
-            z_score_sum = 0
-            bins_summed = 0
-            for i in range(check_neighbor):
+            l_bins = []
+            l_counts = []
+            r_bins = []
+            r_counts = []
+            # Actual number of bins on either side of the event to check (plus the size of the gap)
+            check_neighbor = 10 if length_fraction * glow.length < 10 else int(length_fraction * glow.length)
+            for i in range(check_neighbor, check_neighbor*2):
                 # Checking left side bins
                 if not glow.start - (i + 1) < 0:
-                    z_score_sum += z_scores[glow.start - (i + 1)]
-                    bins_summed += 1
+                    l_bins.append(day_bins[glow.start - (i + 1)])
+                    l_counts.append(hist_allday[glow.start - (i + 1)])
 
                 # Checking right side bins
-                if not glow.start + (i + 1) > (num_bins - 1):
-                    z_score_sum += z_scores[glow.stop + (i + 1)]
-                    bins_summed += 1
+                if not glow.stop + i > (num_bins - 1):
+                    r_bins.append(day_bins[glow.stop + i])
+                    r_counts.append(hist_allday[glow.stop + i])
 
-            score_average = z_score_sum / bins_summed
-            if (np.abs(z_scores[glow.peak_index] - score_average)) >= tolerance:
-                f_potential_glow_list.append(glow)
+            params, pcov = curve_fit(so_poly, l_bins[::-1] + r_bins, l_counts[::-1] + r_counts)
+            event_bins = day_bins[glow.start:glow.stop]
+            event_counts = hist_allday[glow.start:glow.stop]
+            mean_curve = so_poly(event_bins, params[0], params[1], params[2])
+            for i in range(len(mean_curve)):
+                mean = mean_curve[i]
+                sigma = np.sqrt(mean)
+                bin_score = (event_counts[i] - mean) / sigma
+                if bin_score >= tolerance:
+                    f_potential_glow_list.append(glow)
+                    break
 
         potential_glow_list = f_potential_glow_list
 
