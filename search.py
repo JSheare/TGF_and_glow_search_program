@@ -230,7 +230,7 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
 
                     for j in range(len(cluster)):
                         count = cluster[j]
-                        if i == 0:
+                        if j == 0:
                             first_energy = count
                         else:
                             if count >= first_energy:
