@@ -250,6 +250,12 @@ class Detector:
         data_string = f' in {scintillators_with_data}' if has_data else ''
         return default_string + f' Has data = {has_data}' + data_string
 
+    # Iterator for use in loops
+    def __iter__(self):
+        scintillator_keys = list(self.scintillators.keys())
+        for scintillator in scintillator_keys:
+            yield scintillator
+
     def attribute_retriever(self, scintillator, attribute):  # Make it possible to request entire scintillators?
         """Retrieves the requested attribute for a particular scintillator
 
@@ -334,7 +340,7 @@ class Detector:
 
         """
 
-        if scintillator in self.scintillators:
+        if scintillator in self:
             medium = self.scintillators[scintillator]
             if type(attribute) is list and type(new_info) is list:
                 if len(attribute) != len(new_info):
@@ -385,7 +391,7 @@ class Detector:
         spectra_conversions = open(f'{sp_path}spectra_conversions.txt', 'w')
         spectra_frame = pd.DataFrame()
         spectra_frame['energy bins'] = energy_bins[:-1]
-        for scintillator in self.scintillators:
+        for scintillator in self:
             if scintillator == 'SP' or scintillator == 'MP':
                 continue  # (for now)
 
@@ -539,12 +545,11 @@ class Detector:
         """
 
         total_file_size = 0
-        for scintillator_name in self.scintillators:
+        for scintillator in self:
             if existing_filelists:
                 break
 
-            scintillator = self.scintillators[scintillator_name]
-            eRC = self.attribute_retriever(scintillator_name, 'eRC')
+            eRC = self.attribute_retriever(scintillator, 'eRC')
             # Here in case the data files in a custom location are grouped into daily folders
             try:
                 complete_filelist = glob.glob(f'{self.import_path}/{self.regex(eRC)}')
@@ -597,7 +602,7 @@ class Detector:
                 filelist.append(f'{files[j]}{extensions[j]}')
                 total_file_size += os.path.getsize(f'{files[j]}{extensions[j]}')
 
-            self.attribute_updator(scintillator_name, 'filelist', filelist)
+            self.attribute_updator(scintillator, 'filelist', filelist)
 
         # Determines whether there is enough free memory to load the entire dataset
         operating_memory = sm.memory_allowance()
@@ -605,12 +610,11 @@ class Detector:
         if (operating_memory + total_file_size) > available_memory:
             raise MemoryError('MemoryError: not enough free memory to hold complete dataset')
 
-        for scintillator_name in self.scintillators:
-            scintillator = self.scintillators[scintillator_name]
-            eRC = self.attribute_retriever(scintillator_name, 'eRC')
-            filelist = self.attribute_retriever(scintillator_name, 'filelist')
+        for scintillator in self.scintillators:
+            eRC = self.attribute_retriever(scintillator, 'eRC')
+            filelist = self.attribute_retriever(scintillator, 'filelist')
             sm.print_logger('\n', self.log)
-            sm.print_logger(f'For eRC {eRC} ({scintillator_name}):', self.log)
+            sm.print_logger(f'For eRC {eRC} ({scintillator}):', self.log)
 
             try:
                 # Tests to make sure that filelist isn't empty
@@ -639,7 +643,7 @@ class Detector:
                             filetimes = t
                         else:
                             # data, passtime = dr.fileNameToData(file,
-                            #                                    self.attribute_retriever(scintillator_name, 'passtime'))
+                            #                                    self.attribute_retriever(scintillator, 'passtime'))
                             data = dr.fileNameToData(file)
                             # self.attribute_updator(scintillator_name, 'passtime', passtime)
                             if 'energies' in data.columns:
@@ -690,7 +694,7 @@ class Detector:
                 updated_attributes = ['time', 'energy', 'wc', 'filetime_extrema']
                 updated_info = [times, np.concatenate(energy_list), np.concatenate(wallclock_list),
                                 filetime_extrema_list]
-                self.attribute_updator(scintillator_name, updated_attributes, updated_info)
+                self.attribute_updator(scintillator, updated_attributes, updated_info)
 
                 print('\n', file=self.log)
                 print(f'Total Counts: {len(np.concatenate(time_list))}', file=self.log)
@@ -741,7 +745,7 @@ class Chunk(Detector):
         """
 
         passtime_dict = {}
-        for scintillator in self.scintillators:
+        for scintillator in self:
             passtime = self.attribute_retriever(scintillator, 'passtime')
             passtime_dict.update({scintillator: passtime})
 
@@ -757,7 +761,7 @@ class Chunk(Detector):
 
         """
 
-        for scintillator in self.scintillators:
+        for scintillator in self:
             self.attribute_updator(scintillator, 'passtime', passtime_dict[scintillator])
 
     def make_spectra_hist(self, existing_spectra_dict):
@@ -781,7 +785,7 @@ class Chunk(Detector):
         bin_size = self.calibration_params['bin_size']
 
         energy_bins = np.arange(0.0, bin_range, bin_size)
-        for scintillator in self.scintillators:
+        for scintillator in self:
             energies = self.attribute_retriever(scintillator, 'energy')
             chunk_hist, bin_edges = np.histogram(energies, bins=energy_bins)
             if len(existing_spectra_dict[scintillator]) == 0:
@@ -1020,10 +1024,10 @@ class PotentialGlow:
             The numpy array specifying the bins used to make the histogram.
         hist_allday : np.array
             The numpy array containing the counts per time bin.
-        mue : float
-            The average count rate for the full day.
-        sigma : float
-            The standard deviation of the full day average count rate.
+        mue : np.array
+            The average count rates expected at each bin (constant for non-aircraft mode).
+        sigma : np.array
+            The standard deviation of each bin's expected average (constant for non-aircraft mode).
         flag_threshold : int
             The z-score above mue threshold at which glows are flagged.
 
@@ -1034,9 +1038,11 @@ class PotentialGlow:
 
         subbins = day_bins[c:d]
         subhist = hist_allday[c:d]
+        submue = mue[c:d]
+        subsigma = sigma[c:d]
         binsize = int(day_bins[1] - day_bins[0])
         ax.bar(subbins, subhist, alpha=0.5, color='c', width=binsize)
         ax.set_xlabel('Seconds of Day (UT)')
         ax.set_ylabel('Counts/bin')
-        ax.axhline(y=(mue + flag_threshold * sigma), color='blue', linestyle='dashed', linewidth=2)
+        ax.plot(subbins, submue + flag_threshold * subsigma, color='blue', linestyle='dashed', linewidth=2)
         ax.grid(True)

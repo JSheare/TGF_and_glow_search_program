@@ -65,13 +65,13 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
     channel_ratio = 0.5
 
     event_numbers = prev_event_numbers if prev_event_numbers is not None else {}
-    for scintillator in detector_obj.scintillators:
+    for scintillator in detector_obj:
         if scintillator != 'LP' and not detector_obj.plastics:
             continue
         elif scintillator == 'NaI' and detector_obj.plastics:
             continue
 
-        sm.print_logger(f'For eRC {detector_obj.scintillators[scintillator]["eRC"]} '
+        sm.print_logger(f'For eRC {detector_obj.attribute_retriever(scintillator, "eRC")} '
                         f'({scintillator}):', detector_obj.log)
         times = detector_obj.attribute_retriever(scintillator, 'time')
         energies = detector_obj.attribute_retriever(scintillator, 'energy')
@@ -176,72 +176,26 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
         # Eliminates events that are just successive cosmic ray showers
         if aircraft:
             a_potential_event_list = []
+            # Parameters
+            difference_threshold = 2e-6
+            clumpiness_threshold = 5  # placeholder, this will be whatever it turns out to be
             for event in potential_event_list:
                 time_slice = times[event.start:event.stop] - times[event.start]
-                energy_slice = energies[event.start:event.stop]
-                # Calculates first pass mean
-                fp_mean = 0
-                prev_time = 0
-                for time in time_slice:
-                    fp_mean += time - prev_time
-                    prev_time = time
-
-                fp_mean /= len(time_slice) - 1
-
-                # Calculates second pass mean (to eliminate outliers)
-                sp_mean = 0
-                n_counted = 0
-                prev_time = 0
-                for time in time_slice:
-                    time_diff = time - prev_time
-                    prev_time = time
-                    if time_diff < fp_mean:
-                        sp_mean += time_diff
-                        n_counted += 1
-
-                sp_mean /= n_counted - 1
-
-                # Records where clusters are
-                slice_indices = []
-                prev_time = 0
-                for i in range(len(time_slice)):
-                    time = time_slice[i]
-                    time_diff = time - prev_time
-                    prev_time = time
-                    if time_diff > sp_mean:
-                        slice_indices.append(i)
-
-                valid_list = []
-                # Detects cosmic ray showers and rejects events which include them
-                for i in range(len(slice_indices)):
-                    if i == 0:
-                        cluster = energy_slice[0:slice_indices[i]]
-                    elif slice_indices[i] == slice_indices[-1]:
-                        cluster = energy_slice[slice_indices[i]:]
-                    else:
-                        cluster = energy_slice[slice_indices[i-1]:slice_indices[i]]
-
-                    first_energy = 0.
-                    if len(cluster) == 1:
-                        valid_list.append(True)
-                        continue
-                    else:
-                        valid_list.append(False)
-
-                    for j in range(len(cluster)):
-                        count = cluster[j]
-                        if j == 0:
-                            first_energy = count
-                        else:
-                            if count >= first_energy:
-                                valid_list.pop()
-                                valid_list.append(True)
-                                break
-
-                if False in valid_list:
-                    print('Potential Event Removed (Successive CRS)')
-                else:
+                if event.length >= 30:
                     a_potential_event_list.append(event)
+                    continue
+                else:
+                    clumpiness = 0
+                    for i in range(len(time_slice) - 1):
+                        difference = time_slice[i+1] - time_slice[i]
+                        if difference < difference_threshold:
+                            clumpiness += 1
+
+                    clumpiness /= len(time_slice)
+                    if clumpiness < clumpiness_threshold:
+                        a_potential_event_list.append(event)
+                    else:
+                        print('Potential Event Removed (Successive CRS)')
 
             potential_event_list = a_potential_event_list
 
@@ -305,13 +259,14 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
         if low_mem:
             return hist_allday
 
+    flag_threshold = 5
+
     # Calculates mean and z-scores
     hist_allday_nz = hist_allday[hist_allday.nonzero()]
-    mue = sum(hist_allday_nz) / len(hist_allday_nz)  # Mean number of counts/bin
-    sigma = np.sqrt(mue)  # Standard deviation of the distribution
+    mue_val = sum(hist_allday_nz) / len(hist_allday_nz)  # Mean number of counts/bin
 
     # Removes outliers (3 sigma) and recalculates mue
-    abs_zscores = np.abs((hist_allday_nz - mue) / sigma)
+    abs_zscores = np.abs((hist_allday_nz - mue_val) / np.sqrt(mue_val))
     hist_allday_nz = hist_allday_nz[np.argsort(abs_zscores)]
     hist_allday_nz = hist_allday_nz[::-1]
     for i in range(len(abs_zscores)):
@@ -319,23 +274,61 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
             hist_allday_nz = hist_allday_nz[i:]
             break
 
-    # Parameters
-    flag_threshold = 5
-    mue = sum(hist_allday_nz) / len(hist_allday_nz)
-    sigma = np.sqrt(mue)
+    mue_val = sum(hist_allday_nz) / len(hist_allday_nz)
+
+    mue = np.ones(len(day_bins)-1) * mue_val
+    sigma = np.ones(len(day_bins)-1) * np.sqrt(mue_val)
+
+    if aircraft:
+        window = 10
+        gap = 0
+        num_bins = len(day_bins) - 1
+        so_poly = lambda t, a, b, c: a * t ** 2 + b * t + c
+        window_index = 0
+        while window_index < num_bins - 1:
+            l_bins = []
+            l_counts = []
+            r_bins = []
+            r_counts = []
+            for i in range(window):
+                # Checking left side bins
+                if not window_index - (i + 1 + gap) < 0:
+                    if hist_allday[window_index - (i + 1 + gap)] > 0:
+                        l_bins.append(day_bins[window_index - (i + 1 + gap)])
+                        l_counts.append(hist_allday[window_index - (i + 1 + gap)])
+
+                # Checking right side bins
+                if not window_index + gap + i > (num_bins - 1):
+                    if hist_allday[window_index + gap + i] > 0:
+                        r_bins.append(day_bins[window_index + gap + i])
+                        r_counts.append(hist_allday[window_index + gap + i])
+
+            if len(l_bins[::-1] + r_bins) < 3:
+                window_index += window
+                continue
+            else:
+                params, pcov = curve_fit(so_poly, l_bins[::-1] + r_bins, l_counts[::-1] + r_counts)
+                window_bins = day_bins[window_index:window_index + window]
+                mean_curve = so_poly(window_bins, params[0], params[1], params[2])
+                for i in range(len(mean_curve)):
+                    if window_index + i < (num_bins - 1):
+                        mue[window_index + i] = mean_curve[i]
+                        sigma[window_index + i] = np.sqrt(mean_curve[i])
+
+                window_index += window
 
     z_scores = np.array([])  # The z-scores themselves
     z_flags = np.array([])
     p = 0
     # Flags only those z-scores > flag_threshold
     for i in range(len(hist_allday)):
-        if hist_allday[i] > mue:  # Peak
-            z_scores = np.append(z_scores, ((hist_allday[i] - mue) / sigma))
+        if hist_allday[i] > mue[i]:  # Peak
+            z_scores = np.append(z_scores, ((hist_allday[i] - mue[i]) / sigma[i]))
             if z_scores[i] >= flag_threshold:
                 z_flags = np.append(z_flags, i)
                 p += 1
         else:
-            z_scores = np.append(z_scores, ((hist_allday[i] - mue) / sigma))
+            z_scores = np.append(z_scores, ((hist_allday[i] - mue[i]) / sigma[i]))
 
     # Redefines z_flag to only contain flags from the start to p-1
     # yeah, but why?
@@ -362,49 +355,6 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
             glow_length = 1
 
         previous_time = day_bins[flag]
-
-    # Checks the bins surrounding a long event while in aircraft mode
-    if aircraft:
-        # Fraction of long event length on each side of the event to check
-        length_fraction = 0.25
-        # Acceptable difference between event z-scores and local z-score of the fit mean curve
-        tolerance = flag_threshold  # This might need to be re-tuned
-
-        so_poly = lambda t, a, b, c: a*t**2 + b*t + c
-        f_potential_glow_list = []
-        num_bins = len(day_bins)
-
-        for glow in potential_glow_list:
-            l_bins = []
-            l_counts = []
-            r_bins = []
-            r_counts = []
-            # Actual number of bins on either side of the event to check (plus the size of the gap)
-            check_neighbor = 10 if length_fraction * glow.length < 10 else int(length_fraction * glow.length)
-            for i in range(check_neighbor, check_neighbor*2):
-                # Checking left side bins
-                if not glow.start - (i + 1) < 0:
-                    l_bins.append(day_bins[glow.start - (i + 1)])
-                    l_counts.append(hist_allday[glow.start - (i + 1)])
-
-                # Checking right side bins
-                if not glow.stop + i > (num_bins - 1):
-                    r_bins.append(day_bins[glow.stop + i])
-                    r_counts.append(hist_allday[glow.stop + i])
-
-            params, pcov = curve_fit(so_poly, l_bins[::-1] + r_bins, l_counts[::-1] + r_counts)
-            event_bins = day_bins[glow.start:glow.stop]
-            event_counts = hist_allday[glow.start:glow.stop]
-            mean_curve = so_poly(event_bins, params[0], params[1], params[2])
-            for i in range(len(mean_curve)):
-                mean = mean_curve[i]
-                sigma = np.sqrt(mean)
-                bin_score = (event_counts[i] - mean) / sigma
-                if bin_score >= tolerance:
-                    f_potential_glow_list.append(glow)
-                    break
-
-        potential_glow_list = f_potential_glow_list
 
     sm.print_logger('Done.', detector_obj.log)
     if len(potential_glow_list) == 0:
@@ -486,7 +436,7 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
         ax1.bar(day_bins[:-1], hist_allday, alpha=0.5, color='r', width=binsize)
         ax1.set_xlabel('Seconds of Day (UT)')
         ax1.set_ylabel('Counts/bin')
-        ax1.axhline(y=(mue + flag_threshold * sigma), color='blue', linestyle='dashed', linewidth=2)
+        ax1.plot(day_bins[:-1], mue + flag_threshold*sigma, color='blue', linestyle='dashed')
 
         # Creates legend
         allday_data = mpatches.Patch(color='r', label='All Energies')
@@ -714,7 +664,7 @@ for year in requested_dates:  # Loops over all requested years
                 sm.print_logger('\n', detector.log)
                 # Measures the total combined size of all the data files
                 total_file_size = 0
-                for scint in detector.scintillators:
+                for scint in detector:
                     master_filelist = detector.attribute_retriever(scint, 'filelist')
                     # Clears leftover data (just to be sure)
                     detector.attribute_updator(scint, ['time', 'energy', 'filetime_extrema'],
@@ -767,7 +717,7 @@ for year in requested_dates:  # Loops over all requested years
 
                 chunk_scint_list = chunk_list[0].scint_list
 
-                for scint in detector.scintillators:
+                for scint in detector:
                     current_filelist = detector.attribute_retriever(scint, 'filelist')
                     filelist_len = len(current_filelist)
                     chunk_num = 1
@@ -786,40 +736,45 @@ for year in requested_dates:  # Loops over all requested years
                 print('\n')
                 chunk_num = 1
                 chunk_path_list = []
-                # Keeps timings consistent between chunks
-                passtime = chunk_list[0].attribute_retriever(chunk_scint_list[0], 'passtime')
-                passtime_dict = {scint: passtime.copy() for scint in chunk_scint_list}
+                # Temporary pickle feature for low memory mode. REMOVE WHEN PROGRAM IS FINISHED
+                pickled_chunk_paths = glob.glob(f'{sm.results_loc()}Results/{unit}/{full_day_string}/chunk*.pickle')
+                if picklem and len(pickled_chunk_paths) > 0:
+                    chunk_path_list = pickled_chunk_paths
+                else:
+                    # Keeps timings consistent between chunks
+                    passtime = chunk_list[0].attribute_retriever(chunk_scint_list[0], 'passtime')
+                    passtime_dict = {scint: passtime.copy() for scint in chunk_scint_list}
 
-                for chunk in chunk_list:
-                    # Updates chunk to include previous chunk's passtime
-                    chunk.update_passtime(passtime_dict)
+                    for chunk in chunk_list:
+                        # Updates chunk to include previous chunk's passtime
+                        chunk.update_passtime(passtime_dict)
 
-                    sm.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
-                    chunk.data_importer(existing_filelists=True)
-                    print('\n\n')
-                    # Makes a full list of filetime extrema for long event search
-                    for scint in chunk.scintillators:
-                        extrema = detector.attribute_retriever(scint, 'filetime_extrema')
-                        extrema += chunk.attribute_retriever(scint, 'filetime_extrema')
-                        detector.attribute_updator(scint, 'filetime_extrema', extrema)
+                        sm.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
+                        chunk.data_importer(existing_filelists=True)
+                        print('\n\n')
+                        # Makes a full list of filetime extrema for long event search
+                        for scint in chunk:
+                            extrema = detector.attribute_retriever(scint, 'filetime_extrema')
+                            extrema += chunk.attribute_retriever(scint, 'filetime_extrema')
+                            detector.attribute_updator(scint, 'filetime_extrema', extrema)
 
-                    # Updates passtime
-                    passtime_dict = chunk.return_passtime()
+                        # Updates passtime
+                        passtime_dict = chunk.return_passtime()
 
-                    chunk_pickle_path = f'{sm.results_loc()}Results/{unit}/{full_day_string}/chunk{chunk_num}.pickle'
-                    chunk_path_list.append(chunk_pickle_path)
-                    chunk_pickle = open(chunk_pickle_path, 'wb')
-                    chunk.log = None
-                    chunk.regex = None
-                    pickle.dump(chunk, chunk_pickle)
-                    chunk_pickle.close()
+                        chunk_pickle_path = f'{sm.results_loc()}Results/{unit}/{full_day_string}/chunk{chunk_num}.pickle'
+                        chunk_path_list.append(chunk_pickle_path)
+                        chunk_pickle = open(chunk_pickle_path, 'wb')
+                        chunk.log = None
+                        chunk.regex = None
+                        pickle.dump(chunk, chunk_pickle)
+                        chunk_pickle.close()
 
-                    # Eliminates the chunk from active memory
-                    del chunk
-                    gc.collect()
-                    chunk_list[chunk_num - 1] = 0
+                        # Eliminates the chunk from active memory
+                        del chunk
+                        gc.collect()
+                        chunk_list[chunk_num - 1] = 0
 
-                    chunk_num += 1
+                        chunk_num += 1
 
                 print('Done.')
 
@@ -888,8 +843,10 @@ for year in requested_dates:  # Loops over all requested years
 
                 log.close()
                 # Deletes chunk .pickle files
-                for chunk_path in chunk_path_list:
-                    os.remove(chunk_path)
+                # REMOVE CONDITIONAL STATEMENT WHEN PROGRAM IS DONE
+                if not picklem:
+                    for chunk_path in chunk_path_list:
+                        os.remove(chunk_path)
 
             finally:
                 del detector
