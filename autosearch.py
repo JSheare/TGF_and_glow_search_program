@@ -1,60 +1,68 @@
-import traceback as traceback
 import os as os
+import subprocess as subprocess
 import json as json
 import glob as glob
 import psutil as psutil
 import sys as sys
-sys.path.insert(0, '/home/jacob/search')  # This would need to be updated if search_module.py ever gets moved
+search_directory = '/home/jacob/search/'  # This would need to be updated if search.py or its modules are moved
+sys.path.insert(0, search_directory)
 import search_module as sm
 
 
 def search(detector, dates, path):
     queue = []
     days = glob.glob(f'{path}/*')
+    days.sort()
     already_checked = dates[detector]
     for day in days:
-        has_data = True if len(os.listdir(day)) > 0 else False
-        if has_data and day[-6:-1] not in already_checked:
-            queue.append(day[-6:-1])
+        if day[-6:].isnumeric():
+            has_data = True if len(os.listdir(day)) > 0 else False
+            if has_data and day[-6:] not in already_checked:
+                queue.append(day[-6:])
 
     for day in queue:
-        try:
-            # Note: these strings will have to be updated if search.py is moved to another directory
-            if detector == 'THOR1':
-                # Control flow for THOR1 NOAA flights
-                if 220930 <= int(day) <= 230208:
-                    command_string = f'python3 home/jacob/search/search.py {day} {day} THOR1 aircraft skcali'
-                else:
-                    command_string = f'python3 home/jacob/search/search.py {day} {day} THOR1'
-
-            elif detector == 'SANTIS':
-                # Control flow for SANTIS instrument becoming the CROATIA instrument
-                if int(day) > 211202:
-                    command_string = f'python3 home/jacob/search/search.py {day} {day} CROATIA'
-                else:
-                    command_string = f'python3 home/jacob/search/search.py {day} {day} SANTIS'
-
+        # Note: these strings will have to be updated if search.py is moved to another directory
+        if detector == 'THOR1':
+            # Control flow for THOR1 NOAA flights
+            if 220930 <= int(day) <= 230208:
+                command = ['python3', 'search.py', day, day, 'THOR1', 'aircraft', 'skcali']
             else:
-                command_string = f'python3 home/jacob/search/search.py {day} {day} {detector}'
+                command = ['python3', 'search.py', day, day, 'THOR1']
 
-            # Runs search.py for the day
-            os.system(command_string)
+        elif detector == 'SANTIS':
+            # Control flow for SANTIS instrument becoming the CROATIA instrument
+            if int(day) > 211202:
+                command = ['python3', 'search.py', day, day, 'CROATIA']
+            else:
+                command = ['python3', 'search.py', day, day, 'SANTIS']
 
+        else:
+            command = ['python3', 'search.py', day, day, f'{detector}']
+
+        # Runs search.py for the day
+        old_pwd = os.getcwd()
+        os.chdir(search_directory)
+        result = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # Uncomment this and comment the above line to get search.py console output (for console debugging)
+        # result = subprocess.Popen(command)
+        os.chdir(old_pwd)
+
+        if result.wait() != 0:
+            # Writes any errors that search.py runs into to text files so that they can be examined/fixed later
+            if not os.path.exists('Error Logs'):
+                os.makedirs('Error Logs')
+
+            with open(f'Error Logs/{detector}_{day}_Error.txt', 'w') as error_file:
+                output, error = result.communicate()
+                error_file.write(str(error))
+
+        else:
             # Adds the day to the list of checked dates
             dates[detector].append(day)
 
             # Dumps the updated list of checked dates to a json file for use the next day
             with open('checked_dates.json', 'w') as date_file:
                 json.dump(dates, date_file)
-
-        # Writes any errors that search.py runs into to text files so that they can be examined/fixed later
-        except Exception as argument:
-            if not os.path.exists('Error Logs'):
-                os.makedirs('Error Logs')
-
-            with open(f'Error Logs/{detector}_{day}_Error.txt', 'w') as error_file:
-                error_file.write(str(argument))
-                error_file.write(traceback.format_exc())
 
     return dates
 
@@ -77,7 +85,7 @@ except FileNotFoundError:
         date_file = open('checked_dates.json')
         checked_dates = json.load(date_file)
         date_file.close()
-    # if the list ever gets deleted by accident or something (mostly here because I don't want to put the list together
+    # If the list ever gets deleted by accident or something (mostly here because I don't want to put the list together
     # by hand)
     except FileNotFoundError:
         checked_dates = {'THOR1': [], 'THOR2': [], 'THOR3': [],
