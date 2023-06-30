@@ -192,6 +192,8 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
                         difference = time_slice[i+1] - time_slice[i]
                         if difference < difference_threshold:
                             clump_counts += 1
+                            if i+1 == len(time_slice):
+                                clump_counts += 1
                         else:
                             # Adding to clumpiness when there's a clump of three or more
                             if clump_counts >= 3:
@@ -783,6 +785,7 @@ for year in requested_dates:  # Loops over all requested years
                 chunk_path_list = []
                 # Temporary pickle feature for low memory mode. REMOVE WHEN PROGRAM IS FINISHED
                 pickled_chunk_paths = glob.glob(f'{sm.results_loc()}Results/{unit}/{full_day_string}/chunk*.pickle')
+                pickled_chunk_paths.sort()
                 if picklem and len(pickled_chunk_paths) > 0:
                     chunk_path_list = pickled_chunk_paths
                 else:
