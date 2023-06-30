@@ -76,7 +76,7 @@ def S_raw_data_loc():
 
 
 def CR_raw_data_loc():
-    '''Location of Croatia instrument raw data on Sol.'''
+    """Location of Croatia instrument raw data on Sol."""
     path = '/media/AllDetectorData/Detectors/SANTIS/Data'
     return path
 
