@@ -907,8 +907,9 @@ class ShortEvent:
             ax.set_ylabel('Energy Channel')
             # Lines appear (100*percent)% to the left or right of event start/stop depending on subplot timescale
             percent = 0.001
+            # Event start line is orange, end line is red
             ax.vlines([event_times[0] - percent*ts, event_times[-1] + percent*ts], 0, 1e5,
-                      colors='r', linewidth=1, zorder=-1, alpha=0.3)
+                      colors=['orange', 'r'], linewidth=1, zorder=-1, alpha=0.3)
 
         # Adds the name of the relevant data file to the scatter plot
         event_file = ''
