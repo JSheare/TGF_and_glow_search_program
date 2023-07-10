@@ -296,55 +296,54 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
 
     if aircraft:
         window = 10
-        gap = 10
+        gap = 5
         num_bins = len(day_bins) - 1
         so_poly = lambda t, a, b, c: a * t ** 2 + b * t + c
         line = lambda t, a, b: a*t + b
-        fit_curve = so_poly
         window_index = 0
         while window_index < num_bins - 1:
+            fit_curve = so_poly
             l_bins = []
             l_counts = []
             r_bins = []
             r_counts = []
             for i in range(window):
                 # Checking left side bins
-                if not window_index - (i + 1 + gap) < 0:
-                    if hist_allday[window_index - (i + 1 + gap)] > 0:
-                        if hist_allday[window_index - (i + gap)] > 0:
-                            l_bins.append(day_bins[window_index - (i + 1 + gap)])
-                            l_counts.append(hist_allday[window_index - (i + 1 + gap)])
-                    else:
-                        # Setting the bin closest to the data gap to zero
-                        if l_counts:
-                            if l_counts[-1] > 0:
-                                l_counts[-1] = 0
+                left_bin_index = window_index - (i + 1 + gap)
+                if not left_bin_index < 0:
+                    if hist_allday[left_bin_index] > 0:
+                        left_nz = True
+                        right_nz = False if hist_allday[left_bin_index + 1] == 0 else True
+                        if not left_bin_index - 1 < 0:
+                            if hist_allday[left_bin_index - 1] == 0:
+                                left_nz = False
 
+                        if left_nz and right_nz:
+                            l_bins.append(day_bins[left_bin_index])
+                            l_counts.append(hist_allday[left_bin_index])
+                        else:
+                            fit_curve = line
+                    else:
                         fit_curve = line
 
                 # Checking right side bins
-                if not window_index + gap + i > (num_bins - 1):
-                    if hist_allday[window_index + gap + i] > 0:
-                        if hist_allday[window_index + gap + i - 1] > 0:
-                            r_bins.append(day_bins[window_index + gap + i])
-                            r_counts.append(hist_allday[window_index + gap + i])
+                right_bin_index = window_index + gap + i + window
+                if not right_bin_index > (num_bins - 1):
+                    if hist_allday[right_bin_index] > 0:
+                        left_nz = False if hist_allday[right_bin_index - 1] == 0 else True
+                        right_nz = True
+                        if not right_bin_index + 1 > (num_bins - 1):
+                            if hist_allday[right_bin_index + 1] == 0:
+                                right_nz = False
+
+                        if left_nz and right_nz:
+                            r_bins.append(day_bins[right_bin_index])
+                            r_counts.append(hist_allday[right_bin_index])
+                        else:
+                            fit_curve = line
+
                     else:
-                        # Setting the bin closest to the data gap to zero
-                        if r_counts:
-                            if r_counts[-1] > 0:
-                                r_counts[-1] = 0
-
                         fit_curve = line
-
-            # Removing bins with a value of zero from the left lists
-            l_nonzero_indices = [s for s in range(len(l_counts)) if l_counts[s] > 0]
-            l_bins = [l_bins[s] for s in l_nonzero_indices]
-            l_counts = [l_counts[s] for s in l_nonzero_indices]
-
-            # Removing bins with a value of zero from the right lists
-            r_nonzero_indices = [s for s in range(len(r_counts)) if r_counts[s] > 0]
-            r_bins = [r_bins[s] for s in r_nonzero_indices]
-            r_counts = [r_counts[s] for s in r_nonzero_indices]
 
             if len(l_bins[::-1] + r_bins) < 3:
                 window_index += window
