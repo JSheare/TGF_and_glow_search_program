@@ -2,8 +2,8 @@
 - [ ] Write duplicate file eliminator/sorter for general data
 - [ ] Add full list of all locations ever for each detector
 - [ ] Profile the program for bottlenecks
-- [ ] Make a child class of Detector called 'Chunk' for the low memory mode
 - [ ] Change detector object to accept yymmdd string instead of first second of day
+- [ ] Program should just autoskip days where essential scintillator is missing
 
 ### Completed
 - [x] Fix channel-to-MeV converter function
@@ -21,4 +21,5 @@
 - [x] Add a dev mode that skips algorithm(s) of choice
 - [x] Write an attribute updator method to detector class
 - [x] Pickle detector object even when not in low memory mode?
-- [x] Make a standard for adding more detectors:
+- [x] Make a standard for adding more detectors
+- [x] Make a child class of Detector called 'Chunk' for the low memory mode
