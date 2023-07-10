@@ -3,7 +3,6 @@
 - [ ] Add full list of all locations ever for each detector
 - [ ] Profile the program for bottlenecks
 - [ ] Change detector object to accept yymmdd string instead of first second of day
-- [ ] Program should just autoskip days where essential scintillator is missing
 
 ### Completed
 - [x] Fix channel-to-MeV converter function
