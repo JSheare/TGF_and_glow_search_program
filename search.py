@@ -179,7 +179,7 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
             # Parameters
             difference_threshold = 2e-6
             gap_threshold = 10e-6
-            clumpiness_threshold = 0.25
+            clumpiness_threshold = 0.27
             for event in potential_event_list:
                 time_slice = times[event.start:event.stop] - times[event.start]
                 if event.length >= 30:
