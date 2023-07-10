@@ -647,26 +647,6 @@ for year in requested_dates:  # Loops over all requested years
                     detector.log = log
                     detector.data_importer()
 
-                # Checking to see if there is actually data for the day
-                data_present = True
-                if 'LP' in detector.long_event_scint_list:
-                    necessary_scintillators = detector.long_event_scint_list
-                else:
-                    necessary_scintillators = detector.long_event_scint_list + ['LP']
-
-                for scint in necessary_scintillators:
-                    if len(detector.attribute_retriever(scint, 'filelist')) == 0:
-                        data_present = False
-                        print('\n\n')
-                        print('\n', file=detector.log)
-                        sm.print_logger('No/Missing data for specified day.', detector.log)
-                        print('\n')
-                        break
-
-                if not data_present:
-                    log.close()
-                    continue
-
                 print('\n\n')
                 print('Done.')
 
@@ -895,6 +875,10 @@ for year in requested_dates:  # Loops over all requested years
                 if not picklem:
                     for chunk_path in chunk_path_list:
                         os.remove(chunk_path)
+
+            # Missing data for necessary scintillators
+            except FileNotFoundError:
+                continue
 
             finally:
                 del detector

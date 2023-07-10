@@ -604,6 +604,27 @@ class Detector:
 
             self.attribute_updator(scintillator, 'filelist', filelist)
 
+        # Checks to see if the necessary data for the full search is present
+        if 'LP' in self.long_event_scint_list:
+            necessary_scintillators = self.long_event_scint_list
+        else:
+            necessary_scintillators = self.long_event_scint_list + ['LP']
+
+        data_present = True
+        missing_data_scints = []
+        for scint in necessary_scintillators:
+            if len(self.attribute_retriever(scint, 'filelist')) == 0:
+                data_present = False
+                missing_data_scints.append(scint)
+
+        if not data_present:
+            print('\n')
+            print('\n', file=self.log)
+            sm.print_logger('No/missing necessary data for specified day.', self.log)
+            print(f'Necessary data missing in the following: {", ".join(missing_data_scints)}', file=self.log)
+            print('\n')
+            raise FileNotFoundError
+
         # Determines whether there is enough free memory to load the entire dataset
         operating_memory = sm.memory_allowance()
         available_memory = psutil.virtual_memory()[1]/4
