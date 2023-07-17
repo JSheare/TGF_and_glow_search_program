@@ -20,6 +20,9 @@ def search(detector, dates, path):
             if has_data and day[-6:] not in already_checked:
                 queue.append(day[-6:])
 
+    # Check the most recent stuff first
+    queue = queue[::-1]
+
     for day in queue:
         # Note: these strings will have to be updated if search.py is moved to another directory
         if detector == 'THOR1':
