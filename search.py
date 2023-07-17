@@ -56,7 +56,7 @@ def long_event_cutoff(detector_obj, chunk_obj=None):
 
 def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
     # Parameters:
-    rollgap = 18 if aircraft else 4  # will eventually get changed to something more aircraft appropriate
+    rollgap = 18 if aircraft else 4
     event_time_spacing = 1e-3  # 1 millisecond
     event_min_counts = 10
     noise_cutoff_energy = 300
@@ -455,7 +455,7 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
         potential_glow_list = [potential_glow_list[s] for s in glow_sorting_order]
 
         # Establishes detector location based on year and detector name
-        location = sm.location(unit, YEAR)
+        location = sm.location(unit, year)
 
         # Plotting the histograms
         sm.print_logger('\n', detector_obj.log)
@@ -503,21 +503,12 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
         plt.close(figu)
 
 
-# Disables all warnings in the terminal because they're mostly just annoying
+# Disables all warnings in the console because they're mostly just annoying
 warnings.filterwarnings('ignore')
 
-# Establish dates from inputs 1 & 2
-input1 = str(sys.argv[1])
-year_int = int('20' + input1[:2])
-month_int = int(input1[2:4])
-day_int = int(input1[-2:])
-year_month = input1[:4]
-
-input2 = str(sys.argv[2])
-year_int2 = int('20' + input2[:2])
-month_int2 = int(input2[2:4])
-day_int2 = int(input2[-2:])
-year_month2 = input2[:4]
+# Establish date range from argv 1 and 2
+first_date = str(sys.argv[1])
+second_date = str(sys.argv[2])
 
 # Input 3 is where the user specifies which set of detector data is desired
 unit = str(sys.argv[3])
@@ -539,340 +530,318 @@ aircraft = True if 'aircraft' in modes else False
 # Pickle mode
 picklem = True if 'pickle' in modes else False
 
-# Makes a dictionary of all the requested years, the requested months in each year,
-# and the requested days in each month
-requested_dates = {}
-current_year = year_int
-# For the years
-while True:
-    if current_year == year_int2:
-        requested_dates.update({str(current_year): []})
-        break
-    else:
-        requested_dates.update({str(current_year): []})
-        current_year += 1
+# Makes a list of all the dates on the requested range
+requested_dates = [first_date]
+if first_date != second_date:
+    date_int = int(first_date)
+    while True:
+        date_int += 1
+        date_str = str(date_int)
+        # Month rollover
+        if int(date_str[4:]) > sm.days_per_month(int(date_str[2:4]), int('20' + date_str[0:2])):
+            date_int = date_int + 100 - (int(date_str[4:]) - 1)
+            date_str = str(date_int)
 
-current_month = month_int
-# For the months and days
+        # Year rollover
+        if int(date_str[2:4]) > 12:
+            date_int = (date_int//10000 + 1) * 10000 + 101
+            date_str = str(date_int)
+
+        # Note: these rollovers won't work properly for dates outside the 21st century :)
+
+        if date_str == second_date:
+            requested_dates.append(date_str)
+            break
+        else:
+            requested_dates.append(date_str)
+
 for date in requested_dates:
-    requested_months = []
-    # For requested dates that are all in the same month
-    if year_int == year_int2 and month_int == month_int2:
-        requested_months.append([current_month, day_int, day_int2])
-    # For everything else
-    else:
-        while True:
-            if date == str(year_int) and current_month == month_int:
-                requested_months.append([current_month, day_int, sm.days_per_month(current_month, int(date))])
-                current_month += 1
-            elif date == str(year_int2) and current_month == month_int2:
-                requested_months.append([current_month, 1, day_int2])
-                break
-            elif current_month > 12:
-                current_month = 1
-                break
+    full_day_string = str(date)  # In format yymmdd
+    day = int(full_day_string[4:])
+    month = int(full_day_string[2:4])
+    year = int('20' + full_day_string[0:2])
+    date_timestamp = dt.date(year, month, day)  # In format yyyy-mm-dd
+    print(f'\n{date_timestamp}:')
+
+    # Logs relevant data files and events in a .txt File
+    log_path = f'{sm.results_loc()}Results/{unit}/{full_day_string}/'
+    sm.path_maker(log_path)
+    log = open(f'{log_path}log.txt', 'w')
+
+    # EPOCH time conversions
+    first_sec = (dt.datetime(year, month, day, 0, 0) - dt.datetime(1970, 1, 1)).total_seconds()
+    sm.print_logger(f'The first second of {year}-{month}-{day} is: {int(first_sec)}', log)
+    sm.print_logger(f'The last second of {year}-{month}-{day} is: {int(first_sec + 86400)}', log)
+
+    # Initializes the detector object
+    print('Importing data...')
+    detector = sc.Detector(unit, first_sec, modes)
+
+    # Normal operating mode
+    try:
+        # Imports the data
+        if picklem:
+            pickle_path = glob.glob(f'{sm.results_loc()}Results/{unit}/{full_day_string}/detector.pickle')
+            if len(pickle_path) > 0:
+                detector_pickle = open(pickle_path[0], 'rb')
+                detector = pickle.load(detector_pickle)
+                detector_pickle.close()
+                detector.log = log
+                # The rest of these are for the modes (which might not necessarily be the same
+                # for the serialized detector)
+                detector.modes = modes
+                detector.plastics = True if 'plastics' in modes else False
+                detector.template = True if 'template' in modes else False
             else:
-                requested_months.append([current_month, 1, sm.days_per_month(current_month, int(date))])
-                current_month += 1
+                detector.log = log
+                detector.data_importer()
+                detector.log = None  # serializing open file objects results in errors
+                detector.regex = None  # serializing anonymous functions results in errors too
+                detector.plastics = False  # Setting this and template to false ensures no odd behaviors
+                detector.template = False
+                detector_pickle = open(f'{sm.results_loc()}Results/{unit}/{full_day_string}/detector.pickle',
+                                       'wb')
+                pickle.dump(detector, detector_pickle)
+                detector_pickle.close()
+                detector.log = log
+        else:
+            detector.log = log
+            detector.data_importer()
 
-    current_month = 1
-    requested_dates.update({date: requested_months})
+        print('\n\n')
+        print('Done.')
 
-for year in requested_dates:  # Loops over all requested years
-    requested_months = requested_dates[year]
-    YEAR = int(year)
-    YEAR_str = year
-    for month in requested_months:  # Loops over each requested month of the given year
-        MONTH = month[0]
-        MONTH_str = f'0{month[0]}' if len(str(month[0])) < 2 else str(month[0])
-        day1 = month[1]
-        day2 = month[2]
-        for day in range(day1, day2+1):  # Loops over each requested day of the given month
-            DAY = day
-            DAY_str = f'0{day}' if len(str(day)) < 2 else str(day)
-            full_day_string = f'{YEAR_str[2:4]}{MONTH_str}{DAY_str}'  # In format yymmdd
-            date_timestamp = dt.date(YEAR, MONTH, DAY)  # In format yyyy-mm-dd
-            print(f'\n{date_timestamp}:')
+        # Calibrates each scintillator
+        if not skcali:
+            print('\n')
+            sm.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
 
-            # Logs relevant data files and events in a .txt File
-            log_path = f'{sm.results_loc()}Results/{unit}/{full_day_string}/'
-            sm.path_maker(log_path)
-            log = open(f'{log_path}log.txt', 'w')
+            # Calling the calibration algorithm
+            detector.spectra_maker()
 
-            # EPOCH time conversions
-            first_sec = (dt.datetime(YEAR, MONTH, DAY, 0, 0) - dt.datetime(1970, 1, 1)).total_seconds()
-            sm.print_logger(f'The first second of {YEAR}-{MONTH}-{DAY} is: {int(first_sec)}', log)
-            sm.print_logger(f'The last second of {YEAR}-{MONTH}-{DAY} is: {int(first_sec + 86400)}', log)
+            sm.print_logger('Done.', detector.log)
 
-            # Initializes the detector object
-            print('Importing data...')
-            detector = sc.Detector(unit, first_sec, modes)
+        # Short event search
+        if not skshort:
+            sm.print_logger('\n', detector.log)
+            sm.print_logger('Starting search for short events...', detector.log)
+            sm.print_logger('\n', detector.log)
 
-            # Normal operating mode
-            try:
-                # Imports the data
-                if picklem:
-                    pickle_path = glob.glob(f'{sm.results_loc()}Results/{unit}/{full_day_string}/detector.pickle')
-                    if len(pickle_path) > 0:
-                        detector_pickle = open(pickle_path[0], 'rb')
-                        detector = pickle.load(detector_pickle)
-                        detector_pickle.close()
-                        detector.log = log
-                        # The rest of these are for the modes (which might not necessarily be the same
-                        # for the serialized detector)
-                        detector.modes = modes
-                        detector.plastics = True if 'plastics' in modes else False
-                        detector.template = True if 'template' in modes else False
-                    else:
-                        detector.log = log
-                        detector.data_importer()
-                        detector.log = None  # serializing open file objects results in errors
-                        detector.regex = None  # serializing anonymous functions results in errors too
-                        detector.plastics = False  # Setting this and template to false ensures no odd behaviors
-                        detector.template = False
-                        detector_pickle = open(f'{sm.results_loc()}Results/{unit}/{full_day_string}/detector.pickle',
-                                               'wb')
-                        pickle.dump(detector, detector_pickle)
-                        detector_pickle.close()
-                        detector.log = log
-                else:
-                    detector.log = log
-                    detector.data_importer()
+            # Calling the short event search algorithm
+            short_event_search(detector)
 
+            sm.print_logger('Done.', detector.log)
+            sm.print_logger('\n', detector.log)
+
+        # Long event search
+        if not skglow:
+            sm.print_logger('Starting search for glows...', detector.log)
+            # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
+            times = long_event_cutoff(detector)
+
+            # Calling the long event search algorithm
+            long_event_search(detector, times)
+
+            sm.print_logger('Done.', detector.log)
+            sm.print_logger('\n', detector.log)
+
+    # Low memory mode:
+    except MemoryError:
+        sm.print_logger('\n', detector.log)
+        sm.print_logger('Not enough memory. Entering low memory mode...', detector.log)
+        sm.print_logger('\n', detector.log)
+        # Measures the total combined size of all the data files
+        total_file_size = 0
+        for scint in detector:
+            master_filelist = detector.attribute_retriever(scint, 'filelist')
+            # Clears leftover data (just to be sure)
+            detector.attribute_updator(scint, ['time', 'energy', 'filetime_extrema'],
+                                       [np.array([]), np.array([]), []])
+            for file in master_filelist:
+                total_file_size += os.path.getsize(file)
+
+        gc.collect()
+
+        # Checks to see if there is actually data for the day
+        data_present = True
+        if 'LP' in detector.long_event_scint_list:
+            necessary_scintillators = detector.long_event_scint_list
+        else:
+            necessary_scintillators = detector.long_event_scint_list + ['LP']
+
+        for scint in necessary_scintillators:
+            if len(detector.attribute_retriever(scint, 'filelist')) == 0:
+                data_present = False
                 print('\n\n')
-                print('Done.')
-
-                # Calibrates each scintillator
-                if not skcali:
-                    print('\n')
-                    sm.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
-
-                    # Calling the calibration algorithm
-                    detector.spectra_maker()
-
-                    sm.print_logger('Done.', detector.log)
-
-                # Short event search
-                if not skshort:
-                    sm.print_logger('\n', detector.log)
-                    sm.print_logger('Starting search for short events...', detector.log)
-                    sm.print_logger('\n', detector.log)
-
-                    # Calling the short event search algorithm
-                    short_event_search(detector)
-
-                    sm.print_logger('Done.', detector.log)
-                    sm.print_logger('\n', detector.log)
-
-                # Long event search
-                if not skglow:
-                    sm.print_logger('Starting search for glows...', detector.log)
-                    # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
-                    times = long_event_cutoff(detector)
-
-                    # Calling the long event search algorithm
-                    long_event_search(detector, times)
-
-                    sm.print_logger('Done.', detector.log)
-                    sm.print_logger('\n', detector.log)
-
-            # Low memory mode:
-            except MemoryError:
-                sm.print_logger('\n', detector.log)
-                sm.print_logger('Not enough memory. Entering low memory mode...', detector.log)
-                sm.print_logger('\n', detector.log)
-                # Measures the total combined size of all the data files
-                total_file_size = 0
-                for scint in detector:
-                    master_filelist = detector.attribute_retriever(scint, 'filelist')
-                    # Clears leftover data (just to be sure)
-                    detector.attribute_updator(scint, ['time', 'energy', 'filetime_extrema'],
-                                               [np.array([]), np.array([]), []])
-                    for file in master_filelist:
-                        total_file_size += os.path.getsize(file)
-
-                gc.collect()
-
-                # Checks to see if there is actually data for the day
-                data_present = True
-                if 'LP' in detector.long_event_scint_list:
-                    necessary_scintillators = detector.long_event_scint_list
-                else:
-                    necessary_scintillators = detector.long_event_scint_list + ['LP']
-
-                for scint in necessary_scintillators:
-                    if len(detector.attribute_retriever(scint, 'filelist')) == 0:
-                        data_present = False
-                        print('\n\n')
-                        print('\n', file=detector.log)
-                        sm.print_logger('No/Missing data for specified day.', detector.log)
-                        print('\n')
-                        break
-
-                if not data_present:
-                    log.close()
-                    continue
-
-                operating_memory = sm.memory_allowance()
-                available_memory = psutil.virtual_memory()[1]/4
-                allowed_memory = available_memory
-
-                num_chunks = 2  # minimum number of chunks to split the day into
-                max_chunks = 16
-                while num_chunks < max_chunks:
-                    mem_per_chunk = total_file_size/num_chunks
-                    if allowed_memory/(mem_per_chunk + operating_memory) >= 1:
-                        break
-
-                    num_chunks += 1
-
-                # Makes the chunks
-                chunk_list = []
-
-                for chunk_num in range(1, num_chunks + 1):
-                    chunk = sc.Chunk(unit, first_sec, modes)
-                    chunk.log = log
-                    chunk_list.append(chunk)
-
-                chunk_scint_list = chunk_list[0].scint_list
-
-                for scint in detector:
-                    current_filelist = detector.attribute_retriever(scint, 'filelist')
-                    filelist_len = len(current_filelist)
-                    chunk_num = 1
-                    for chunk in chunk_list:
-                        if chunk_num == num_chunks:
-                            chunk.attribute_updator(scint, 'filelist', current_filelist)
-                        else:
-                            filelist_chunk = current_filelist[:int(filelist_len/num_chunks)]
-                            chunk.attribute_updator(scint, 'filelist', filelist_chunk)
-                            current_filelist = current_filelist[int(filelist_len/num_chunks):]
-
-                        chunk_num += 1
-
-                # Imports data to each chunk and then pickles the chunks
-                print('Importing data...')
+                print('\n', file=detector.log)
+                sm.print_logger('No/Missing data for specified day.', detector.log)
                 print('\n')
-                chunk_num = 1
-                chunk_path_list = []
-                # Temporary pickle feature for low memory mode. REMOVE WHEN PROGRAM IS FINISHED
-                pickled_chunk_paths = glob.glob(f'{sm.results_loc()}Results/{unit}/{full_day_string}/chunk*.pickle')
-                pickled_chunk_paths.sort()
-                if picklem and len(pickled_chunk_paths) > 0:
-                    chunk_path_list = pickled_chunk_paths
+                break
+
+        if not data_present:
+            log.close()
+            continue
+
+        operating_memory = sm.memory_allowance()
+        available_memory = psutil.virtual_memory()[1]/4
+        allowed_memory = available_memory
+
+        num_chunks = 2  # minimum number of chunks to split the day into
+        max_chunks = 16
+        while num_chunks < max_chunks:
+            mem_per_chunk = total_file_size/num_chunks
+            if allowed_memory/(mem_per_chunk + operating_memory) >= 1:
+                break
+
+            num_chunks += 1
+
+        # Makes the chunks
+        chunk_list = []
+
+        for chunk_num in range(1, num_chunks + 1):
+            chunk = sc.Chunk(unit, first_sec, modes)
+            chunk.log = log
+            chunk_list.append(chunk)
+
+        chunk_scint_list = chunk_list[0].scint_list
+
+        for scint in detector:
+            current_filelist = detector.attribute_retriever(scint, 'filelist')
+            filelist_len = len(current_filelist)
+            chunk_num = 1
+            for chunk in chunk_list:
+                if chunk_num == num_chunks:
+                    chunk.attribute_updator(scint, 'filelist', current_filelist)
                 else:
-                    # Keeps timings consistent between chunks
-                    passtime = chunk_list[0].attribute_retriever(chunk_scint_list[0], 'passtime')
-                    passtime_dict = {scint: passtime.copy() for scint in chunk_scint_list}
+                    filelist_chunk = current_filelist[:int(filelist_len/num_chunks)]
+                    chunk.attribute_updator(scint, 'filelist', filelist_chunk)
+                    current_filelist = current_filelist[int(filelist_len/num_chunks):]
 
-                    for chunk in chunk_list:
-                        # Updates chunk to include previous chunk's passtime
-                        chunk.update_passtime(passtime_dict)
+                chunk_num += 1
 
-                        sm.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
-                        chunk.data_importer(existing_filelists=True)
-                        print('\n\n')
-                        # Makes a full list of filetime extrema for long event search
-                        for scint in chunk:
-                            extrema = detector.attribute_retriever(scint, 'filetime_extrema')
-                            extrema += chunk.attribute_retriever(scint, 'filetime_extrema')
-                            detector.attribute_updator(scint, 'filetime_extrema', extrema)
+        # Imports data to each chunk and then pickles the chunks
+        print('Importing data...')
+        print('\n')
+        chunk_num = 1
+        chunk_path_list = []
+        # Temporary pickle feature for low memory mode. REMOVE WHEN PROGRAM IS FINISHED
+        pickled_chunk_paths = glob.glob(f'{sm.results_loc()}Results/{unit}/{full_day_string}/chunk*.pickle')
+        pickled_chunk_paths.sort()
+        if picklem and len(pickled_chunk_paths) > 0:
+            chunk_path_list = pickled_chunk_paths
+        else:
+            # Keeps timings consistent between chunks
+            passtime = chunk_list[0].attribute_retriever(chunk_scint_list[0], 'passtime')
+            passtime_dict = {scint: passtime.copy() for scint in chunk_scint_list}
 
-                        # Updates passtime
-                        passtime_dict = chunk.return_passtime()
+            for chunk in chunk_list:
+                # Updates chunk to include previous chunk's passtime
+                chunk.update_passtime(passtime_dict)
 
-                        chunk_pickle_path = f'{sm.results_loc()}Results/{unit}/{full_day_string}/chunk{chunk_num}.pickle'
-                        chunk_path_list.append(chunk_pickle_path)
-                        chunk_pickle = open(chunk_pickle_path, 'wb')
-                        chunk.log = None
-                        chunk.regex = None
-                        pickle.dump(chunk, chunk_pickle)
-                        chunk_pickle.close()
+                sm.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
+                chunk.data_importer(existing_filelists=True)
+                print('\n\n')
+                # Makes a full list of filetime extrema for long event search
+                for scint in chunk:
+                    extrema = detector.attribute_retriever(scint, 'filetime_extrema')
+                    extrema += chunk.attribute_retriever(scint, 'filetime_extrema')
+                    detector.attribute_updator(scint, 'filetime_extrema', extrema)
 
-                        # Eliminates the chunk from active memory
-                        del chunk
-                        gc.collect()
-                        chunk_list[chunk_num - 1] = 0
+                # Updates passtime
+                passtime_dict = chunk.return_passtime()
 
-                        chunk_num += 1
+                chunk_pickle_path = f'{sm.results_loc()}Results/{unit}/{full_day_string}/chunk{chunk_num}.pickle'
+                chunk_path_list.append(chunk_pickle_path)
+                chunk_pickle = open(chunk_pickle_path, 'wb')
+                chunk.log = None
+                chunk.regex = None
+                pickle.dump(chunk, chunk_pickle)
+                chunk_pickle.close()
 
-                print('Done.')
-
-                # Calibrates each scintillator
-                if not skcali:
-                    print('\n')
-                    sm.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
-                    existing_spectra = {scint: np.array([]) for scint in chunk_scint_list}
-                    for chunk_path in chunk_path_list:
-                        chunk = sm.chunk_unpickler(chunk_path)
-                        chunk_spectra = chunk.make_spectra_hist(existing_spectra)
-                        del chunk
-
-                    # Calling the calibration algorithm
-                    detector.spectra_maker(existing_spectra=existing_spectra)
-
-                    sm.print_logger('Done.', detector.log)
-
-                # Short event search
-                if not skshort:
-                    sm.print_logger('\n', detector.log)
-                    sm.print_logger('Starting search for short events...', detector.log)
-                    sm.print_logger('\n', detector.log)
-                    existing_event_numbers = {scint: 0 for scint in chunk_scint_list}
-
-                    chunk_num = 1
-                    for chunk_path in chunk_path_list:
-                        chunk = sm.chunk_unpickler(chunk_path)
-                        chunk.log = log
-                        sm.print_logger(f'Chunk {chunk_num}:', detector.log)
-                        print('\n')
-
-                        # Calling the short event search algorithm
-                        existing_event_numbers = short_event_search(chunk, existing_event_numbers, low_mem=True)
-
-                        print('\n\n', file=detector.log)
-
-                        del chunk
-                        gc.collect()
-                        chunk_num += 1
-
-                    sm.print_logger('Done.', detector.log)
-                    sm.print_logger('\n', detector.log)
-
-                # Long event search
-                if not skglow:
-                    sm.print_logger('Starting search for glows...', detector.log)
-                    le_hist = np.array([])
-                    for chunk_path in chunk_path_list:
-                        chunk = sm.chunk_unpickler(chunk_path)
-                        # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
-                        times = long_event_cutoff(detector, chunk)
-
-                        # Histograms the counts from each chunk and combines them with the main one
-                        chunk_hist = long_event_search(detector, times, low_mem=True)
-                        le_hist = chunk_hist if len(le_hist) == 0 else le_hist + chunk_hist
-
-                        del chunk
-                        gc.collect()
-
-                    # Calling the long event search algorithm
-                    long_event_search(detector, np.array([]), existing_hist=le_hist)
-
-                    sm.print_logger('Done.', detector.log)
-                    sm.print_logger('\n', detector.log)
-
-                log.close()
-                # Deletes chunk .pickle files
-                # REMOVE CONDITIONAL STATEMENT WHEN PROGRAM IS DONE
-                if not picklem:
-                    for chunk_path in chunk_path_list:
-                        os.remove(chunk_path)
-
-            # Missing data for necessary scintillators
-            except FileNotFoundError:
-                continue
-
-            finally:
-                del detector
-                log.close()
+                # Eliminates the chunk from active memory
+                del chunk
                 gc.collect()
+                chunk_list[chunk_num - 1] = 0
+
+                chunk_num += 1
+
+        print('Done.')
+
+        # Calibrates each scintillator
+        if not skcali:
+            print('\n')
+            sm.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
+            existing_spectra = {scint: np.array([]) for scint in chunk_scint_list}
+            for chunk_path in chunk_path_list:
+                chunk = sm.chunk_unpickler(chunk_path)
+                chunk_spectra = chunk.make_spectra_hist(existing_spectra)
+                del chunk
+
+            # Calling the calibration algorithm
+            detector.spectra_maker(existing_spectra=existing_spectra)
+
+            sm.print_logger('Done.', detector.log)
+
+        # Short event search
+        if not skshort:
+            sm.print_logger('\n', detector.log)
+            sm.print_logger('Starting search for short events...', detector.log)
+            sm.print_logger('\n', detector.log)
+            existing_event_numbers = {scint: 0 for scint in chunk_scint_list}
+
+            chunk_num = 1
+            for chunk_path in chunk_path_list:
+                chunk = sm.chunk_unpickler(chunk_path)
+                chunk.log = log
+                sm.print_logger(f'Chunk {chunk_num}:', detector.log)
+                print('\n')
+
+                # Calling the short event search algorithm
+                existing_event_numbers = short_event_search(chunk, existing_event_numbers, low_mem=True)
+
+                print('\n\n', file=detector.log)
+
+                del chunk
+                gc.collect()
+                chunk_num += 1
+
+            sm.print_logger('Done.', detector.log)
+            sm.print_logger('\n', detector.log)
+
+        # Long event search
+        if not skglow:
+            sm.print_logger('Starting search for glows...', detector.log)
+            le_hist = np.array([])
+            for chunk_path in chunk_path_list:
+                chunk = sm.chunk_unpickler(chunk_path)
+                # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
+                times = long_event_cutoff(detector, chunk)
+
+                # Histograms the counts from each chunk and combines them with the main one
+                chunk_hist = long_event_search(detector, times, low_mem=True)
+                le_hist = chunk_hist if len(le_hist) == 0 else le_hist + chunk_hist
+
+                del chunk
+                gc.collect()
+
+            # Calling the long event search algorithm
+            long_event_search(detector, np.array([]), existing_hist=le_hist)
+
+            sm.print_logger('Done.', detector.log)
+            sm.print_logger('\n', detector.log)
+
+        log.close()
+        # Deletes chunk .pickle files
+        # REMOVE CONDITIONAL STATEMENT WHEN PROGRAM IS DONE
+        if not picklem:
+            for chunk_path in chunk_path_list:
+                os.remove(chunk_path)
+
+    # Missing data for necessary scintillators
+    except FileNotFoundError:
+        continue
+
+    finally:
+        del detector
+        log.close()
+        gc.collect()
