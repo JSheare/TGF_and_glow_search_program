@@ -295,7 +295,8 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
     sigma = np.ones(len(day_bins)-1) * np.sqrt(mue_val)
 
     if aircraft:
-        window = 10
+        fitting_window = 20
+        window = 1
         gap = 5
         num_bins = len(day_bins) - 1
         so_poly = lambda t, a, b, c: a * t ** 2 + b * t + c
@@ -307,7 +308,7 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
             l_counts = []
             r_bins = []
             r_counts = []
-            for i in range(window):
+            for i in range(fitting_window):
                 # Checking left side bins
                 left_bin_index = window_index - (i + 1 + gap)
                 if not left_bin_index < 0:
@@ -364,21 +365,13 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
                 window_index += window
 
     z_scores = np.array([])  # The z-scores themselves
-    z_flags = np.array([])
-    p = 0
+    z_flags = np.array([]).astype(int)
     # Flags only those z-scores > flag_threshold
     for i in range(len(hist_allday)):
-        if hist_allday[i] > mue[i]:  # Peak
-            z_scores = np.append(z_scores, ((hist_allday[i] - mue[i]) / sigma[i]))
-            if z_scores[i] >= flag_threshold:
-                z_flags = np.append(z_flags, i)
-                p += 1
-        else:
-            z_scores = np.append(z_scores, ((hist_allday[i] - mue[i]) / sigma[i]))
-
-    # Redefines z_flag to only contain flags from the start to p-1
-    # yeah, but why?
-    z_flags = z_flags[0:p].astype(int)
+        z_score = (hist_allday[i] - mue[i]) / sigma[i]
+        z_scores = np.append(z_scores, z_score)
+        if z_score >= flag_threshold:
+            z_flags = np.append(z_flags, i)
 
     # Sorts z-flags into actual potential glows
     glow_start = 0
