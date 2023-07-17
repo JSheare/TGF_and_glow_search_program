@@ -71,8 +71,8 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
         elif scintillator == 'NaI' and detector_obj.plastics:
             continue
 
-        sm.print_logger(f'For eRC {detector_obj.attribute_retriever(scintillator, "eRC")} '
-                        f'({scintillator}):', detector_obj.log)
+        sm.print_logger(f'Searching eRC {detector_obj.attribute_retriever(scintillator, "eRC")} ({scintillator})...',
+                        detector_obj.log)
         times = detector_obj.attribute_retriever(scintillator, 'time')
         energies = detector_obj.attribute_retriever(scintillator, 'energy')
         filelist = detector_obj.attribute_retriever(scintillator, 'filelist')
@@ -83,8 +83,15 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
         event_start = 0
         event_length = 0
         event_time = 0
+
+        # Stats
         total_potential_events = 0
         total_threshold_reached = 0
+        removed_len = 0
+        removed_channel_ratio = 0
+        removed_low_energy = 0
+        removed_noise_general = 0
+        removed_crs = 0
 
         rolled_array = np.roll(times, -rollgap)
         interval = rolled_array - times
@@ -98,7 +105,6 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
                     event_length = 1 + rollgap  # 1 for first count, rollgap for the others
                     event_time = rolled_array[i] - event_start_time
                     total_potential_events += 1
-                    print(f'Potential event (#{total_potential_events})')
                 # Measures the length of a potential event
                 else:
                     event_length += 1
@@ -111,12 +117,11 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
             if interval[i] > event_time_spacing and event_length > 0:
                 # Keeps potential event if it's longer than the specified minimum number of counts
                 if event_length >= event_min_counts:
-                    print(f'Potential event length: {event_time} seconds, {event_length} counts')
                     potential_event = sc.ShortEvent(event_start, event_length, scintillator)
                     potential_event_list.append(potential_event)
 
                 if event_length < event_min_counts:
-                    print(f'Potential event removed due to insufficient length ({event_length} counts)')
+                    removed_len += 1
 
                 event_start = 0
                 event_length = 0
@@ -165,11 +170,11 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
                 f_potential_event_list.append(event)
             else:
                 if not good_channel_ratio and is_greater_than_thresh:
-                    print('Potential event removed due to noise (bad high-to-low channel ratio)')
+                    removed_channel_ratio += 1
                 elif not is_greater_than_thresh and good_channel_ratio:
-                    print('Potential event removed due to noise (minimum energy threshold not reached)')
+                    removed_low_energy += 1
                 else:
-                    print('Potential event removed due to noise')
+                    removed_noise_general += 1
 
         potential_event_list = f_potential_event_list
 
@@ -210,11 +215,28 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
                     if clumpiness < clumpiness_threshold:
                         a_potential_event_list.append(event)
                     else:
-                        print('Potential Event Removed (Successive CRS)')
+                        removed_crs += 1
 
             potential_event_list = a_potential_event_list
 
         sm.print_logger(f'\n{len(potential_event_list)} potential events recorded', detector_obj.log)
+        if removed_len > 0:
+            sm.print_logger(f'{removed_len} events removed due to insufficient length', detector_obj.log)
+
+        if removed_channel_ratio > 0:
+            sm.print_logger(f'{removed_channel_ratio} events removed due to noise (bad high-to-low channel ratio)',
+                            detector_obj.log)
+
+        if removed_low_energy > 0:
+            sm.print_logger(f'{removed_low_energy} events removed due to noise (minimum energy threshold not reached)'
+                            , detector_obj.log)
+
+        if removed_noise_general > 0:
+            sm.print_logger(f'{removed_noise_general} events removed due to noise (general)', detector_obj.log)
+
+        if removed_crs > 0:
+            sm.print_logger(f'{removed_crs} events removed due to successive CRS', detector_obj.log)
+
         sm.print_logger(f'Detection threshold reached {total_threshold_reached} times', detector_obj.log)
         print('\n', file=detector_obj.log)
 
@@ -224,8 +246,7 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
             print('\n', file=detector_obj.log)
             print('Potential short events:', file=detector_obj.log)
             for event in potential_event_list:
-                start_second = times[event.start] - 86400 if times[event.start] > 86400 else \
-                    times[event.start]
+                start_second = times[event.start] - 86400 if times[event.start] > 86400 else times[event.start]
                 print(f'{dt.datetime.utcfromtimestamp(times[event.start] + first_sec)} UTC '
                       f'({start_second} seconds of day)', file=detector_obj.log)
 
@@ -510,7 +531,7 @@ warnings.filterwarnings('ignore')
 first_date = str(sys.argv[1])
 second_date = str(sys.argv[2])
 
-# Input 3 is where the user specifies which set of detector data is desired
+# Establish detector unit from argv 3
 unit = str(sys.argv[3])
 
 try:
