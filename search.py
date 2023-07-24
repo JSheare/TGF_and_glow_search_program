@@ -562,11 +562,12 @@ allscints = True if 'allscints' in modes else False
 requested_dates = [first_date]
 if first_date != second_date:
     date_int = int(first_date)
+    century = '20'
     while True:
         date_int += 1
         date_str = str(date_int)
         # Month rollover
-        if int(date_str[4:]) > sm.days_per_month(int(date_str[2:4]), int('20' + date_str[0:2])):
+        if int(date_str[4:]) > sm.days_per_month(int(date_str[2:4]), int(century + date_str[0:2])):
             date_int = date_int + 100 - (int(date_str[4:]) - 1)
             date_str = str(date_int)
 
