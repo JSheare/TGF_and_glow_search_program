@@ -410,6 +410,18 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
 
         previous_time = day_bins[flag]
 
+    # Rejects events whose bins don't have enough counts (aircraft only)
+    if aircraft:
+        a_potential_glow_list = []
+        minimum_counts = 1000
+        for glow in potential_glow_list:
+            for bin_counts in hist_allday[glow.start:glow.stop]:
+                if bin_counts > minimum_counts:
+                    a_potential_glow_list.append(glow)
+                    break
+
+        potential_glow_list = a_potential_glow_list
+
     sm.print_logger('Done.', detector_obj.log)
     if len(potential_glow_list) == 0:
         sm.print_logger('\n', detector_obj.log)
