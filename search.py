@@ -82,7 +82,6 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
         potential_event_list = []
         event_start = 0
         event_length = 0
-        event_time = 0
 
         # Stats
         total_potential_events = 0
@@ -95,20 +94,16 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
 
         rolled_array = np.roll(times, -rollgap)
         interval = rolled_array - times
-        event_start_time = 0
         for i in range(len(interval)):
             if 0 < interval[i] <= event_time_spacing:
                 # Records the beginning index of a potential event
                 if event_length == 0:
                     event_start = i
-                    event_start_time = times[i]
                     event_length = 1 + rollgap  # 1 for first count, rollgap for the others
-                    event_time = rolled_array[i] - event_start_time
                     total_potential_events += 1
                 # Measures the length of a potential event
                 else:
                     event_length += 1
-                    event_time = rolled_array[i] - event_start_time
 
                 # Counts the total number of times that the detection threshold was reached
                 total_threshold_reached += 1
@@ -125,7 +120,6 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
 
                 event_start = 0
                 event_length = 0
-                event_time = 0
 
         # Eliminates noisy events
         f_potential_event_list = []
@@ -254,9 +248,9 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
 
             # Makes scatter plots of the resulting potential events
             # Subplot timescales
-            ts1 = 1e-4  # 100 microseconds
+            ts1 = 1e-4   # 100 microseconds
             ts2 = 0.005  # 5 milliseconds
-            ts3 = 0.1  # 100 milliseconds
+            ts3 = 2      # 100 milliseconds
             ts_list = [ts1, ts2, ts3]
 
             if prev_event_numbers is not None:
