@@ -80,10 +80,6 @@ class Detector:
     processed : bool
         A flag for whether the program should operate in "processed" mode or not. Under this mode, the program will use
         the built-in file path for GODOT processed data on Sol.
-    plastics : bool
-        A flag for whether the program should operate in "plastics" mode or not. When this mode is requested, the
-        program will run the short event search algorithm on the small, medium, and large plastic scintillator data
-        as opposed to just the large plastic.
     template : bool
         A flag for whether the program should operate in "template" mode or not. This mode allows the user to generate
         and tweak templates that the program uses to calibrate the large plastic scintillator. These must be made for
@@ -221,11 +217,6 @@ class Detector:
             if self.unit != 'GODOT':
                 print('Processed data is only accessible for GODOT')
                 exit()
-
-        if 'plastics' in self.modes:
-            self.plastics = True
-
-        self.plastics = True if 'plastics' in self.modes else False
 
         self.template = True if 'template' in self.modes else False
 

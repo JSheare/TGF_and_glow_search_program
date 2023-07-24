@@ -66,9 +66,7 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
 
     event_numbers = prev_event_numbers if prev_event_numbers is not None else {}
     for scintillator in detector_obj:
-        if scintillator != 'LP' and not detector_obj.plastics:
-            continue
-        elif scintillator == 'NaI' and detector_obj.plastics:
+        if scintillator != 'LP' and not allscints:
             continue
 
         sm.print_logger(f'Searching eRC {detector_obj.attribute_retriever(scintillator, "eRC")} ({scintillator})...',
@@ -557,6 +555,9 @@ aircraft = True if 'aircraft' in modes else False
 # Pickle mode
 picklem = True if 'pickle' in modes else False
 
+# All scintillators mode (all the scintillators will be checked by the short event search algorithm)
+allscints = True if 'allscints' in modes else False
+
 # Makes a list of all the dates on the requested range
 requested_dates = [first_date]
 if first_date != second_date:
@@ -617,15 +618,13 @@ for date in requested_dates:
                 # The rest of these are for the modes (which might not necessarily be the same
                 # for the serialized detector)
                 detector.modes = modes
-                detector.plastics = True if 'plastics' in modes else False
                 detector.template = True if 'template' in modes else False
             else:
                 detector.log = log
                 detector.data_importer()
                 detector.log = None  # serializing open file objects results in errors
                 detector.regex = None  # serializing anonymous functions results in errors too
-                detector.plastics = False  # Setting this and template to false ensures no odd behaviors
-                detector.template = False
+                detector.template = False  # Setting this to false ensures no odd behaviors
                 detector_pickle = open(f'{sm.results_loc()}Results/{unit}/{full_day_string}/detector.pickle',
                                        'wb')
                 pickle.dump(detector, detector_pickle)

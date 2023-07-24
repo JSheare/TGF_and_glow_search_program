@@ -62,12 +62,12 @@ Once you've done this, run the program the same as above but add the word 'custo
 
     python search.py yymmdd yymmdd detector custom
 
-####**'plastics' Mode:**
-This mode tells the program to run the short event search algorithm on all plastic scintillators 
+####**'allscints' Mode:**
+This mode tells the program to run the short event search algorithm on all the scintillators 
 (by default the program only searches the large plastic scintillator).
 To run the program in this mode, run the program the same as above but add the word 'plastics' to the end:
 
-    python search.py yymmdd yymmdd detector plastics
+    python search.py yymmdd yymmdd detector allscints
 
 ####**'template' Mode:**
 In order to accurately calibrate the large plastic scintillator, the program needs a template. New templates must be made
@@ -103,7 +103,7 @@ they include:
 - pickle: Pickles and saves the detector object for later use OR imports an 
   already-pickled detector object
 
-###**Changing the export location of the program results:**
+###**Changing the export location of program results:**
 In order to change the location where the program exports its results 
 (i.e. short event scatterplots, long event histograms, scintillator spectra, logs)
 follow these steps:
