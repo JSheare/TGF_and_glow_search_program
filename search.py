@@ -419,7 +419,7 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
     sm.print_logger('Done.', detector_obj.log)
     if len(potential_glow_list) == 0:
         sm.print_logger('\n', detector_obj.log)
-        sm.print_logger(f'There were no potential glows for the date {date_timestamp}', detector_obj.log)
+        sm.print_logger(f'There were no potential glows on {date_timestamp}', detector_obj.log)
     else:
         # Logs potential glows and sorts them in descending order depending on their highest z-score
         sm.print_logger('\n', detector_obj.log)
