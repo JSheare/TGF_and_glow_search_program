@@ -5,6 +5,7 @@ import glob as glob
 import psutil as psutil
 import sys as sys
 search_directory = '/home/jacob/search/'  # This would need to be updated if search.py or its modules are moved
+autosearch_directory = os.path.dirname(os.path.abspath(sys.argv[0])) + '/'
 sys.path.insert(0, search_directory)
 import search_module as sm
 
@@ -52,10 +53,10 @@ def search(detector, dates, path):
 
         if result.wait() != 0:
             # Writes any errors that search.py runs into to text files so that they can be examined/fixed later
-            if not os.path.exists('Error Logs'):
-                os.makedirs('Error Logs')
+            if not os.path.exists(autosearch_directory + 'Error Logs'):
+                os.makedirs(autosearch_directory + 'Error Logs')
 
-            with open(f'Error Logs/{detector}_{day}_Error.txt', 'w') as error_file:
+            with open(autosearch_directory + f'Error Logs/{detector}_{day}_Error.txt', 'w') as error_file:
                 output, error = result.communicate()
                 error_file.write(str(error))
 
@@ -64,7 +65,7 @@ def search(detector, dates, path):
             dates[detector].append(day)
 
             # Dumps the updated list of checked dates to a json file for use the next day
-            with open('checked_dates.json', 'w') as date_file:
+            with open(autosearch_directory + 'checked_dates.json', 'w') as date_file:
                 json.dump(dates, date_file)
 
     return dates
@@ -72,7 +73,7 @@ def search(detector, dates, path):
 
 # Checks to see if the program is already running (maybe the dataset it's checking is quite large or long)
 try:
-    with open('pid.txt', 'r') as existing_pid_file:
+    with open(autosearch_directory + 'pid.txt', 'r') as existing_pid_file:
         pid = int(existing_pid_file.readline())
         if psutil.pid_exists(pid):
             exit()
@@ -81,7 +82,7 @@ try:
 
 # Runs the program normally if it isn't running already
 except FileNotFoundError:
-    with open('pid.txt', 'w') as pid_file:
+    with open(autosearch_directory + 'pid.txt', 'w') as pid_file:
         pid_file.write(str(os.getpid()))
 
     try:
@@ -121,4 +122,4 @@ except FileNotFoundError:
     checked_dates = search('SANTIS', checked_dates, sm.S_raw_data_loc())
 
     # Deletes the pid file
-    os.remove('pid.txt')
+    os.remove(search_directory + 'pid.txt')
