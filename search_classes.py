@@ -84,6 +84,8 @@ class Detector:
         A flag for whether the program should operate in "template" mode or not. This mode allows the user to generate
         and tweak templates that the program uses to calibrate the large plastic scintillator. These must be made for
         each new location.
+    results_loc : str
+        The directory where program results will be exported.
 
     """
 
@@ -219,6 +221,20 @@ class Detector:
                 exit()
 
         self.template = True if 'template' in self.modes else False
+
+        self.results_loc = sm.results_loc()
+        if 'GUI' in self.modes:
+            if self.modes[-2] != 'none':
+                if self.modes[-2] != '/':
+                    self.results_loc = self.modes[-2] + '/'
+                else:
+                    self.results_loc = self.modes[-2]
+
+            if self.modes[-1] != 'none':
+                if self.modes[-1] == '/':
+                    self.import_path = self.modes[-1][:-1]
+                else:
+                    self.import_path = self.modes[-1]
 
     # String casting magic method
     def __str__(self):

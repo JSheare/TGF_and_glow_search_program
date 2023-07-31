@@ -432,7 +432,7 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
         print('\n', file=detector_obj.log)
         print('Potential glows:', file=detector_obj.log)
 
-        eventpath = f'{sm.results_loc()}Results/{detector_obj.unit}/{detector_obj.full_day_string}/event files/' \
+        eventpath = f'{sm.results_loc}Results/{detector_obj.unit}/{detector_obj.full_day_string}/event files/' \
                     f'long events/'
         sm.path_maker(eventpath)
         event_number = 1
@@ -522,7 +522,7 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
         plt.plot()
 
         # Saves the histograms:
-        hist_path = f'{sm.results_loc()}Results/{unit}/{full_day_string}/'
+        hist_path = f'{detector_obj.results_loc}Results/{unit}/{full_day_string}/'
         sm.path_maker(hist_path)
         plt.savefig(f'{hist_path}{full_day_string}_histogram.png', dpi=500)
         plt.close(figu)
@@ -592,25 +592,27 @@ for date in requested_dates:
     date_timestamp = dt.date(year, month, day)  # In format yyyy-mm-dd
     print(f'\n{date_timestamp}:')
 
-    # Logs relevant data files and events in a .txt File
-    log_path = f'{sm.results_loc()}Results/{unit}/{full_day_string}/'
-    sm.path_maker(log_path)
-    log = open(f'{log_path}log.txt', 'w')
-
     # EPOCH time conversions
     first_sec = (dt.datetime(year, month, day, 0, 0) - dt.datetime(1970, 1, 1)).total_seconds()
-    sm.print_logger(f'The first second of {year}-{month}-{day} is: {int(first_sec)}', log)
-    sm.print_logger(f'The last second of {year}-{month}-{day} is: {int(first_sec + 86400)}', log)
+    print(f'The first second of {year}-{month}-{day} is: {int(first_sec)}')
+    print(f'The last second of {year}-{month}-{day} is: {int(first_sec + 86400)}')
 
     # Initializes the detector object
     print('Importing data...')
     detector = sc.Detector(unit, first_sec, modes)
 
+    # Logs relevant data files and events in a .txt File
+    log_path = f'{detector.results_loc}Results/{unit}/{full_day_string}/'
+    sm.path_maker(log_path)
+    log = open(f'{log_path}log.txt', 'w')
+    print(f'The first second of {year}-{month}-{day} is: {int(first_sec)}', log)
+    print(f'The last second of {year}-{month}-{day} is: {int(first_sec + 86400)}', log)
+
     # Normal operating mode
     try:
         # Imports the data
         if picklem:
-            pickle_path = glob.glob(f'{sm.results_loc()}Results/{unit}/{full_day_string}/detector.pickle')
+            pickle_path = glob.glob(f'{detector.results_loc}Results/{unit}/{full_day_string}/detector.pickle')
             if len(pickle_path) > 0:
                 detector_pickle = open(pickle_path[0], 'rb')
                 detector = pickle.load(detector_pickle)
@@ -626,7 +628,7 @@ for date in requested_dates:
                 detector.log = None  # serializing open file objects results in errors
                 detector.regex = None  # serializing anonymous functions results in errors too
                 detector.template = False  # Setting this to false ensures no odd behaviors
-                detector_pickle = open(f'{sm.results_loc()}Results/{unit}/{full_day_string}/detector.pickle',
+                detector_pickle = open(f'{detector.results_loc}Results/{unit}/{full_day_string}/detector.pickle',
                                        'wb')
                 pickle.dump(detector, detector_pickle)
                 detector_pickle.close()
@@ -752,7 +754,7 @@ for date in requested_dates:
         chunk_num = 1
         chunk_path_list = []
         # Temporary pickle feature for low memory mode. REMOVE WHEN PROGRAM IS FINISHED
-        pickled_chunk_paths = glob.glob(f'{sm.results_loc()}Results/{unit}/{full_day_string}/chunk*.pickle')
+        pickled_chunk_paths = glob.glob(f'{detector.results_loc}Results/{unit}/{full_day_string}/chunk*.pickle')
         pickled_chunk_paths.sort()
         if picklem and len(pickled_chunk_paths) > 0:
             chunk_path_list = pickled_chunk_paths
@@ -777,7 +779,7 @@ for date in requested_dates:
                 # Updates passtime
                 passtime_dict = chunk.return_passtime()
 
-                chunk_pickle_path = f'{sm.results_loc()}Results/{unit}/{full_day_string}/chunk{chunk_num}.pickle'
+                chunk_pickle_path = f'{detector.results_loc}Results/{unit}/{full_day_string}/chunk{chunk_num}.pickle'
                 chunk_path_list.append(chunk_pickle_path)
                 chunk_pickle = open(chunk_pickle_path, 'wb')
                 chunk.log = None
