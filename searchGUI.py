@@ -6,12 +6,14 @@ import signal as signal
 import threading as threading
 
 
+# Clears the sample text from the date entry boxes when they are clicked
 def ghost_text_clear(entrybox, ghost_text):
     current_text = entrybox.get()
     if current_text == ghost_text:
         entrybox.delete(0, 'end')
 
 
+# Appends/removes mode from mode list when the corresponding tick box is ticked/unticked
 def tick_untick(var, modes, mode):
     if var.get() == 1:
         modes.append(mode)
@@ -19,6 +21,7 @@ def tick_untick(var, modes, mode):
         modes.remove(mode)
 
 
+# Stops the search script from running and unlocks the start button/tick boxes when the stop button is clicked
 def stop(regular_boxes, dev_boxes):
     global pid
     # Kills the program
@@ -33,23 +36,46 @@ def stop(regular_boxes, dev_boxes):
         box['state'] = tk.NORMAL
 
 
-def run(command, regular_boxes, dev_boxes):
-    global pid
-    process = subprocess.Popen(command.split(), stdout=sys.stdout)
+# Checks to see if there are items in the queue and prints them
+# Also unlocks the start button/tick boxes once the search script has finished executing
+def checker(regular_boxes, dev_boxes):
+    global gui, queue
+    queue = queue[::-1]
+    while len(queue) > 0:
+        text = queue.pop()
+        print(text)
+        if text == 'Search Concluded.':
+            # Re-enabling buttons
+            start_button['state'] = tk.NORMAL
+            for box in regular_boxes + dev_boxes:
+                box['state'] = tk.NORMAL
+
+    milliseconds = 20
+    gui.after(milliseconds, checker, regular_boxes, dev_boxes)
+
+
+# Runs the search script and pipes stdout into the queue
+def run(command, arg):  # The useless arg is unfortunately necessary or threading will complain
+    global pid, queue
+    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
     pid = process.pid
-    process.communicate()
+
+    while True:
+        output = process.stdout.readline()
+        if process.poll() is not None:
+            break
+        if output:
+            queue.append(output.strip().decode('utf-8'))
+
     pid = None
 
-    print('Search Concluded.')
-
-    # Re-enabling buttons
-    start_button['state'] = tk.NORMAL
-    for box in regular_boxes + dev_boxes:
-        box['state'] = tk.NORMAL
+    queue.append('Search Concluded.')
 
 
+# Resets all the text entry boxes and tick boxes, as well as the big text box, when the reset button is clicked
 def reset(modes, reg_variables, dev_variables, regular_boxes, dev_boxes):
     stop(regular_boxes, dev_boxes)
+    text_box.delete('1.0', 'end')
     date_one.delete(0, 'end')
     date_one.insert(0, 'yymmdd')
     date_two.delete(0, 'end')
@@ -64,19 +90,23 @@ def reset(modes, reg_variables, dev_variables, regular_boxes, dev_boxes):
         box.set(0)
 
 
+# Starts the search script when the start button is clicked
 def start(modes, regular_boxes, dev_boxes):
     first_date = date_one.get()
     second_date = date_two.get()
 
+    # Checks that both dates are digits in the proper format
     if not first_date.isdigit() or not second_date.isdigit() \
             or len(first_date) != 6 or len(second_date) != 6:
         print('Error: not a valid date. Please enter BOTH dates in yymmdd format.')
         return
 
+    # Checks that both dates are sequential
     if int(first_date) > int(second_date):
         print('Error: second date must be AFTER first date.')
         return
 
+    # Checks that a detector has been entered
     detector = detector_entrybox.get()
     if detector == '':
         print('Error: Please enter a detector.')
@@ -87,7 +117,7 @@ def start(modes, regular_boxes, dev_boxes):
     for box in regular_boxes + dev_boxes:
         box['state'] = tk.DISABLED
 
-    # Assembling the command and running it with search.py
+    # Assembles the command and running it with search.py
     command = f'python3 search.py {first_date} {second_date} {detector.upper()}'
 
     for mode in modes:
@@ -97,6 +127,7 @@ def start(modes, regular_boxes, dev_boxes):
     custom_import_dir = custom_entrybox.get() if custom_entrybox.get() != '' else 'none'
     command += f' GUI {custom_results_dir} {custom_import_dir}'
 
+    # Prints feedback about what date and modes were selected
     first_date_sep = f'{first_date[0:2]}/{first_date[2:4]}/{first_date[4:]}'
     second_date_sep = f'{second_date[0:2]}/{second_date[2:4]}/{second_date[4:]}'
     print(f'Running search for '
@@ -105,27 +136,33 @@ def start(modes, regular_boxes, dev_boxes):
     if len(modes) != 0:
         print(f'This search will be run with the following modes: {", ".join(modes)}.')
 
-    search_thread = threading.Thread(target=run, args=(command, regular_boxes, dev_boxes))
+    # Runs the search script in a different thread to prevent the GUI from locking up
+    search_thread = threading.Thread(target=run, args=(command, 0))
     search_thread.start()
 
 
 program_modes = []
-pid = None
+pid = None  # Program identification number for the search script
+queue = []  # Queue that holds all the stdout output strings from the search script until they can be printed
 
 # General GUI
 gui = tk.Tk()
 gui.title("TGF Search")
 gui.geometry("1080x720")
+gui.resizable(False, False)
 
 # Making the text box
 text_box = tk.Text(gui, height=30, width=100)
+text_box['state'] = tk.DISABLED
 text_box_label = tk.Label(gui, text="Search Output")
 
 
 # Redirecting stdout to the GUI text box
 def redirector(inputStr):
+    text_box['state'] = tk.NORMAL
     text_box.insert("end", inputStr)
     text_box.yview(tk.END)
+    text_box['state'] = tk.DISABLED
 
 
 sys.stdout.write = redirector
@@ -145,7 +182,7 @@ start_button.place(x=430, y=510)
 stop_button.place(x=570, y=510)
 
 # Input reset button
-reset_button = tk.Button(gui, height=4, width=15, text='Reset Options',
+reset_button = tk.Button(gui, height=4, width=15, text='Reset',
                          command=lambda: reset(program_modes, regular_checkbox_variables, dev_checkbox_variables,
                                                regular_checkbox_list, dev_checkbox_list), bg='white')
 
@@ -243,4 +280,5 @@ custom_label.place(x=575, y=680)
 custom_entrybox.place(x=675, y=680)
 
 # Gui async loop
+checker(regular_checkbox_list, dev_checkbox_list)
 tk.mainloop()
