@@ -57,7 +57,7 @@ def checker(regular_boxes, dev_boxes):
 # Runs the search script and pipes stdout into the queue
 def run(command, arg):  # The useless arg is unfortunately necessary or threading will complain
     global pid, queue
-    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
+    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     pid = process.pid
 
     while True:
@@ -68,6 +68,13 @@ def run(command, arg):  # The useless arg is unfortunately necessary or threadin
             queue.append(output.strip().decode('utf-8'))
 
     pid = None
+
+    out, err = process.communicate()
+    if err:
+        queue.append('\n')
+        queue.append('Search script terminated with the following error:')
+        queue.append(err.strip().decode('utf-8'))
+        queue.append('\n')
 
     queue.append('Search Concluded.')
 
@@ -124,7 +131,7 @@ def start(modes, regular_boxes, dev_boxes):
         box['state'] = tk.DISABLED
 
     # Assembles the command and running it with search.py
-    command = f'python3 search.py {first_date} {second_date} {detector.upper()}'
+    command = f'python3 -u search.py {first_date} {second_date} {detector.upper()}'
 
     for mode in modes:
         command += ' ' + mode
