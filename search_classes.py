@@ -689,7 +689,7 @@ class Detector:
                             file_behavior = 'Disagreement'
                             pass
                         else:  # Mostly here so that if the reader ever runs into other errors I'll know about them
-                            raise
+                            raise Exception('Reader Error')
 
                     # Determines the time gaps between adjacent files
                     first_second = filetimes[0]
@@ -728,15 +728,19 @@ class Detector:
                 print(f'Total Counts: {len(np.concatenate(time_list))}', file=self.log)
                 print(f'Average time gap: {np.sum(file_time_gaps) / len(file_time_gaps)}', file=self.log)
                 print('\n', file=self.log)
+
             except AssertionError:
                 print('Missing data for the specified day.', file=self.log)
                 print('Missing data for the specified day.', end='\r')
                 continue
 
-            except ValueError:
-                print('Error with data reader.', file=self.log)
-                print('Error with data reader.', end='\r')
-                continue
+            except Exception as ex:
+                if str(ex) == 'Reader Error':
+                    print('Error with data reader.', file=self.log)
+                    print('Error with data reader.', end='\r')
+                    continue
+                else:
+                    raise
 
 
 class Chunk(Detector):
