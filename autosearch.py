@@ -58,7 +58,7 @@ def search(detector, dates, path):
 
             with open(autosearch_directory + f'Error Logs/{detector}_{day}_Error.txt', 'w') as error_file:
                 output, error = result.communicate()
-                error_file.write(str(error))
+                error_file.write(str(error.strip().decode('utf-8')))
 
         else:
             # Adds the day to the list of checked dates
