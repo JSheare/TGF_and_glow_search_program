@@ -75,14 +75,20 @@ def run(command, arg):  # The useless arg is unfortunately necessary or threadin
 # Resets all the text entry boxes and tick boxes, as well as the big text box, when the reset button is clicked
 def reset(modes, reg_variables, dev_variables, regular_boxes, dev_boxes):
     stop(regular_boxes, dev_boxes)
+
+    text_box['state'] = tk.NORMAL
     text_box.delete('1.0', 'end')
+    text_box['state'] = tk.DISABLED
+
     date_one.delete(0, 'end')
     date_one.insert(0, 'yymmdd')
     date_two.delete(0, 'end')
     date_two.insert(0, 'yymmdd')
+
     detector_entrybox.delete(0, 'end')
     results_entrybox.delete(0, 'end')
     custom_entrybox.delete(0, 'end')
+
     for item in range(len(modes)):
         modes.pop()
 
