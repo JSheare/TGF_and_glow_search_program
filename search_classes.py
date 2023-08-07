@@ -475,6 +475,7 @@ class Detector:
                 sm.path_maker('Templates')
                 template.to_csv(f'Templates/{self.unit}_{self.location}_template.csv', index=False)
                 print('Template made')
+
             elif scintillator == 'LP':
                 try:
                     template = pd.read_csv(f'Templates/{self.unit}_{self.location}_template.csv')

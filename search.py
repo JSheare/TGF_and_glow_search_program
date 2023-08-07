@@ -605,8 +605,8 @@ for date in requested_dates:
     log_path = f'{detector.results_loc}Results/{unit}/{full_day_string}/'
     sm.path_maker(log_path)
     log = open(f'{log_path}log.txt', 'w')
-    print(f'The first second of {year}-{month}-{day} is: {int(first_sec)}', log)
-    print(f'The last second of {year}-{month}-{day} is: {int(first_sec + 86400)}', log)
+    log.write(f'The first second of {year}-{month}-{day} is: {int(first_sec)}\n')
+    log.write(f'The last second of {year}-{month}-{day} is: {int(first_sec + 86400)}\n')
 
     # Normal operating mode
     try:
@@ -649,7 +649,7 @@ for date in requested_dates:
                 data_present = False
                 print('\n\n')
                 print('\n', file=detector.log)
-                sm.print_logger('No/Missing data for specified day.', detector.log)
+                sm.print_logger('No/Missing data for specified day.\n', detector.log)
                 print('\n')
                 break
 
@@ -710,25 +710,6 @@ for date in requested_dates:
 
         gc.collect()
 
-        # Checks to see if there is actually data for the day
-        data_present = True
-        if 'LP' in detector.long_event_scint_list:
-            necessary_scintillators = detector.long_event_scint_list
-        else:
-            necessary_scintillators = detector.long_event_scint_list + ['LP']
-
-        for scint in necessary_scintillators:
-            if len(detector.attribute_retriever(scint, 'time')) == 0:
-                data_present = False
-                print('\n\n')
-                print('\n', file=detector.log)
-                sm.print_logger('No/Missing data for specified day.', detector.log)
-                print('\n')
-                break
-
-        if not data_present:
-            raise FileNotFoundError
-
         # Determines the appropriate number of chunks to split the day into
         operating_memory = sm.memory_allowance()
         available_memory = psutil.virtual_memory()[1]/4
@@ -767,7 +748,7 @@ for date in requested_dates:
 
                 chunk_num += 1
 
-        # Imports data to each chunk and then pickles the chunks
+        # Imports data to each chunk and then pickles the chunks (and checks that data is actually present)
         print('Importing data...')
         print('\n')
         chunk_num = 1
@@ -777,41 +758,71 @@ for date in requested_dates:
         pickled_chunk_paths.sort()
         if picklem and len(pickled_chunk_paths) > 0:
             chunk_path_list = pickled_chunk_paths
+            data_present = True
         else:
             # Keeps timings consistent between chunks
             passtime = chunk_list[0].attribute_retriever(chunk_scint_list[0], 'passtime')
             passtime_dict = {scint: passtime.copy() for scint in chunk_scint_list}
 
+            data_present = True
             for chunk in chunk_list:
                 # Updates chunk to include previous chunk's passtime
                 chunk.update_passtime(passtime_dict)
 
                 sm.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
                 chunk.data_importer(existing_filelists=True)
-                print('\n\n')
-                # Makes a full list of filetime extrema for long event search
-                for scint in chunk:
-                    extrema = detector.attribute_retriever(scint, 'filetime_extrema')
-                    extrema += chunk.attribute_retriever(scint, 'filetime_extrema')
-                    detector.attribute_updator(scint, 'filetime_extrema', extrema)
 
-                # Updates passtime
-                passtime_dict = chunk.return_passtime()
+                # Checking that data is present in the necessary scintillators
+                if 'LP' in chunk.long_event_scint_list:
+                    necessary_scintillators = chunk.long_event_scint_list
+                else:
+                    necessary_scintillators = chunk.long_event_scint_list + ['LP']
 
-                chunk_pickle_path = f'{detector.results_loc}Results/{unit}/{full_day_string}/chunk{chunk_num}.pickle'
-                chunk_path_list.append(chunk_pickle_path)
-                chunk_pickle = open(chunk_pickle_path, 'wb')
-                chunk.log = None
-                chunk.regex = None
-                pickle.dump(chunk, chunk_pickle)
-                chunk_pickle.close()
+                for scint in necessary_scintillators:
+                    if len(chunk.attribute_retriever(scint, 'time')) == 0:
+                        data_present = False
+                        print('\n\n')
+                        print('\n', file=detector.log)
+                        sm.print_logger('No/Missing data for specified day.', detector.log)
+                        print('\n')
+                        break
 
-                # Eliminates the chunk from active memory
-                del chunk
-                gc.collect()
-                chunk_list[chunk_num - 1] = 0
+                if data_present:
+                    print('\n\n')
+                    # Makes a full list of filetime extrema for long event search
+                    for scint in chunk:
+                        extrema = detector.attribute_retriever(scint, 'filetime_extrema')
+                        extrema += chunk.attribute_retriever(scint, 'filetime_extrema')
+                        detector.attribute_updator(scint, 'filetime_extrema', extrema)
 
-                chunk_num += 1
+                    # Updates passtime
+                    passtime_dict = chunk.return_passtime()
+
+                    chunk_pickle_path = f'{detector.results_loc}Results/{unit}/{full_day_string}/' \
+                                        f'chunk{chunk_num}.pickle'
+                    chunk_path_list.append(chunk_pickle_path)
+                    chunk_pickle = open(chunk_pickle_path, 'wb')
+                    chunk.log = None
+                    chunk.regex = None
+                    pickle.dump(chunk, chunk_pickle)
+                    chunk_pickle.close()
+
+                    # Eliminates the chunk from active memory
+                    del chunk
+                    gc.collect()
+                    chunk_list[chunk_num - 1] = 0
+
+                    chunk_num += 1
+
+                else:
+                    break
+
+        # Aborts the program for the day if necessary scintillator data is missing in any of the chunks
+        if not data_present:
+            for chunk_path in chunk_path_list:
+                os.remove(chunk_path)
+
+            break
 
         print('Done.')
 
