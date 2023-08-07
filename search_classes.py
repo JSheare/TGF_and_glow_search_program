@@ -86,6 +86,8 @@ class Detector:
         each new location.
     results_loc : str
         The directory where program results will be exported.
+    GUI : bool
+        A flag for whether the program is being executed from the GUI.
 
     """
 
@@ -223,7 +225,8 @@ class Detector:
         self.template = True if 'template' in self.modes else False
 
         self.results_loc = sm.results_loc()
-        if 'GUI' in self.modes:
+        self.GUI = True if 'GUI' in self.modes else False
+        if self.GUI:
             if self.modes[-2] != 'none':
                 if self.modes[-2] != '/':
                     self.results_loc = self.modes[-2] + '/'
@@ -661,7 +664,14 @@ class Detector:
                 files_imported = 0
 
                 print('File|File Behavior|File Time Gap (sec)', file=self.log)
+                filecount_switch = True
                 for file in filelist:
+                    if not self.GUI:
+                        print(f'{files_imported}/{len(filelist)} files imported', end='\r')
+                    elif self.GUI and filecount_switch:
+                        print(f'Importing {len(filelist)} files...')
+                        filecount_switch = False
+
                     # Try-except block to log files where GPS and wallclock disagree significantly
                     file_behavior = 'Normal'
                     try:
@@ -699,7 +709,6 @@ class Detector:
                     last_second = filetimes[-1]
                     files_imported += 1
 
-                    print(f'{files_imported}/{len(filelist)} files imported', end='\r')
                     print(f'{file}|{file_behavior}|{file_time_gap}', file=self.log)
 
                 # Makes the final arrays and exports them

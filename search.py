@@ -257,13 +257,18 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
                 plots_already_made = 0
 
             plots_made = 0
+            filecount_switch = True
             for i in range(len(potential_event_list)):
-                print(f'{plots_made}/{len(potential_event_list)}', end='\r')
+                if not detector_obj.GUI:
+                    print(f'{plots_made}/{len(potential_event_list)}', end='\r')
+                elif detector_obj.GUI and filecount_switch:
+                    print(f'Making {len(potential_event_list)} plots...')
+                    filecount_switch = False
+
                 event = potential_event_list[i]
                 filelist, filetime_extrema = event.scatterplot_maker(ts_list, detector_obj, i + 1 + plots_already_made,
                                                                      filelist, filetime_extrema)
                 plots_made += 1
-                print(f'{plots_made}/{len(potential_event_list)}', end='\r')
 
             event_numbers.update({scintillator: plots_made})
         else:
@@ -437,8 +442,14 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
         sm.path_maker(eventpath)
         event_number = 1
         files_made = 0
+        filecount_switch = True
         for i in range(len(potential_glow_list)):
-            print(f'{files_made}/{len(potential_glow_list)}', end='\r')
+            if not detector_obj.GUI:
+                print(f'{files_made}/{len(potential_glow_list)}', end='\r')
+            elif detector_obj.GUI and filecount_switch:
+                print(f'Making {len(potential_glow_list)} event files...')
+                filecount_switch = False
+
             glow = potential_glow_list[i]
             highest_score = glow.highest_score
             highest_scores.append(highest_score)
@@ -470,7 +481,6 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
             event_file.close()
             event_number += 1
             files_made += 1
-            print(f'{files_made}/{len(potential_glow_list)}', end='\r')
 
         print('\n', file=detector_obj.log)
         sm.print_logger('Done.', detector_obj.log)
