@@ -432,8 +432,8 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
         print('\n', file=detector_obj.log)
         print('Potential glows:', file=detector_obj.log)
 
-        eventpath = f'{sm.results_loc}Results/{detector_obj.unit}/{detector_obj.full_day_string}/event files/' \
-                    f'long events/'
+        eventpath = f'{detector_obj.results_loc}Results/{detector_obj.unit}/{detector_obj.full_day_string}/' \
+                    f'event files/long events/'
         sm.path_maker(eventpath)
         event_number = 1
         files_made = 0
@@ -637,6 +637,25 @@ for date in requested_dates:
             detector.log = log
             detector.data_importer()
 
+        # Checks to see if there is actually data for the day
+        data_present = True
+        if 'LP' in detector.long_event_scint_list:
+            necessary_scintillators = detector.long_event_scint_list
+        else:
+            necessary_scintillators = detector.long_event_scint_list + ['LP']
+
+        for scint in necessary_scintillators:
+            if len(detector.attribute_retriever(scint, 'time')) == 0:
+                data_present = False
+                print('\n\n')
+                print('\n', file=detector.log)
+                sm.print_logger('No/Missing data for specified day.', detector.log)
+                print('\n')
+                break
+
+        if not data_present:
+            raise FileNotFoundError
+
         print('\n\n')
         print('Done.')
 
@@ -699,7 +718,7 @@ for date in requested_dates:
             necessary_scintillators = detector.long_event_scint_list + ['LP']
 
         for scint in necessary_scintillators:
-            if len(detector.attribute_retriever(scint, 'filelist')) == 0:
+            if len(detector.attribute_retriever(scint, 'time')) == 0:
                 data_present = False
                 print('\n\n')
                 print('\n', file=detector.log)
@@ -708,9 +727,9 @@ for date in requested_dates:
                 break
 
         if not data_present:
-            log.close()
-            continue
+            raise FileNotFoundError
 
+        # Determines the appropriate number of chunks to split the day into
         operating_memory = sm.memory_allowance()
         available_memory = psutil.virtual_memory()[1]/4
         allowed_memory = available_memory
@@ -868,7 +887,7 @@ for date in requested_dates:
 
     # Missing data for necessary scintillators
     except FileNotFoundError:
-        continue
+        pass
 
     finally:
         del detector
