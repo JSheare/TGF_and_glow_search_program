@@ -1,9 +1,16 @@
 import tkinter as tk
+from tkinter import filedialog
 import sys as sys
 import subprocess as subprocess
 import os as os
 import signal as signal
 import threading as threading
+
+
+# Creates a directory selection dialogue box and then puts the selected directory in the specified text entry box
+def select_dir(entry_box):
+    directory = filedialog.askdirectory(initialdir='/')
+    entry_box.insert(0, directory)
 
 
 # Clears the sample text from the date entry boxes when they are clicked
@@ -19,6 +26,13 @@ def tick_untick(var, modes, mode):
         modes.append(mode)
     else:
         modes.remove(mode)
+
+
+# Clears any text from the big text box
+def clear_box():
+    text_box['state'] = tk.NORMAL
+    text_box.delete('1.0', 'end')
+    text_box['state'] = tk.DISABLED
 
 
 # Stops the search script from running and unlocks the start button/tick boxes when the stop button is clicked
@@ -131,7 +145,7 @@ def start(modes, regular_boxes, dev_boxes):
         box['state'] = tk.DISABLED
 
     # Assembles the command and running it with search.py
-    command = f'python3 -u search.py {first_date} {second_date} {detector.upper()}'
+    command = f'python -u search.py {first_date} {second_date} {detector.upper()}'
 
     for mode in modes:
         command += ' ' + mode
@@ -200,6 +214,12 @@ reset_button = tk.Button(gui, height=4, width=15, text='Reset',
                                                regular_checkbox_list, dev_checkbox_list), bg='white')
 
 reset_button.place(x=810, y=510)
+
+# Clear text box button
+clear_button = tk.Button(gui, height=3, width=8, text='Clear\n Text',
+                         command=lambda: clear_box(), bg='white')
+
+clear_button.place(x=950, y=427)
 
 # Making and placing date entry boxes
 date_one_label = tk.Label(gui, text='Date One:')
@@ -278,19 +298,25 @@ detector_label.place(x=660, y=615)
 detector_entrybox.place(x=720, y=615)
 supported_label.place(x=800, y=595)
 
-# Making and placing custom export location entry box
+# Making and placing custom export location entry box and directory dialogue box button
 results_label = tk.Label(gui, text='Export Location:')
-results_entrybox = tk.Entry(gui, width=40, borderwidth=5)
+results_entrybox = tk.Entry(gui, width=30, borderwidth=5)
+results_button = tk.Button(gui, width=6, height=2, text='Browse',
+                           command=lambda: select_dir(results_entrybox), bg='white')
 
 results_label.place(x=150, y=680)
 results_entrybox.place(x=250, y=680)
+results_button.place(x=455, y=673)
 
-# Making and placing custom import location entry box
+# Making and placing custom import location entry box and directory dialogue box button
 custom_label = tk.Label(gui, text='Import Location:')
-custom_entrybox = tk.Entry(gui, width=40, borderwidth=5)
+custom_entrybox = tk.Entry(gui, width=30, borderwidth=5)
+custom_button = tk.Button(gui, width=6, height=2, text='Browse',
+                          command=lambda: select_dir(custom_entrybox), bg='white')
 
 custom_label.place(x=575, y=680)
 custom_entrybox.place(x=675, y=680)
+custom_button.place(x=880, y=673)
 
 # Gui async loop
 checker(regular_checkbox_list, dev_checkbox_list)
