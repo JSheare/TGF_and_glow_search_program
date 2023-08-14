@@ -145,7 +145,7 @@ def start(modes, regular_boxes, dev_boxes):
         box['state'] = tk.DISABLED
 
     # Assembles the command and running it with search.py
-    command = f'python -u search.py {first_date} {second_date} {detector.upper()}'
+    command = f'python3 -u search.py {first_date} {second_date} {detector.upper()}'
 
     for mode in modes:
         command += ' ' + mode
@@ -181,7 +181,7 @@ gui.resizable(False, False)
 # Making the text box
 text_box = tk.Text(gui, height=30, width=100)
 text_box['state'] = tk.DISABLED
-text_box_label = tk.Label(gui, text="Search Output")
+text_box_label = tk.Label(gui, text='Search Output', anchor=tk.CENTER)
 
 
 # Redirecting stdout to the GUI text box
