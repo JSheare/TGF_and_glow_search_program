@@ -1,7 +1,6 @@
 ### To-do list:
 - [ ] Write duplicate file eliminator/sorter for general data
 - [ ] Add full list of all locations ever for each detector
-- [ ] Change detector object to accept yymmdd string instead of first second of day
 - [ ] Remove pickle support for low memory mode when the program is finished
 
 ### Completed
