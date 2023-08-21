@@ -71,7 +71,7 @@ def checker(regular_boxes, dev_boxes):
 # Runs the search script and pipes stdout into the queue
 def run(command, arg):  # The useless arg is unfortunately necessary or threading will complain
     global pid, queue
-    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     pid = process.pid
 
     while True:
@@ -145,14 +145,16 @@ def start(modes, regular_boxes, dev_boxes):
         box['state'] = tk.DISABLED
 
     # Assembles the command and running it with search.py
-    command = f'python3 -u search.py {first_date} {second_date} {detector.upper()}'
+    command = f'python3 -u search.py {first_date} {second_date} {detector.upper()}'.split()
 
     for mode in modes:
-        command += ' ' + mode
+        command.append(mode)
 
     custom_results_dir = results_entrybox.get() if results_entrybox.get() != '' else 'none'
     custom_import_dir = custom_entrybox.get() if custom_entrybox.get() != '' else 'none'
-    command += f' GUI {custom_results_dir} {custom_import_dir}'
+    command.append('GUI')
+    command.append(str(custom_results_dir))
+    command.append(str(custom_import_dir))
 
     # Prints feedback about what date and modes were selected
     first_date_sep = f'{first_date[0:2]}/{first_date[2:4]}/{first_date[4:]}'
@@ -304,9 +306,9 @@ results_entrybox = tk.Entry(gui, width=30, borderwidth=5)
 results_button = tk.Button(gui, width=6, height=2, text='Browse',
                            command=lambda: select_dir(results_entrybox), bg='white')
 
-results_label.place(x=150, y=680)
-results_entrybox.place(x=250, y=680)
-results_button.place(x=455, y=673)
+results_label.place(x=575, y=680)
+results_entrybox.place(x=675, y=680)
+results_button.place(x=880, y=673)
 
 # Making and placing custom import location entry box and directory dialogue box button
 custom_label = tk.Label(gui, text='Import Location:')
@@ -314,9 +316,9 @@ custom_entrybox = tk.Entry(gui, width=30, borderwidth=5)
 custom_button = tk.Button(gui, width=6, height=2, text='Browse',
                           command=lambda: select_dir(custom_entrybox), bg='white')
 
-custom_label.place(x=575, y=680)
-custom_entrybox.place(x=675, y=680)
-custom_button.place(x=880, y=673)
+custom_label.place(x=150, y=680)
+custom_entrybox.place(x=250, y=680)
+custom_button.place(x=455, y=673)
 
 # Gui async loop
 checker(regular_checkbox_list, dev_checkbox_list)
