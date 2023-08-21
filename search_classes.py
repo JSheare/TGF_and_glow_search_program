@@ -979,13 +979,15 @@ class ShortEvent:
         # Note: with this code, if an event happens in that 200-300 seconds of the next day that are included in the
         # last file, the image will have the wrong date in its name (though the timestamp in the scatter plot title will
         # always be correct)
-        scatterpath = f'{sm.results_loc()}Results/{detector.unit}/{detector.full_day_string}/scatterplots/'
+        scatterpath = (f'{detector.results_loc}Results/{detector.unit}/'
+                       f'{detector.full_day_string}/scatterplots/')
         sm.path_maker(scatterpath)
         figure1.savefig(f'{scatterpath}{detector.full_day_string}_{self.scintillator}_event{event_number}.png')
         plt.close(figure1)
 
         # Makes a json file for the event
-        eventpath = f'{sm.results_loc()}Results/{detector.unit}/{detector.full_day_string}/event files/short events/'
+        eventpath = (f'{detector.results_loc}Results/{detector.unit}/'
+                     f'{detector.full_day_string}/event files/short events/')
         sm.path_maker(eventpath)
         event_frame = pd.DataFrame()
         event_frame['wc'] = event_wallclock

@@ -1,8 +1,8 @@
 ### To-do list:
 - [ ] Write duplicate file eliminator/sorter for general data
 - [ ] Add full list of all locations ever for each detector
-- [ ] Profile the program for bottlenecks
 - [ ] Change detector object to accept yymmdd string instead of first second of day
+- [ ] Remove pickle support for low memory mode when the program is finished
 
 ### Completed
 - [x] Fix channel-to-MeV converter function
@@ -22,3 +22,4 @@
 - [x] Pickle detector object even when not in low memory mode?
 - [x] Make a standard for adding more detectors
 - [x] Make a child class of Detector called 'Chunk' for the low memory mode
+- [x] Profile the program for bottlenecks

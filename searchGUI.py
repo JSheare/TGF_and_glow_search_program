@@ -10,6 +10,7 @@ import threading as threading
 # Creates a directory selection dialogue box and then puts the selected directory in the specified text entry box
 def select_dir(entry_box):
     directory = filedialog.askdirectory(initialdir='/')
+    entry_box.delete(0, 'end')
     entry_box.insert(0, directory)
 
 
