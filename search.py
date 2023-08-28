@@ -73,6 +73,7 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
                         detector_obj.log)
         times = detector_obj.attribute_retriever(scintillator, 'time')
         energies = detector_obj.attribute_retriever(scintillator, 'energy')
+        wallclock = detector_obj.attribute_retriever(scintillator, 'wc')
         filelist = detector_obj.attribute_retriever(scintillator, 'filelist')
         filetime_extrema = detector_obj.attribute_retriever(scintillator, 'filetime_extrema')
 
@@ -220,8 +221,8 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
                             detector_obj.log)
 
         if removed_low_energy > 0:
-            sm.print_logger(f'{removed_low_energy} events removed due to noise (minimum energy threshold not reached)'
-                            , detector_obj.log)
+            sm.print_logger(f'{removed_low_energy} events removed due to noise (minimum energy threshold not reached)',
+                            detector_obj.log)
 
         if removed_noise_general > 0:
             sm.print_logger(f'{removed_noise_general} events removed due to noise (general)', detector_obj.log)
@@ -265,9 +266,12 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
                     print(f'Making {len(potential_event_list)} plots...')
                     filecount_switch = False
 
+                # Note: I know these parameter lists are long, but I'd rather have some ugly syntax here
+                # than waste memory calling attribute_retriever and making unnecessary function-scoped copies
                 event = potential_event_list[i]
-                filelist, filetime_extrema = event.scatterplot_maker(ts_list, detector_obj, i + 1 + plots_already_made,
-                                                                     filelist, filetime_extrema)
+                event_file, filelist, filetime_extrema = event.get_filename(times, filelist, filetime_extrema)
+                event.scatterplot_maker(ts_list, detector_obj, times, energies, i + 1 + plots_already_made, event_file)
+                event.json_maker(detector_obj, times, energies, wallclock, i + 1 + plots_already_made, event_file)
                 plots_made += 1
 
             event_numbers.update({scintillator: plots_made})
@@ -648,22 +652,11 @@ for date in requested_dates:
             detector.data_importer()
 
         # Checks to see if there is actually data for the day
-        data_present = True
-        if 'LP' in detector.long_event_scint_list:
-            necessary_scintillators = detector.long_event_scint_list
-        else:
-            necessary_scintillators = detector.long_event_scint_list + ['LP']
-
-        for scint in necessary_scintillators:
-            if len(detector.attribute_retriever(scint, 'time')) == 0:
-                data_present = False
-                print('\n\n')
-                print('\n', file=detector.log)
-                sm.print_logger('No/Missing data for specified day.\n', detector.log)
-                print('\n')
-                break
-
-        if not data_present:
+        if not detector:
+            print('\n\n')
+            print('\n', file=detector.log)
+            sm.print_logger('No/Missing data for specified day.\n', detector.log)
+            print('\n')
             raise FileNotFoundError
 
         print('\n\n')
@@ -675,7 +668,7 @@ for date in requested_dates:
             sm.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
 
             # Calling the calibration algorithm
-            detector.spectra_maker()
+            detector.calibrate()
 
             sm.print_logger('Done.', detector.log)
 
@@ -768,13 +761,11 @@ for date in requested_dates:
         pickled_chunk_paths.sort()
         if picklem and len(pickled_chunk_paths) > 0:
             chunk_path_list = pickled_chunk_paths
-            data_present = True
         else:
             # Keeps timings consistent between chunks
             passtime = chunk_list[0].attribute_retriever(chunk_scint_list[0], 'passtime')
             passtime_dict = {scint: passtime.copy() for scint in chunk_scint_list}
 
-            data_present = True
             for chunk in chunk_list:
                 # Updates chunk to include previous chunk's passtime
                 chunk.update_passtime(passtime_dict)
@@ -783,21 +774,7 @@ for date in requested_dates:
                 chunk.data_importer(existing_filelists=True)
 
                 # Checking that data is present in the necessary scintillators
-                if 'LP' in chunk.long_event_scint_list:
-                    necessary_scintillators = chunk.long_event_scint_list
-                else:
-                    necessary_scintillators = chunk.long_event_scint_list + ['LP']
-
-                for scint in necessary_scintillators:
-                    if len(chunk.attribute_retriever(scint, 'time')) == 0:
-                        data_present = False
-                        print('\n\n')
-                        print('\n', file=detector.log)
-                        sm.print_logger('No/Missing data for specified day.', detector.log)
-                        print('\n')
-                        break
-
-                if data_present:
+                if chunk:
                     print('\n\n')
                     # Makes a full list of filetime extrema for long event search
                     for scint in chunk:
@@ -825,14 +802,14 @@ for date in requested_dates:
                     chunk_num += 1
 
                 else:
+                    # Aborts the program for the day if necessary scintillator data is missing in any of the chunks
+                    print('\n\n')
+                    print('\n', file=detector.log)
+                    sm.print_logger('No/Missing data for specified day.', detector.log)
+                    print('\n')
+                    for chunk_path in chunk_path_list:
+                        os.remove(chunk_path)
                     break
-
-        # Aborts the program for the day if necessary scintillator data is missing in any of the chunks
-        if not data_present:
-            for chunk_path in chunk_path_list:
-                os.remove(chunk_path)
-
-            break
 
         print('Done.')
 
@@ -847,7 +824,7 @@ for date in requested_dates:
                 del chunk
 
             # Calling the calibration algorithm
-            detector.spectra_maker(existing_spectra=existing_spectra)
+            detector.calibrate(existing_spectra=existing_spectra)
 
             sm.print_logger('Done.', detector.log)
 

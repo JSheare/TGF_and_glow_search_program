@@ -205,8 +205,7 @@ class Detector:
                                   }
 
         else:
-            print('Not a valid detector')
-            exit()
+            raise ValueError('ValueError: not a valid detector.')
 
         # Modes
         self.custom = False
@@ -219,8 +218,7 @@ class Detector:
         if 'processed' in self.modes:
             self.processed = True
             if self.unit != 'GODOT':
-                print('Processed data is only accessible for GODOT')
-                exit()
+                raise ValueError('Processed data is only accessible for GODOT')
 
         self.template = True if 'template' in self.modes else False
 
@@ -266,7 +264,22 @@ class Detector:
         for scintillator in scintillator_keys:
             yield scintillator
 
-    def attribute_retriever(self, scintillator, attribute):  # Make it possible to request entire scintillators?
+    # Bool casting overload. Returns True if data for necessary scintillators (LP, NaI) is present
+    def __bool__(self):
+        if 'LP' in self.long_event_scint_list:
+            necessary_scintillators = self.long_event_scint_list
+        else:
+            necessary_scintillators = self.long_event_scint_list + ['LP']
+
+        data_present = True
+        for scint in necessary_scintillators:
+            # Using energy as the check here is arbitrary; It could just as easily have been time instead
+            if len(self.attribute_retriever(scint, 'energy')) == 0:
+                data_present = False
+
+        return data_present
+
+    def attribute_retriever(self, scintillator, attribute):
         """Retrieves the requested attribute for a particular scintillator
 
         \n
@@ -376,7 +389,158 @@ class Detector:
         else:
             raise AttributeError('AttributeError: not a valid scintillator')
 
-    def spectra_maker(self, existing_spectra=None):
+    def _generate_hist(self, energy_bins, scintillator, existing_spectra=None):
+        """Returns the energy spectra histogram for the requested scintillator."""
+        energies = self.attribute_retriever(scintillator, 'energy')
+        if existing_spectra is not None:
+            energy_hist = existing_spectra[scintillator]
+        else:
+            energy_hist, bin_edges = np.histogram(energies, bins=energy_bins)
+
+        return energy_hist
+
+    def _make_template(self, energy_bins, energy_hist):
+        """Makes a template that can be used in the LP calibration algorithm's cross-correlation."""
+        bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1 (no idea why)
+
+        template_bin_plot_edge = self.calibration_params['template_bin_plot_edge']
+
+        sm.print_logger('Entering template mode...', self.log)
+        print('\n')
+        print('Use the sliders to adjust the line positions. The K40 line comes first.')
+
+        def line_locs(e1, e2):
+            return energy_bins[np.array([e1, e2]).astype(int)]
+
+        # Initial vertical line positions
+        edge1 = 0
+        edge2 = 0
+
+        fig, ax = plt.subplots()
+        ax.set_xlabel('Energy Channel')
+        ax.set_ylabel('Counts/bin')
+        ax.set_yscale('log')
+        ax.bar(energy_bins[0:template_bin_plot_edge], energy_hist[0:template_bin_plot_edge], color='r',
+               width=self.calibration_params['bin_size'] / 2, zorder=1)
+        lines = ax.vlines(line_locs(edge1, edge2), 0, np.amax(energy_hist), zorder=2, alpha=0.75)
+
+        fig.subplots_adjust(bottom=0.30)
+
+        # Slider for the Potassium 40 line
+        ax1 = fig.add_axes([0.25, 0.15, 0.65, 0.03])
+        edge1_slider = Slider(
+            ax=ax1,
+            label='K40',
+            valmin=0,
+            valmax=len(energy_bins[0:template_bin_plot_edge]) - 1,
+            valinit=edge1,
+            valstep=1,
+        )
+
+        # Slider for the Thorium line
+        ax2 = fig.add_axes([0.25, 0.1, 0.65, 0.03])
+        edge2_slider = Slider(
+            ax=ax2,
+            label='T',
+            valmin=0,
+            valmax=len(energy_bins[0:template_bin_plot_edge]) - 1,
+            valinit=edge2,
+            valstep=1,
+        )
+
+        def update(val):
+            nonlocal lines
+            lines.remove()
+            lines = ax.vlines(line_locs(edge1_slider.val, edge2_slider.val), 0, np.amax(energy_hist),
+                              zorder=2, alpha=0.75)
+            fig.canvas.draw_idle()
+
+        edge1_slider.on_changed(update)
+        edge2_slider.on_changed(update)
+
+        plt.show()
+
+        flagged_indices = np.array([edge1_slider.val, edge2_slider.val])
+
+        template = pd.DataFrame(data={'energy_hist': energy_hist, 'bins': energy_bins[0:bin_plot_edge],
+                                      'indices': np.append(flagged_indices,
+                                                           np.zeros(len(energy_hist[0:bin_plot_edge]) - 2))})
+        sm.path_maker('Templates')
+        template.to_csv(f'Templates/{self.unit}_{self.location}_template.csv', index=False)
+        print('Template made')
+
+    def _calibrate_NaI(self, energy_bins, energy_hist, spectra_conversions, spectra_frame):
+        """Calibration algorithm for the sodium iodide scintillators."""
+        flagged_indices = np.array([])
+        # Takes the sum of each bin with its two closest neighboring bins on either side
+        sums = energy_hist
+        for i in range(2):
+            sums += (np.roll(energy_hist, i + 1) + np.roll(energy_hist, i - 1))
+
+        # Looks for the location of the maximum sum within the two bands where the peaks are likely to be
+        band_starts = self.calibration_params['band_starts']
+        band_ends = self.calibration_params['band_ends']
+        for i in range(len(band_starts)):
+            band_max = np.argmax(sums[band_starts[i]:band_ends[i]]) + int(band_starts[i])
+            flagged_indices = np.append(flagged_indices, band_max)
+
+        calibration = energy_bins[flagged_indices.astype(int)]
+        if len(calibration) >= 2:
+            print('For NaI:', file=spectra_conversions)
+            print(f'{calibration[0]} V = 1.46 MeV', file=spectra_conversions)
+            print(f'{calibration[1]} V = 2.60 MeV', file=spectra_conversions)
+
+        spectra_frame['NaI'] = energy_hist
+        self.attribute_updator('NaI', 'calibration', calibration)
+        return flagged_indices
+
+    def _calibrate_LP(self, energy_bins, energy_hist, spectra_conversions, spectra_frame):
+        """Calibration algorithm for the large plastic scintillators."""
+        flagged_indices = np.array([])
+        try:
+            template = pd.read_csv(f'Templates/{self.unit}_{self.location}_template.csv')
+            correlation = signal.correlate(template['energy_hist'].to_numpy(), energy_hist, 'full')
+            best_correlation_index = np.argmax(correlation)
+            shift_amount = (-len(template) + 1) + best_correlation_index
+
+            edge_indices = template['indices'].to_numpy()[0:2]
+            flagged_indices = edge_indices + shift_amount
+            self.good_lp_calibration = True
+        except FileNotFoundError:
+            sm.print_logger('No LP template found for this location...', self.log)
+
+        calibration = energy_bins[flagged_indices.astype(int)]
+        if len(calibration) >= 2:
+            print('For LP:', file=spectra_conversions)
+            print(f'{calibration[0]} V = 1.242 MeV', file=spectra_conversions)
+            print(f'{calibration[1]} V = 2.381 MeV', file=spectra_conversions)
+
+        spectra_frame['LP'] = energy_hist
+        self.attribute_updator('LP', 'calibration', calibration)
+        return flagged_indices
+
+    def _plot_spectra(self, scintillator, energy_bins, energy_hist, flagged_indices, sp_path):
+        """Plots the histograms (with calibration lines, if applicable) for the given spectra."""
+        # Plots the actual spectrum
+        bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1 (no idea why)
+        bin_size = self.calibration_params['bin_size']
+        plt.figure(figsize=[20, 11.0])
+        plt.title(f'Energy Spectrum for {scintillator}, {self.date_timestamp}', loc='center')
+        plt.xlabel('Energy Channel')
+        plt.ylabel('Counts/bin')
+        plt.yscale('log')
+        plt.bar(energy_bins[0:bin_plot_edge], energy_hist[0:bin_plot_edge], color='r',
+                width=bin_size / 2, zorder=1)
+
+        # Plots the energy bins corresponding to the desired energies as vertical lines
+        if flagged_indices.size > 0:
+            plt.vlines(energy_bins[flagged_indices.astype(int)], 0, np.amax(energy_hist), zorder=2, alpha=0.75)
+
+        # Saves the figure
+        plt.savefig(f'{sp_path}{scintillator}_Spectrum.png', dpi=500)
+        plt.clf()
+
+    def calibrate(self, existing_spectra=None):
         """Makes the energy spectra histograms and calibrates the large plastic and sodium iodide scintillators.
         Calibration energies for each scintillator are saved to the 'calibration' attribute of the detector object's
         nested dictionary structure.
@@ -388,160 +552,92 @@ class Detector:
 
         """
 
-        # Fetching calibration parameters
+        # Fetching a few calibration parameters
         bin_range = self.calibration_params['bin_range']
         bin_size = self.calibration_params['bin_size']
-        band_starts = self.calibration_params['band_starts']
-        band_ends = self.calibration_params['band_ends']
-        template_bin_plot_edge = self.calibration_params['template_bin_plot_edge']
 
+        # Making the energy bins and setting up the calibration files
         energy_bins = np.arange(0.0, bin_range, bin_size)
         sp_path = f'{sm.results_loc()}Results/{self.unit}/{self.full_day_string}/'
         sm.path_maker(sp_path)
         spectra_conversions = open(f'{sp_path}spectra_conversions.txt', 'w')
         spectra_frame = pd.DataFrame()
         spectra_frame['energy bins'] = energy_bins[:-1]
-        for scintillator in self:
-            if scintillator == 'SP' or scintillator == 'MP':
-                continue  # (for now)
+        if self:
+            energy_hist = self._generate_hist(energy_bins, 'LP', existing_spectra)  # Putting this up here
+            # so that we don't have to do it again just for template mode
+            if self.template:
+                self._make_template(energy_bins, energy_hist)
 
-            energies = self.attribute_retriever(scintillator, 'energy')
-            if existing_spectra is not None:
-                energy_hist = existing_spectra[scintillator]
+            # Calibrates the LP scintillator and plots the calibration
+            flagged_indices = self._calibrate_LP(energy_bins, energy_hist, spectra_conversions, spectra_frame)
+            self._plot_spectra('LP', energy_bins, energy_hist, flagged_indices, sp_path)
+
+            # Calibrates the NaI scintillator and plots the calibration
+            energy_hist = self._generate_hist(energy_bins, 'NaI', existing_spectra)
+            flagged_indices = self._calibrate_NaI(energy_bins, energy_hist, spectra_conversions, spectra_frame)
+            self._plot_spectra('NaI', energy_bins, energy_hist, flagged_indices, sp_path)
+
+            spectra_frame.to_json(f'{sp_path}{self.full_day_string}_spectra.json')
+            spectra_conversions.close()
+        else:
+            raise ValueError("ValueError: Data for calibration is either missing or hasn't been imported")
+
+    def _filter_files(self, complete_filelist):
+        """Returns an ordered list of files with duplicate/incompatible files filtered out."""
+        # Filters out trace mode files and .txtp files (whatever those are)
+        filtered_filelist = []
+        unfiltered_filelist = []
+        for j in range(len(complete_filelist)):
+            current_file = complete_filelist[j]
+            if current_file[-3:] == 'xtr' or current_file[-4:] == 'txtp' or current_file[-5:] == 'xtrpp':
+                continue
+            elif current_file[-7:] == '.txt.gz':
+                filtered_filelist.append(current_file)
             else:
-                energy_hist, bin_edges = np.histogram(energies, bins=energy_bins)
+                unfiltered_filelist.append(current_file)
 
-            bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1 (no idea why)
-            flagged_indices = np.array([])
-            # Makes a template that can be used in the LP calibration algorithm's cross-correlation
-            if self.template and scintillator == 'LP':
-                sm.print_logger('Entering template mode...', self.log)
-                print('\n')
-                print('Use the sliders to adjust the line positions. The K40 line comes first.')
+        # Eliminates duplicate files
+        for j in range(len(unfiltered_filelist)):
+            current_file = unfiltered_filelist[j]
+            if f'{current_file}.gz' in filtered_filelist:
+                continue
+            else:
+                filtered_filelist.append(current_file)
 
-                def line_locs(e1, e2):
-                    return energy_bins[np.array([e1, e2]).astype(int)]
+        # Puts the files in the correct order
+        files = []
+        extensions = []
+        for j in range(len(filtered_filelist)):
+            file = filtered_filelist[j]
+            if file[-4:] == '.txt':
+                files.append(file.replace('.txt', ''))
+                extensions.append('.txt')
+            elif file[-4:] == '.csv':
+                files.append(file.replace('.csv', ''))
+                extensions.append('.csv')
+            elif file[-7:] == '.txt.gz':
+                files.append(file.replace('.txt.gz', ''))
+                extensions.append('.txt.gz')
 
-                # Initial vertical line positions
-                edge1 = 0
-                edge2 = 0
+        file_order = np.argsort(files)
+        files.sort()
+        extensions = [extensions[s] for s in file_order]
+        filelist = []
+        for j in range(len(files)):
+            filelist.append(f'{files[j]}{extensions[j]}')
 
-                fig, ax = plt.subplots()
-                ax.set_xlabel('Energy Channel')
-                ax.set_ylabel('Counts/bin')
-                ax.set_yscale('log')
-                ax.bar(energy_bins[0:template_bin_plot_edge], energy_hist[0:template_bin_plot_edge], color='r',
-                       width=bin_size/2, zorder=1)
-                lines = ax.vlines(line_locs(edge1, edge2), 0, np.amax(energy_hist), zorder=2, alpha=0.75)
+        return filelist
 
-                fig.subplots_adjust(bottom=0.30)
+    def calculate_fileset_size(self):
+        """Returns the total size (in bytes) of all the currently held files for the day."""
+        total_file_size = 0
+        for scintillator in self:
+            filelist = self.attribute_retriever(scintillator, 'filelist')
+            for file in filelist:
+                total_file_size += os.path.getsize(file)
 
-                # Slider for the Potassium 40 line
-                ax1 = fig.add_axes([0.25, 0.15, 0.65, 0.03])
-                edge1_slider = Slider(
-                    ax=ax1,
-                    label='K40',
-                    valmin=0,
-                    valmax=len(energy_bins[0:template_bin_plot_edge]) - 1,
-                    valinit=edge1,
-                    valstep=1,
-                )
-
-                # Slider for the Thorium line
-                ax2 = fig.add_axes([0.25, 0.1, 0.65, 0.03])
-                edge2_slider = Slider(
-                    ax=ax2,
-                    label='T',
-                    valmin=0,
-                    valmax=len(energy_bins[0:template_bin_plot_edge]) - 1,
-                    valinit=edge2,
-                    valstep=1,
-                )
-
-                def update(val):
-                    nonlocal lines
-                    lines.remove()
-                    lines = ax.vlines(line_locs(edge1_slider.val, edge2_slider.val), 0, np.amax(energy_hist),
-                                      zorder=2, alpha=0.75)
-                    fig.canvas.draw_idle()
-
-                edge1_slider.on_changed(update)
-                edge2_slider.on_changed(update)
-
-                plt.show()
-
-                flagged_indices = np.array([edge1_slider.val, edge2_slider.val])
-
-                template = pd.DataFrame(data={'energy_hist': energy_hist, 'bins': energy_bins[0:bin_plot_edge],
-                                              'indices': np.append(flagged_indices,
-                                                                   np.zeros(len(energy_hist[0:bin_plot_edge])-2))})
-                sm.path_maker('Templates')
-                template.to_csv(f'Templates/{self.unit}_{self.location}_template.csv', index=False)
-                print('Template made')
-
-            elif scintillator == 'LP':
-                try:
-                    template = pd.read_csv(f'Templates/{self.unit}_{self.location}_template.csv')
-                    correlation = signal.correlate(template['energy_hist'].to_numpy(), energy_hist, 'full')
-                    best_correlation_index = np.argmax(correlation)
-                    shift_amount = (-len(template) + 1) + best_correlation_index
-
-                    edge_indices = template['indices'].to_numpy()[0:2]
-                    flagged_indices = edge_indices + shift_amount
-                    self.good_lp_calibration = True
-                except FileNotFoundError:
-                    sm.print_logger('No LP template found for this location...', self.log)
-
-                calibration = energy_bins[flagged_indices.astype(int)]
-                if len(calibration) >= 2:
-                    print('For LP:', file=spectra_conversions)
-                    print(f'{calibration[0]} V = 1.242 MeV', file=spectra_conversions)
-                    print(f'{calibration[1]} V = 2.381 MeV', file=spectra_conversions)
-
-                spectra_frame['LP'] = energy_hist
-                self.attribute_updator(scintillator, 'calibration', calibration)
-
-            else:  # NaI scintillator
-                # Takes the sum of each bin with its two closest neighboring bins on either side
-                sums = energy_hist
-                for i in range(2):
-                    sums += (np.roll(energy_hist, i + 1) + np.roll(energy_hist, i - 1))
-
-                # Looks for the location of the maximum sum within the two bands where the peaks are likely to be
-                for i in range(len(band_starts)):
-                    band_max = np.argmax(sums[band_starts[i]:band_ends[i]]) + int(band_starts[i])
-                    flagged_indices = np.append(flagged_indices, band_max)
-
-                calibration = energy_bins[flagged_indices.astype(int)]
-                if len(calibration) >= 2:
-                    print('For NaI:', file=spectra_conversions)
-                    print(f'{calibration[0]} V = 1.46 MeV', file=spectra_conversions)
-                    print(f'{calibration[1]} V = 2.60 MeV', file=spectra_conversions)
-
-                spectra_frame['NaI'] = energy_hist
-                self.attribute_updator(scintillator, 'calibration', calibration)
-
-            # Plots the actual spectrum
-            plt.figure(figsize=[20, 11.0])
-            plt.title(f'Energy Spectrum for {scintillator}, {self.date_timestamp}', loc='center')
-            plt.xlabel('Energy Channel')
-            plt.ylabel('Counts/bin')
-            plt.yscale('log')
-            plt.bar(energy_bins[0:bin_plot_edge], energy_hist[0:bin_plot_edge], color='r',
-                    width=bin_size/2, zorder=1)
-
-            # Plots the energy bins corresponding to the desired energies as vertical lines
-            if flagged_indices.size > 0:
-                plt.vlines(energy_bins[flagged_indices.astype(int)], 0, np.amax(energy_hist), zorder=2, alpha=0.75)
-
-            # Saves the figure
-            plt.savefig(f'{sp_path}{scintillator}_Spectrum.png', dpi=500)
-            plt.clf()
-
-        spectra_frame.to_json(f'{sp_path}{self.full_day_string}_spectra.json')
-        spectra_conversions.close()
-        if self.template:
-            exit()
+        return total_file_size
 
     def data_importer(self, existing_filelists=False):
         """Imports data from data files into arrays and then updates them into the detector object's
@@ -555,7 +651,6 @@ class Detector:
 
         """
 
-        total_file_size = 0
         for scintillator in self:
             if existing_filelists:
                 break
@@ -570,52 +665,10 @@ class Detector:
                 complete_filelist = glob.glob(f'{self.import_path}/{self.full_day_string}'
                                               f'/{self.regex(eRC)}')
 
-            # Filters out trace mode files and .txtp files (whatever those are)
-            filtered_filelist = []
-            unfiltered_filelist = []
-            for j in range(len(complete_filelist)):
-                current_file = complete_filelist[j]
-                if current_file[-3:] == 'xtr' or current_file[-4:] == 'txtp' or current_file[-5:] == 'xtrpp':
-                    continue
-                elif current_file[-7:] == '.txt.gz':
-                    filtered_filelist.append(current_file)
-                else:
-                    unfiltered_filelist.append(current_file)
-
-            # Eliminates duplicate files
-            for j in range(len(unfiltered_filelist)):
-                current_file = unfiltered_filelist[j]
-                if f'{current_file}.gz' in filtered_filelist:
-                    continue
-                else:
-                    filtered_filelist.append(current_file)
-
-            # Puts the files in the correct order
-            files = []
-            extensions = []
-            for j in range(len(filtered_filelist)):
-                file = filtered_filelist[j]
-                if file[-4:] == '.txt':
-                    files.append(file.replace('.txt', ''))
-                    extensions.append('.txt')
-                elif file[-4:] == '.csv':
-                    files.append(file.replace('.csv', ''))
-                    extensions.append('.csv')
-                elif file[-7:] == '.txt.gz':
-                    files.append(file.replace('.txt.gz', ''))
-                    extensions.append('.txt.gz')
-
-            file_order = np.argsort(files)
-            files.sort()
-            extensions = [extensions[s] for s in file_order]
-            filelist = []
-            for j in range(len(files)):
-                filelist.append(f'{files[j]}{extensions[j]}')
-                total_file_size += os.path.getsize(f'{files[j]}{extensions[j]}')
-
+            filelist = self._filter_files(complete_filelist)
             self.attribute_updator(scintillator, 'filelist', filelist)
 
-        # Checks to see if the necessary data for the full search is present
+        # Checks to see if the necessary files for a full search are present
         if 'LP' in self.long_event_scint_list:
             necessary_scintillators = self.long_event_scint_list
         else:
@@ -637,10 +690,11 @@ class Detector:
             raise FileNotFoundError
 
         # Determines whether there is enough free memory to load the entire dataset
+        total_file_size = self.calculate_fileset_size()
         operating_memory = sm.memory_allowance()
         available_memory = psutil.virtual_memory()[1]/4
         if (operating_memory + total_file_size) > available_memory:
-            raise MemoryError('MemoryError: not enough free memory to hold complete dataset')
+            raise MemoryError('MemoryError: not enough free memory to hold complete dataset.')
 
         for scintillator in self.scintillators:
             eRC = self.attribute_retriever(scintillator, 'eRC')
@@ -724,7 +778,7 @@ class Detector:
                     last_file_extrema = filetime_extrema_list[-(k+1)]
                     for j in range(2):
                         extrema = last_file_extrema[j]
-                        if extrema < 500:
+                        if extrema < 500:  # Extrema belonging to the next day will always be < 500
                             last_file_extrema[j] = extrema + 86400
 
                     filetime_extrema_list[-(k+1)] = last_file_extrema
@@ -883,18 +937,13 @@ class ShortEvent:
     def __repr__(self):
         return f'{self.scintillator} short event; start:{self.start}; stop:{self.stop}; length:{self.length}'
 
-    def scatterplot_maker(self, timescales, detector, event_number, filelist, filetime_extrema):
-        """Makes the short event scatter plots.
+    def get_filename(self, times, filelist, filetime_extrema):
+        """Gets name of the file that the event occurred in.
 
         Parameters
         ----------
-        timescales : list
-            A list of the timescales (in seconds) that the scatter plots are generated in.
-        detector : Detector object
-            The detector object used to store all the data and relevant information.
-        event_number : int
-            A number corresponding to the event's number for that particular scintillator (i.e. 1 would be the first
-            event for whatever scintillator, 2 would be the second, and so on).
+        times : np.array
+            A numpy array containing times for each count.
         filelist : list
             A list of all the files to be searched when looking for the beginning of an event. Once the name of the
             file for an event has been found it is added to the scatter plot title.
@@ -903,15 +952,93 @@ class ShortEvent:
 
         Returns
         -------
-        list
-            Returns a shorter version of the filelist for the requested scintillator. This new list is
+        filename : str
+            The name of the file that the event occurred in.
+        new_filelist : list
+            A shorter version of the filelist for the requested scintillator. This new list is
+            eventually used when the next scatter plot is generated to make file finding faster.
+        new_filetime_extrema : list
+            A shorter version of the file extrema for the requested scintillator. This new list is
             eventually used when the next scatter plot is generated to make file finding faster.
 
         """
 
-        times = detector.attribute_retriever(self.scintillator, 'time')
-        energies = detector.attribute_retriever(self.scintillator, 'energy')
-        wallclock = detector.attribute_retriever(self.scintillator, 'wc')
+        event_time = times[self.start] - 86400 if times[self.start] > 86400 else times[self.start]
+
+        event_file = ''
+        files_examined = 0
+        new_filelist = []
+        new_filetime_extrema = []
+        for i in range(len(filetime_extrema)):
+            first_time = filetime_extrema[i][0]
+            last_time = filetime_extrema[i][1]
+            if first_time <= event_time < last_time:
+                event_file = filelist[i]
+                new_filelist = filelist[files_examined:]
+                new_filetime_extrema = filetime_extrema[files_examined:]
+                break
+
+            files_examined += 1
+
+        return event_file, new_filelist, new_filetime_extrema
+
+    def json_maker(self, detector, times, energies, wallclock, event_number, event_file):
+        """Makes the short event JSON files.
+
+        Parameters
+        ----------
+        detector : Detector object
+            The detector object used to store all the data and relevant information.
+        times : np.array
+            A numpy array containing times for each count.
+        energies : np.array
+            A numpy array containing energies for each count.
+        wallclock : np.array
+            A numpy array containing wallclock times for each count.
+        event_number : int
+            A number corresponding to the event's number for that particular scintillator (i.e. 1 would be the first
+            event for whatever scintillator, 2 would be the second, and so on).
+        event_file : str
+            The name of the file that the event occurred in.
+
+        """
+
+        event_times = times[self.start:self.stop]
+        event_energies = energies[self.start:self.stop]
+        event_wallclock = wallclock[self.start:self.stop]
+
+        eventpath = (f'{detector.results_loc}Results/{detector.unit}/'
+                     f'{detector.full_day_string}/event files/short events/')
+        sm.path_maker(eventpath)
+        event_frame = pd.DataFrame()
+        event_frame['wc'] = event_wallclock
+        event_frame['SecondsOfDay'] = event_times
+        event_frame['energies'] = event_energies
+        event_frame['file'] = event_file  # Note: this column will be filled by the same file name over and over again
+
+        # Saves the json file
+        event_frame.to_json(f'{eventpath}{detector.full_day_string}_{self.scintillator}_event{event_number}.json')
+
+    def scatterplot_maker(self, timescales, detector, times, energies, event_number, event_file):
+        """Makes the short event scatter plots.
+
+        Parameters
+        ----------
+        timescales : list
+            A list of the timescales (in seconds) that the scatter plots are generated in.
+        detector : Detector object
+            The detector object used to store all the data and relevant information.
+        times : np.array
+            A numpy array containing times for each count.
+        energies : np.array
+            A numpy array containing energies for each count.
+        event_number : int
+            A number corresponding to the event's number for that particular scintillator (i.e. 1 would be the first
+            event for whatever scintillator, 2 would be the second, and so on).
+        event_file : str
+            The name of the file that the event occurred in.
+
+        """
 
         # Truncated time and energy arrays to speed up scatter plot making
         fraction_of_day = 1/64
@@ -923,9 +1050,7 @@ class ShortEvent:
 
         event_times = times[self.start:self.stop]
         event_energies = energies[self.start:self.stop]
-        event_wallclock = wallclock[self.start:self.stop]
         event_length = event_times[-1] - event_times[0]
-        event_time = times[self.start] - 86400 if times[self.start] > 86400 else times[self.start]
 
         figure1 = plt.figure(figsize=[20, 11.0])
         figure1.suptitle(f'{self.scintillator} Event {str(event_number)}, '
@@ -959,20 +1084,6 @@ class ShortEvent:
                       colors=['orange', 'r'], linewidth=1, zorder=-1, alpha=0.3)
 
         # Adds the name of the relevant data file to the scatter plot
-        event_file = ''
-        files_examined = 0
-        new_filelist = []
-        new_filetime_extrema = []
-        for i in range(len(filetime_extrema)):
-            first_time = filetime_extrema[i][0]
-            last_time = filetime_extrema[i][1]
-            if first_time <= event_time < last_time:
-                event_file = filelist[i]
-                new_filelist = filelist[files_examined:]
-                new_filetime_extrema = filetime_extrema[files_examined:]
-                break
-
-            files_examined += 1
         plt.title(f'Obtained from {event_file}', fontsize=15, y=-0.4)
 
         # Saves the scatter plot
@@ -984,19 +1095,6 @@ class ShortEvent:
         sm.path_maker(scatterpath)
         figure1.savefig(f'{scatterpath}{detector.full_day_string}_{self.scintillator}_event{event_number}.png')
         plt.close(figure1)
-
-        # Makes a json file for the event
-        eventpath = (f'{detector.results_loc}Results/{detector.unit}/'
-                     f'{detector.full_day_string}/event files/short events/')
-        sm.path_maker(eventpath)
-        event_frame = pd.DataFrame()
-        event_frame['wc'] = event_wallclock
-        event_frame['SecondsOfDay'] = event_times
-        event_frame['energies'] = event_energies
-        event_frame['file'] = event_file  # Note: this column will be filled by the same file name over and over again
-        event_frame.to_json(f'{eventpath}{detector.full_day_string}_{self.scintillator}_event{event_number}.json')
-
-        return new_filelist, new_filetime_extrema
 
 
 class PotentialGlow:
