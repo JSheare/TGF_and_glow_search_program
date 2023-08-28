@@ -7,7 +7,7 @@ Functions:
     C_raw_data_loc:
         Returns the custom data path specified by the user.
     results_loc:
-        Returns the path where all the program's results (i.e. the log, scatter plots, etc) are saved.
+        Returns the path where all the program's results (i.e. the log, scatter plots, etc.) are saved.
     G_raw_data_loc:
         Returns the path where GODOT raw data is stored on Sol.
     T_raw_data_loc:
@@ -19,7 +19,7 @@ Functions:
     G_processed_data_loc:
         Returns the path where GODOT processed data is stored on Sol.
     memory_allowance:
-        Returns maximum amount of memory that the program is allowed to use (in bytes), not including data.
+        Returns maximum amount of memory that the program can use (in bytes), not including data.
     T_eRC:
         Returns the eRC serial number for the requested THOR unit.
     location:
@@ -95,7 +95,7 @@ def memory_allowance():
 
 def T_eRC(unit, day):
     """Returns a list of all THOR eRC serial numbers for the requested THOR unit."""
-    # all lists are in this form: NaI, small plastic, medium plastic, large plastic
+    # All lists are in this form: NaI, small plastic, medium plastic, large plastic
     THOR1 = ['4179', '4194', '4189', '4195']
     THOR2 = ['4182', '4172', '4167', '4187']
     THOR3 = ['4169', '4175', '4174', '4185']

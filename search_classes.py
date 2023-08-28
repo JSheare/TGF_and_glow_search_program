@@ -27,7 +27,7 @@ import search_module as sm
 
 
 class Detector:
-    """ Used to store all relevant information about the detector and the data.
+    """Used to store all relevant information about the detector and the data.
 
     The detector object is used to store the name of the detector, the requested date for analysis in various formats,
     and the actual data in a single, centralized location. Once data is imported from each file, it, along with the
@@ -37,7 +37,7 @@ class Detector:
     Parameters
     ----------
     unit : str
-        The name of the particular detector that the analysis is being requested for.
+        The name of the detector that the analysis is being requested for.
     first_sec : float
         The first second in EPOCH time of the day that data analysis is being requested for.
     modes : list
@@ -808,7 +808,7 @@ class Detector:
 
 
 class Chunk(Detector):
-    """ Used to store all relevant information about the detector and the data for a chunk of the day.
+    """Used to store all relevant information about the detector and the data for a chunk of the day.
 
     This is a child class of Detector, see Detector documentation for full list of methods and attributes. Chunk is used
     to store information and data for a particular chunk of the day. It is meant to be used in search.py's low memory
@@ -877,7 +877,7 @@ class Chunk(Detector):
         Returns
         -------
         dict
-            An updated version of existing_spectra_dict featuring the current's chunk's contribution to the energy
+            An updated version of existing_spectra_dict featuring the current chunk's contribution to the energy
             spectra histograms.
 
         """
@@ -938,7 +938,7 @@ class ShortEvent:
         return f'{self.scintillator} short event; start:{self.start}; stop:{self.stop}; length:{self.length}'
 
     def get_filename(self, times, filelist, filetime_extrema):
-        """Gets name of the file that the event occurred in.
+        """Gets the name of the file that the event occurred in.
 
         Parameters
         ----------
@@ -1144,14 +1144,14 @@ class PotentialGlow:
         return f'Long event; start:{self.start}; stop:{self.stop}; length:{self.length}'
 
     def highest_zscore(self, z_scores):
-        """ Identifies the highest z-score and its corresponding bin for an event."""
+        """Identifies the highest z-score and its corresponding bin for an event."""
         glow_scores = z_scores[self.start:self.stop]
         highest_score = np.max(glow_scores)
         self.peak_index = np.argmax(glow_scores) + self.start
         return highest_score
 
     def beginning_and_end_seconds(self, day_bins, binsize):
-        """ Retrieves the beginning and total length of an event in seconds."""
+        """Retrieves the beginning and total length of an event in seconds."""
         glow_times = day_bins[self.start:self.stop]
         first_sec = glow_times[0]
         length = self.length * binsize
