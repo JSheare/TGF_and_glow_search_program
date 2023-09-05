@@ -14,6 +14,7 @@ Classes:
 
 import glob as glob
 import os as os
+import contextlib as contextlib
 import psutil as psutil
 import numpy as np
 import pandas as pd
@@ -21,8 +22,8 @@ import scipy.signal as signal
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 import datetime as dt
-# import DataReaderTimetrack1 as dr
 import DataReaderFinal as dr
+# import DataReaderTimetrack2 as dr
 import search_module as sm
 
 
@@ -735,10 +736,12 @@ class Detector:
                             time_list.append(t)
                             filetimes = t
                         else:
-                            # data, passtime = dr.fileNameToData(file,
-                            #                                    self.attribute_retriever(scintillator, 'passtime'))
-                            data = dr.fileNameToData(file)
-                            # self.attribute_updator(scintillator_name, 'passtime', passtime)
+                            with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):  # disables prints from dr
+                                # data, passtime = dr.fileNameToData(file,
+                                #                                    self.attribute_retriever(scintillator, 'passtime'))
+                                data = dr.fileNameToData(file)
+
+                            # self.attribute_updator(scintillator, 'passtime', passtime)
                             if 'energies' in data.columns:
                                 energy_list.append(data['energies'].to_numpy())
                             else:

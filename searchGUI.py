@@ -87,7 +87,7 @@ def run(command, arg):  # The useless arg is unfortunately necessary or threadin
     out, err = process.communicate()
     if err:
         queue.append('\n')
-        queue.append('Search script terminated with the following error:')
+        queue.append('Search script terminated with the following error or warning:')
         queue.append(err.strip().decode('utf-8'))
         queue.append('\n')
 
