@@ -575,22 +575,10 @@ allscints = True if 'allscints' in modes else False
 # Makes a list of all the dates on the requested range
 requested_dates = [first_date]
 if first_date != second_date:
-    date_int = int(first_date)
+    date_str = first_date
     century = '20'
     while True:
-        date_int += 1
-        date_str = str(date_int)
-        # Month rollover
-        if int(date_str[4:]) > sm.days_per_month(int(date_str[2:4]), int(century + date_str[0:2])):
-            date_int = date_int + 100 - (int(date_str[4:]) - 1)
-            date_str = str(date_int)
-
-        # Year rollover
-        if int(date_str[2:4]) > 12:
-            date_int = (date_int//10000 + 1) * 10000 + 101
-            date_str = str(date_int)
-
-        # Note: these rollovers won't work properly for dates outside the 21st century :)
+        date_str = sm.roll_date_forward(date_str)
 
         if date_str == second_date:
             requested_dates.append(date_str)
