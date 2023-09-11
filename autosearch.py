@@ -86,7 +86,7 @@ except FileNotFoundError:
         pid_file.write(str(os.getpid()))
 
     try:
-        date_file = open('checked_dates.json')
+        date_file = open(autosearch_directory + 'checked_dates.json')
         checked_dates = json.load(date_file)
         date_file.close()
     # If the list ever gets deleted by accident or something (mostly here because I don't want to put the list together
