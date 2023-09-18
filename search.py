@@ -237,15 +237,7 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
             print('\n')
             sm.print_logger('Generating scatter plots and event files...', detector_obj.log)
             print('\n', file=detector_obj.log)
-            print('Potential short events:', file=detector_obj.log)
-            for event in potential_event_list:
-                start_second = times[event.start] - 86400 if times[event.start] > 86400 else times[event.start]
-                print(f'{dt.datetime.utcfromtimestamp(times[event.start] + first_sec)} UTC '
-                      f'({start_second} seconds of day)', file=detector_obj.log)
 
-            print('\n', file=detector_obj.log)
-
-            # Makes scatter plots of the resulting potential events
             # Subplot timescales
             ts1 = 1e-4   # 100 microseconds
             ts2 = 0.005  # 5 milliseconds
@@ -257,27 +249,52 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
             else:
                 plots_already_made = 0
 
+            max_plots_total = 1000 if not aircraft else float('inf')
+            assert plots_already_made <= max_plots_total
+            if (plots_already_made + len(potential_event_list)) >= max_plots_total:
+                max_plots = max_plots_total - plots_already_made
+            else:
+                max_plots = len(potential_event_list)
+
             plots_made = 0
             filecount_switch = True
+            print('Potential short events:', file=detector_obj.log)
             for i in range(len(potential_event_list)):
+                # Stops making plots/event files/log entries after max reached
+                # This is to prevent the program getting stuck on lab test days (with hundreds of thousands of "events")
+                if (plots_made + plots_already_made) >= max_plots_total:
+                    print(f'Max number of loggable events ({max_plots_total}) reached.', file=detector_obj.log)
+                    break
+
                 if not detector_obj.GUI:
-                    print(f'{plots_made}/{len(potential_event_list)}', end='\r')
+                    print(f'{plots_made}/{max_plots}', end='\r')
                 elif detector_obj.GUI and filecount_switch:
-                    print(f'Making {len(potential_event_list)} plots...')
+                    print(f'Making {max_plots} plots...')
                     filecount_switch = False
 
-                # Note: I know these parameter lists are long, but I'd rather have some ugly syntax here
-                # than waste memory calling attribute_retriever and making unnecessary function-scoped copies
                 event = potential_event_list[i]
+
+                # Logs the event
+                start_second = times[event.start] - 86400 if times[event.start] > 86400 else times[event.start]
+                print(f'{dt.datetime.utcfromtimestamp(times[event.start] + first_sec)} UTC '
+                      f'({start_second} seconds of day)', file=detector_obj.log)
+
+                # Note: I know the parameter lists below are long, but I'd rather have some ugly syntax here
+                # than waste memory calling attribute_retriever and making unnecessary function-scoped copies
+
+                # Makes the scatter plot
                 event_file, filelist, filetime_extrema = event.get_filename(times, filelist, filetime_extrema)
                 event.scatterplot_maker(ts_list, detector_obj, times, energies, i + 1 + plots_already_made, event_file)
+
+                # Makes the event file
                 event.json_maker(detector_obj, times, energies, wallclock, i + 1 + plots_already_made, event_file)
+
                 plots_made += 1
 
-            event_numbers.update({scintillator: plots_made})
+            print('\n', file=detector_obj.log)
+            event_numbers.update({scintillator: plots_made + plots_already_made})
         else:
             print('\n')
-            event_numbers.update({scintillator: 0})
 
     if low_mem:
         return event_numbers
