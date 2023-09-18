@@ -564,7 +564,7 @@ class Detector:
         spectra_conversions = open(f'{sp_path}spectra_conversions.txt', 'w')
         spectra_frame = pd.DataFrame()
         spectra_frame['energy bins'] = energy_bins[:-1]
-        if self:
+        if self or existing_spectra:
             energy_hist = self._generate_hist(energy_bins, 'LP', existing_spectra)  # Putting this up here
             # so that we don't have to do it again just for template mode
             if self.template:
