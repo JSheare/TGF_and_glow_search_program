@@ -1,6 +1,5 @@
 ### To-do list:
 - [ ] Write duplicate file eliminator/sorter for general data
-- [ ] Add full list of all locations ever for each detector
 - [ ] Remove pickle support for low memory mode when the program is finished
 
 ### Completed
