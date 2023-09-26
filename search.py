@@ -622,7 +622,11 @@ for date in requested_dates:
 
     # Initializes the detector object
     print('Importing data...')
-    detector = sc.Detector(unit, first_sec, modes)
+    try:
+        detector = sc.Detector(unit, first_sec, modes)
+    except ValueError:
+        print('Not a valid detector.')
+        exit()
 
     # Logs relevant data files and events in a .txt File
     log_path = f'{detector.results_loc}Results/{unit}/{full_day_string}/'
@@ -729,12 +733,17 @@ for date in requested_dates:
 
         num_chunks = 2  # minimum number of chunks to split the day into
         max_chunks = 16
+        max_not_exceeded = False
         while num_chunks < max_chunks:
             mem_per_chunk = total_file_size/num_chunks
             if allowed_memory/(mem_per_chunk + operating_memory) >= 1:
+                max_not_exceeded = True
                 break
 
             num_chunks += 1
+
+        if not max_not_exceeded:
+            raise MemoryError('MemoryError: very low available memory on system.')
 
         # Makes the chunks
         chunk_list = []

@@ -219,7 +219,7 @@ class Detector:
         if 'processed' in self.modes:
             self.processed = True
             if self.unit != 'GODOT':
-                raise ValueError('Processed data is only accessible for GODOT')
+                raise ValueError('ValueError: processed data is only accessible for GODOT')
 
         self.template = True if 'template' in self.modes else False
 
