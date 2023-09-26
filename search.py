@@ -291,7 +291,9 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
 
                 plots_made += 1
 
-            print('\n', file=detector_obj.log)
+            if not detector_obj.GUI:
+                print(f'{plots_made}/{max_plots}\n', end='\r')
+
             event_numbers.update({scintillator: plots_made + plots_already_made})
         else:
             print('\n')
@@ -503,7 +505,9 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
             event_number += 1
             files_made += 1
 
-        print('\n', file=detector_obj.log)
+        if not detector_obj.GUI:
+            print(f'{files_made}/{len(potential_glow_list)}\n', end='\r')
+
         sm.print_logger('Done.', detector_obj.log)
 
         glow_sorting_order = np.argsort(highest_scores)
@@ -850,14 +854,12 @@ for date in requested_dates:
                 # Calling the short event search algorithm
                 existing_event_numbers = short_event_search(chunk, existing_event_numbers, low_mem=True)
 
-                print('\n\n', file=detector.log)
-
                 del chunk
                 gc.collect()
                 chunk_num += 1
 
-            sm.print_logger('Done.', detector.log)
-            sm.print_logger('\n', detector.log)
+                sm.print_logger('Done.', detector.log)
+                sm.print_logger('\n', detector.log)
 
         # Long event search
         if not skglow:

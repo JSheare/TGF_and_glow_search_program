@@ -768,6 +768,8 @@ class Detector:
 
                     print(f'{file}|{file_behavior}|{file_time_gap}', file=self.log)
 
+                print(f'{files_imported}/{len(filelist)} files imported', end='\r')
+
                 # Makes the final arrays and exports them
                 times = np.concatenate(time_list)
                 # Corrects for the fact that the first 200-300 seconds of the next day are included in the last file
