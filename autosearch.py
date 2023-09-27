@@ -122,4 +122,4 @@ except FileNotFoundError:
     checked_dates = search('SANTIS', checked_dates, sm.S_raw_data_loc())
 
     # Deletes the pid file
-    os.remove(search_directory + 'pid.txt')
+    os.remove(autosearch_directory + 'pid.txt')
