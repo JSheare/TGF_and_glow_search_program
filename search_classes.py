@@ -100,7 +100,7 @@ class Detector:
         self.modes = modes
         self.date_str = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%y%m%d')  # In format yymmdd
         self.full_date_str = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%Y-%m-%d')  # In format yyyy-mm-dd
-        self.location = 'location'  # Eventually this will be fetched from a function in search_module
+        self.location = sm.location(self.unit, self.date_str)  # Might need to change this to full_date_str
         self.good_lp_calibration = False
 
         # Detector information
@@ -402,6 +402,9 @@ class Detector:
 
     def _make_template(self, energy_bins, energy_hist):
         """Makes a template that can be used in the LP calibration algorithm's cross-correlation."""
+        if self.location['Location'] == 'no location listed':
+            return
+
         bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1 (no idea why)
 
         template_bin_plot_edge = self.calibration_params['template_bin_plot_edge']
@@ -467,7 +470,7 @@ class Detector:
                                       'indices': np.append(flagged_indices,
                                                            np.zeros(len(energy_hist[0:bin_plot_edge]) - 2))})
         sm.path_maker('Templates')
-        template.to_csv(f'Templates/{self.unit}_{self.location}_template.csv', index=False)
+        template.to_csv(f'Templates/{self.unit}_{self.location["Location"]}_template.csv', index=False)
         print('Template made')
 
     def _calibrate_NaI(self, energy_bins, energy_hist, spectra_conversions, spectra_frame):
@@ -499,7 +502,7 @@ class Detector:
         """Calibration algorithm for the large plastic scintillators."""
         flagged_indices = np.array([])
         try:
-            template = pd.read_csv(f'Templates/{self.unit}_{self.location}_template.csv')
+            template = pd.read_csv(f'Templates/{self.unit}_{self.location["Location"]}_template.csv')
             correlation = signal.correlate(template['energy_hist'].to_numpy(), energy_hist, 'full')
             best_correlation_index = np.argmax(correlation)
             shift_amount = (-len(template) + 1) + best_correlation_index
@@ -1024,7 +1027,7 @@ class ShortEvent:
         # Saves the json file
         event_frame.to_json(f'{eventpath}{detector.date_str}_{self.scintillator}_event{event_number}.json')
 
-    def scatterplot_maker(self, timescales, detector, times, energies, event_number, event_file):
+    def scatterplot_maker(self, timescales, detector, times, energies, event_number, event_file, weather_code):
         """Makes the short event scatter plots.
 
         Parameters
@@ -1042,6 +1045,8 @@ class ShortEvent:
             event for whatever scintillator, 2 would be the second, and so on).
         event_file : str
             The name of the file that the event occurred in.
+        weather_code : int
+            A code describing the weather conditions at the time of the event.
 
         """
 
@@ -1060,7 +1065,7 @@ class ShortEvent:
         figure1 = plt.figure(figsize=[20, 11.0])
         figure1.suptitle(f'{self.scintillator} Event {str(event_number)}, '
                          f'{dt.datetime.utcfromtimestamp(times[self.start] + detector.first_sec)} UTC, '
-                         f'{len(event_energies)} counts', fontsize=20)
+                         f'{len(event_energies)} counts \n Weather: {sm.weather_from_code(weather_code)}', fontsize=20)
         ax1 = figure1.add_subplot(3, 1, 1)
         ax2 = figure1.add_subplot(3, 1, 2)
         ax3 = figure1.add_subplot(3, 1, 3)

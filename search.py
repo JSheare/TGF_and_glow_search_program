@@ -257,6 +257,7 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
                 max_plots = len(potential_event_list)
 
             plots_made = 0
+            weather_cache = {}
             filecount_switch = True
             print('Potential short events:', file=detector_obj.log)
             for i in range(len(potential_event_list)):
@@ -274,17 +275,26 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
 
                 event = potential_event_list[i]
 
+                # Checks the weather around the time of the event if the nearest weather station is known
+                if detector_obj.location['Station'] != '':
+                    local_date, local_time = sm.convert_to_local(detector_obj.full_date_str, times[event.start])
+                    weather_code = sm.get_weather_conditions(local_date, local_time, detector_obj, weather_cache)
+                else:
+                    weather_code = -1
+
                 # Logs the event
                 start_second = times[event.start] - 86400 if times[event.start] > 86400 else times[event.start]
                 print(f'{dt.datetime.utcfromtimestamp(times[event.start] + first_sec)} UTC '
-                      f'({start_second} seconds of day)', file=detector_obj.log)
+                      f'({start_second} seconds of day) - weather: {sm.weather_from_code(weather_code)}',
+                      file=detector_obj.log)
 
                 # Note: I know the parameter lists below are long, but I'd rather have some ugly syntax here
                 # than waste memory calling attribute_retriever and making unnecessary function-scoped copies
 
                 # Makes the scatter plot
                 event_file, filelist, filetime_extrema = event.get_filename(times, filelist, filetime_extrema)
-                event.scatterplot_maker(ts_list, detector_obj, times, energies, i + 1 + plots_already_made, event_file)
+                event.scatterplot_maker(ts_list, detector_obj, times, energies,
+                                        i + 1 + plots_already_made, event_file, weather_code)
 
                 # Makes the event file
                 event.json_maker(detector_obj, times, energies, wallclock, i + 1 + plots_already_made, event_file)
@@ -514,14 +524,11 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
         glow_sorting_order = glow_sorting_order[::-1]
         potential_glow_list = [potential_glow_list[s] for s in glow_sorting_order]
 
-        # Establishes detector location based on year and detector name
-        location = sm.location(unit, year)
-
         # Plotting the histograms
         sm.print_logger('\n', detector_obj.log)
         sm.print_logger('Generating Histogram...', detector_obj.log)
         figu = plt.figure(figsize=[20, 11.0])
-        plt.title(f'{unit} {location}, {str(full_day_str)}', loc='center')
+        plt.title(f'{unit} at {detector_obj.location["Location"]}, {str(full_day_str)}', loc='center')
         plt.tick_params(left=False, right=False, labelleft=False, labelbottom=False, bottom=False)
         ax1 = figu.add_subplot(5, 1, 1)
         ax2 = figu.add_subplot(5, 1, 2)

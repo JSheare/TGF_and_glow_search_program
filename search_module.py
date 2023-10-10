@@ -62,6 +62,8 @@ import os as os
 import contextlib as contextlib
 import pickle as pickle
 import datetime as dt
+import glob as glob
+import json as json
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -141,38 +143,26 @@ def T_eRC(unit, day):
     return THOR_dict[unit]
 
 
-def location(unit, YEAR):
+def location(unit, date):
     """Returns the location of a detector for the specified date."""
-    # To add another detector/location simply add another if/elif statement
-    # In the future it might be better to just import all of these from a text file or something
     if unit == 'GODOT':
-        if YEAR == 2015:
-            location = 'at HAWC, Mexico until September, then at Uchinada'
-        elif YEAR == 2016:
-            location = 'at HAWC, Mexico'
-        elif YEAR == 2017:
-            location = 'at HAWC, Mexico'
-        elif YEAR == 2018:
-            location = 'at Uchinada, Japan'
-        elif YEAR == 2019:
-            location = 'at Uchinada, Japan'
-        elif YEAR == 2020:
-            location = 'at Uchinada, Japan'
-        else:  # YEAR == 2021-20xx
-            location = 'at Uchinada, Japan'
-
-    elif unit[0:4] == 'THOR':  # Temporary. Eventually this will contain a list of all THOR unit locations as well
-        if unit == 'THOR5':
-            location = 'at mount Fuji, Japan'  # temp
-        else:
-            location = 'at no listed location'
-
-    elif unit == 'SANTIS':
-        location = 'Santis, Switzerland'
+        deployment_file_loc = G_raw_data_loc()[:-5]
+    elif unit[0:4] == 'THOR':
+        deployment_file_loc = T_raw_data_loc()
     else:
-        location = 'at no location listed'
+        deployment_file_loc = S_raw_data_loc()[:-5]
 
-    return location
+    deployment_files = glob.glob(f'{deployment_file_loc}/{unit.lower()}_*_*.json')
+
+    for file in deployment_files:
+        if int(file[6:12]) <= date <= int(file[13:19]):
+            with open(file, 'r') as deployment:
+                return json.load(deployment)
+
+    return {'Location': 'no location listed', 'Instrument': unit, 'Start date': '', 'End date': '',
+            'UTC conversion to local time': '', 'Station': '', 'Daylight Savings?': '',
+            'Latitude (N)': '', 'Longitude (E, 0-360)': '', 'Altitude (km)': '',
+            'Notes': ''}
 
 
 def days_per_month(month, year):
@@ -480,3 +470,17 @@ def convert_clock_hour(clock_hour):
         hour += 12
 
     return float((hour * 3600) + (minute * 60))
+
+
+def weather_from_code(code):
+    """Returns the weather for each code given by the function get_weather_conditions."""
+    if code == 0:
+        return 'fair'
+    elif code == 1:
+        return 'light rain'
+    elif code == 2:
+        return 'heavy rain'
+    elif code == 3:
+        return 'Lightning or hail'
+    else:
+        return 'error getting weather data'
