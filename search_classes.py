@@ -48,9 +48,9 @@ class Detector:
     ----------
     log : file
         The .txt file where program actions and findings are logged.
-    full_day_string : str
+    date_str : str
         The timestamp for the requested day in yymmdd format.
-    date_timestamp : str
+    full_date_str : str
         The timestamp for the requested in day in yyyy-mm-dd format.
     location : str
         The location of the detector on the requested day.
@@ -98,8 +98,8 @@ class Detector:
         self.first_sec = first_sec
         self.log = None
         self.modes = modes
-        self.full_day_string = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%y%m%d')  # In format yymmdd
-        self.date_timestamp = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%Y-%m-%d')  # In format yyyy-mm-dd
+        self.date_str = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%y%m%d')  # In format yymmdd
+        self.full_date_str = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%Y-%m-%d')  # In format yyyy-mm-dd
         self.location = 'location'  # Eventually this will be fetched from a function in search_module
         self.good_lp_calibration = False
 
@@ -115,11 +115,11 @@ class Detector:
             self.calibration_params = {'bin_range': 15008.0, 'bin_size': 16, 'band_starts': [38, 94],
                                        'band_ends': [75, 125], 'template_bin_plot_edge': 200}
             if 'processed' in self.modes:
-                self.import_path = f'{sm.G_processed_data_loc()}/{self.full_day_string[0:4]}'
+                self.import_path = f'{sm.G_processed_data_loc()}/{self.date_str[0:4]}'
             else:
-                self.import_path = f'{sm.G_raw_data_loc()}/{self.full_day_string}'
+                self.import_path = f'{sm.G_raw_data_loc()}/{self.date_str}'
 
-            self.regex = lambda eRC: f'eRC{eRC}_lm*_{self.full_day_string}_*'
+            self.regex = lambda eRC: f'eRC{eRC}_lm*_{self.date_str}_*'
             self.scintillators = {'NaI': {'eRC': '1490',
                                           'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                           'time': np.array([]), 'energy': np.array([]), 'wc': np.array([]),
@@ -140,28 +140,28 @@ class Detector:
             self.long_event_scint_list = ['NaI']
             self.calibration_params = {'bin_range': 65535.0, 'bin_size': 1, 'band_starts': [2000, 5600],
                                        'band_ends': [2500, 6300], 'template_bin_plot_edge': 8000}  # placeholder
-            self.import_path = f'{sm.T_raw_data_loc()}/{unit}/Data/{self.full_day_string}'
-            self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.full_day_string}_*'
-            self.scintillators = {'NaI': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[0],
+            self.import_path = f'{sm.T_raw_data_loc()}/{unit}/Data/{self.date_str}'
+            self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.date_str}_*'
+            self.scintillators = {'NaI': {'eRC': sm.T_eRC(self.unit, self.date_str)[0],
                                           'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                           'time': np.array([]), 'energy': np.array([]), 'wc': np.array([]),
                                           'passtime': {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0,
                                                        'ppsunix': -1.0, 'lastwc': 0, 'ppswc': 0, 'hz': 8e7,
                                                        'started': 0}
                                           },
-                                  'SP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[1],
+                                  'SP': {'eRC': sm.T_eRC(self.unit, self.date_str)[1],
                                          'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([]),
                                          'passtime': {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0,
                                                       'ppsunix': -1.0, 'lastwc': 0, 'ppswc': 0, 'hz': 8e7, 'started': 0}
                                          },
-                                  'MP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[2],
+                                  'MP': {'eRC': sm.T_eRC(self.unit, self.date_str)[2],
                                          'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([]),
                                          'passtime': {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0,
                                                       'ppsunix': -1.0, 'lastwc': 0, 'ppswc': 0, 'hz': 8e7, 'started': 0}
                                          },
-                                  'LP': {'eRC': sm.T_eRC(self.unit, self.full_day_string)[3],
+                                  'LP': {'eRC': sm.T_eRC(self.unit, self.date_str)[3],
                                          'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([]),
                                          'passtime': {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0,
@@ -174,8 +174,8 @@ class Detector:
             self.long_event_scint_list = ['LP']
             self.calibration_params = {'bin_range': 15008.0, 'bin_size': 16, 'band_starts': [38, 94],
                                        'band_ends': [75, 125], 'template_bin_plot_edge': 400}
-            self.import_path = f'{sm.S_raw_data_loc()}/{self.full_day_string}'
-            self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.full_day_string}_*'
+            self.import_path = f'{sm.S_raw_data_loc()}/{self.date_str}'
+            self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.date_str}_*'
             self.scintillators = {'LP': {'eRC': '2549',
                                          'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([]),
@@ -189,8 +189,8 @@ class Detector:
             self.long_event_scint_list = ['LP']
             self.calibration_params = {'bin_range': 15008.0, 'bin_size': 16, 'band_starts': [38, 94],
                                        'band_ends': [75, 125], 'template_bin_plot_edge': 400}
-            self.import_path = f'{sm.CR_raw_data_loc()}/{self.full_day_string}'
-            self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.full_day_string}_*'
+            self.import_path = f'{sm.CR_raw_data_loc()}/{self.date_str}'
+            self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.date_str}_*'
             self.scintillators = {'MP': {'eRC': '4193',
                                          'filelist': [], 'filetime_extrema': [], 'calibration': [],
                                          'time': np.array([]), 'energy': np.array([]), 'wc': np.array([]),
@@ -526,7 +526,7 @@ class Detector:
         bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1 (no idea why)
         bin_size = self.calibration_params['bin_size']
         plt.figure(figsize=[20, 11.0])
-        plt.title(f'Energy Spectrum for {scintillator}, {self.date_timestamp}', loc='center')
+        plt.title(f'Energy Spectrum for {scintillator}, {self.full_date_str}', loc='center')
         plt.xlabel('Energy Channel')
         plt.ylabel('Counts/bin')
         plt.yscale('log')
@@ -559,7 +559,7 @@ class Detector:
 
         # Making the energy bins and setting up the calibration files
         energy_bins = np.arange(0.0, bin_range, bin_size)
-        sp_path = f'{sm.results_loc()}Results/{self.unit}/{self.full_day_string}/'
+        sp_path = f'{sm.results_loc()}Results/{self.unit}/{self.date_str}/'
         sm.path_maker(sp_path)
         spectra_conversions = open(f'{sp_path}spectra_conversions.txt', 'w')
         spectra_frame = pd.DataFrame()
@@ -579,7 +579,7 @@ class Detector:
             flagged_indices = self._calibrate_NaI(energy_bins, energy_hist, spectra_conversions, spectra_frame)
             self._plot_spectra('NaI', energy_bins, energy_hist, flagged_indices, sp_path)
 
-            spectra_frame.to_json(f'{sp_path}{self.full_day_string}_spectra.json')
+            spectra_frame.to_json(f'{sp_path}{self.date_str}_spectra.json')
             spectra_conversions.close()
         else:
             raise ValueError("ValueError: Data for calibration is either missing or hasn't been imported")
@@ -663,7 +663,7 @@ class Detector:
                 assert len(complete_filelist) > 0, 'Empty filelist'
 
             except AssertionError:
-                complete_filelist = glob.glob(f'{self.import_path}/{self.full_day_string}'
+                complete_filelist = glob.glob(f'{self.import_path}/{self.date_str}'
                                               f'/{self.regex(eRC)}')
 
             filelist = self._filter_files(complete_filelist)
@@ -1013,7 +1013,7 @@ class ShortEvent:
         event_wallclock = wallclock[self.start:self.stop]
 
         eventpath = (f'{detector.results_loc}Results/{detector.unit}/'
-                     f'{detector.full_day_string}/event files/short events/')
+                     f'{detector.date_str}/event files/short events/')
         sm.path_maker(eventpath)
         event_frame = pd.DataFrame()
         event_frame['wc'] = event_wallclock
@@ -1022,7 +1022,7 @@ class ShortEvent:
         event_frame['file'] = event_file  # Note: this column will be filled by the same file name over and over again
 
         # Saves the json file
-        event_frame.to_json(f'{eventpath}{detector.full_day_string}_{self.scintillator}_event{event_number}.json')
+        event_frame.to_json(f'{eventpath}{detector.date_str}_{self.scintillator}_event{event_number}.json')
 
     def scatterplot_maker(self, timescales, detector, times, energies, event_number, event_file):
         """Makes the short event scatter plots.
@@ -1096,9 +1096,9 @@ class ShortEvent:
         # last file, the image will have the wrong date in its name (though the timestamp in the scatter plot title will
         # always be correct)
         scatterpath = (f'{detector.results_loc}Results/{detector.unit}/'
-                       f'{detector.full_day_string}/scatterplots/')
+                       f'{detector.date_str}/scatterplots/')
         sm.path_maker(scatterpath)
-        figure1.savefig(f'{scatterpath}{detector.full_day_string}_{self.scintillator}_event{event_number}.png')
+        figure1.savefig(f'{scatterpath}{detector.date_str}_{self.scintillator}_event{event_number}.png')
         plt.close(figure1)
 
 

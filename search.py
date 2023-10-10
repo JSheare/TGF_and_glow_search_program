@@ -451,7 +451,7 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
     sm.print_logger('Done.', detector_obj.log)
     if len(potential_glow_list) == 0:
         sm.print_logger('\n', detector_obj.log)
-        sm.print_logger(f'There were no potential glows on {date_timestamp}', detector_obj.log)
+        sm.print_logger(f'There were no potential glows on {full_day_str}', detector_obj.log)
     else:
         # Logs potential glows and sorts them in descending order depending on their highest z-score
         sm.print_logger('\n', detector_obj.log)
@@ -460,7 +460,7 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
         print('\n', file=detector_obj.log)
         print('Potential glows:', file=detector_obj.log)
 
-        eventpath = f'{detector_obj.results_loc}Results/{detector_obj.unit}/{detector_obj.full_day_string}/' \
+        eventpath = f'{detector_obj.results_loc}Results/{detector_obj.unit}/{detector_obj.date_str}/' \
                     f'event files/long events/'
         sm.path_maker(eventpath)
         event_number = 1
@@ -480,7 +480,7 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
                   f'seconds of day), {glow.stop_sec - glow.start_sec} seconds long, highest z-score: '
                   f'{highest_score}', file=detector_obj.log)
 
-            event_file = open(f'{eventpath}{detector_obj.full_day_string}_event{event_number}_zscore'
+            event_file = open(f'{eventpath}{detector_obj.date_str}_event{event_number}_zscore'
                               f'{int(highest_score)}.txt', 'w')
             print(f'{dt.datetime.utcfromtimestamp(glow.start_sec + first_sec)} UTC ({glow.start_sec} '
                   f'seconds of day), {glow.stop_sec - glow.start_sec} seconds long, highest z-score: '
@@ -521,7 +521,7 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
         sm.print_logger('\n', detector_obj.log)
         sm.print_logger('Generating Histogram...', detector_obj.log)
         figu = plt.figure(figsize=[20, 11.0])
-        plt.title(f'{unit} {location}, {str(date_timestamp)}', loc='center')
+        plt.title(f'{unit} {location}, {str(full_day_str)}', loc='center')
         plt.tick_params(left=False, right=False, labelleft=False, labelbottom=False, bottom=False)
         ax1 = figu.add_subplot(5, 1, 1)
         ax2 = figu.add_subplot(5, 1, 2)
@@ -557,9 +557,9 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
         plt.plot()
 
         # Saves the histograms:
-        hist_path = f'{detector_obj.results_loc}Results/{unit}/{full_day_string}/'
+        hist_path = f'{detector_obj.results_loc}Results/{unit}/{date_str}/'
         sm.path_maker(hist_path)
-        plt.savefig(f'{hist_path}{full_day_string}_histogram.png', dpi=500)
+        plt.savefig(f'{hist_path}{date_str}_histogram.png', dpi=500)
         plt.close(figu)
 
 
@@ -608,12 +608,12 @@ if first_date != second_date:
             requested_dates.append(date_str)
 
 for date in requested_dates:
-    full_day_string = str(date)  # In format yymmdd
-    day = int(full_day_string[4:])
-    month = int(full_day_string[2:4])
-    year = int('20' + full_day_string[0:2])
-    date_timestamp = dt.date(year, month, day)  # In format yyyy-mm-dd
-    print(f'\n{date_timestamp}:')
+    date_str = str(date)  # In format yymmdd
+    day = int(date_str[4:])
+    month = int(date_str[2:4])
+    year = int('20' + date_str[0:2])
+    full_day_str = dt.date(year, month, day)  # In format yyyy-mm-dd
+    print(f'\n{full_day_str}:')
 
     # EPOCH time conversions
     first_sec = (dt.datetime(year, month, day, 0, 0) - dt.datetime(1970, 1, 1)).total_seconds()
@@ -629,7 +629,7 @@ for date in requested_dates:
         exit()
 
     # Logs relevant data files and events in a .txt File
-    log_path = f'{detector.results_loc}Results/{unit}/{full_day_string}/'
+    log_path = f'{detector.results_loc}Results/{unit}/{date_str}/'
     sm.path_maker(log_path)
     log = open(f'{log_path}log.txt', 'w')
     log.write(f'The first second of {year}-{month}-{day} is: {int(first_sec)}\n')
@@ -639,7 +639,7 @@ for date in requested_dates:
     try:
         # Imports the data
         if picklem:
-            pickle_path = glob.glob(f'{detector.results_loc}Results/{unit}/{full_day_string}/detector.pickle')
+            pickle_path = glob.glob(f'{detector.results_loc}Results/{unit}/{date_str}/detector.pickle')
             if len(pickle_path) > 0:
                 detector_pickle = open(pickle_path[0], 'rb')
                 detector = pickle.load(detector_pickle)
@@ -655,7 +655,7 @@ for date in requested_dates:
                 detector.log = None  # serializing open file objects results in errors
                 detector.regex = None  # serializing anonymous functions results in errors too
                 detector.template = False  # Setting this to false ensures no odd behaviors
-                detector_pickle = open(f'{detector.results_loc}Results/{unit}/{full_day_string}/detector.pickle',
+                detector_pickle = open(f'{detector.results_loc}Results/{unit}/{date_str}/detector.pickle',
                                        'wb')
                 pickle.dump(detector, detector_pickle)
                 detector_pickle.close()
@@ -775,7 +775,7 @@ for date in requested_dates:
         chunk_num = 1
         chunk_path_list = []
         # Temporary pickle feature for low memory mode. REMOVE WHEN PROGRAM IS FINISHED
-        pickled_chunk_paths = glob.glob(f'{detector.results_loc}Results/{unit}/{full_day_string}/chunk*.pickle')
+        pickled_chunk_paths = glob.glob(f'{detector.results_loc}Results/{unit}/{date_str}/chunk*.pickle')
         pickled_chunk_paths.sort()
         if picklem and len(pickled_chunk_paths) > 0:
             chunk_path_list = pickled_chunk_paths
@@ -803,7 +803,7 @@ for date in requested_dates:
                     # Updates passtime
                     passtime_dict = chunk.return_passtime()
 
-                    chunk_pickle_path = f'{detector.results_loc}Results/{unit}/{full_day_string}/' \
+                    chunk_pickle_path = f'{detector.results_loc}Results/{unit}/{date_str}/' \
                                         f'chunk{chunk_num}.pickle'
                     chunk_path_list.append(chunk_pickle_path)
                     chunk_pickle = open(chunk_pickle_path, 'wb')
