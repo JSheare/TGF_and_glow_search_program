@@ -27,9 +27,9 @@ Functions:
     days_per_month:
         Returns the number of days in a given month.
     roll_date_forward:
-        Returns the calendar date after the one given as an argument.
+        Returns the calendar date after the one given as an argument (in yymmdd format).
     roll_date_backward:
-        Returns the calendar date before the one given as an argument.
+        Returns the calendar date before the one given as an argument (in yymmdd format).
     full_date_to_short:
         Converts a date string of the form yyyy-mm-dd to the form yymmdd.
     short_to_full_date:
@@ -55,6 +55,8 @@ Functions:
         Returns an updated utc to local conversion number depending on the given date and time.
     convert_clock_hour:
         Converts a timestamp of the form hh:mm AM/PM into seconds since the beginning of the day.
+    weather_from_code:
+        Returns the weather for each code given by the function get_weather_conditions.
 
 """
 
@@ -183,7 +185,7 @@ def days_per_month(month, year):
 
 
 def roll_date_forward(date_str):
-    """Returns the calendar date after the one given as an argument."""
+    """Returns the calendar date after the one given as an argument. (in yymmdd format)"""
     date_int = int(date_str)
     date_int += 1
     date_str = str(date_int)
@@ -201,7 +203,7 @@ def roll_date_forward(date_str):
 
 
 def roll_date_backward(date_str):
-    """Returns the calendar date before the one given as an argument."""
+    """Returns the calendar date before the one given as an argument (in yymmdd format)."""
     date_int = int(date_str)
     date_int -= 1
     date_str = str(date_int)
@@ -284,7 +286,22 @@ def channel_to_mev(energy_array, channel, scintillator):
 
 
 def convert_to_local(detector, event_time):
-    """Converts the detector date and event time to what they would actually be in local time."""
+    """Converts the detector date and event time to what they would actually be in local time.
+
+    Parameters
+    ----------
+    detector : sc.Detector
+        The detector object where the date is stored
+    event_time : float
+        The time of the day when the event occurred in seconds since the beginning of the day.
+
+    Returns
+    -------
+    str / float
+        An updated date in local time and an updated event time in local time.
+
+    """
+
     date_str = detector.date_str
     timezone_conversion = detector.location['UTC conversion to local time']
 
@@ -312,7 +329,26 @@ def convert_to_local(detector, event_time):
 
 
 def get_weather_conditions(full_date_str, event_time, detector, weather_cache):
-    """Scrapes weather underground and returns the weather at the approximate time of an event."""
+    """Scrapes weather underground and returns the weather at the approximate time of an event.
+
+    Parameters
+    ----------
+    full_date_str : str
+        The date that the event occurred on (in local time) in yyyy-mm-dd format.
+    event_time : float
+        The time that the event occurred at during the day (in local time) in units of seconds since beginning of day.
+    detector : sc.Detector
+        The detector object that contains the name of the nearest weather station.
+    weather_cache : dict
+        A cache containing weather tables that have already been retrieved. Keys are dates in yyyy-mm-dd format.
+
+    Returns
+    -------
+    int
+        A code corresponding to the weather conditions around the time of the event. See the function weather_from_code
+        for a summary of what the codes mean.
+
+    """
     if full_date_str in weather_cache and weather_cache[full_date_str] is not None:
         weather_table = weather_cache[full_date_str]
     else:
@@ -371,7 +407,21 @@ def get_weather_conditions(full_date_str, event_time, detector, weather_cache):
 
 
 def scrape_weather(full_date_str, station):
-    """Scrapes weather from weather underground and returns the results as a pandas data frame."""
+    """Scrapes weather from weather underground and returns the results as a pandas data frame.
+
+    Parameters
+    ----------
+    full_date_str : str
+        The date that weather data is being requested for in yyyy-mm-dd format.
+    station : str
+        The four-letter name of the weather station that data is being requested for.
+
+    Returns
+    -------
+    pd.Dataframe
+        A pandas dataframe with weather information for the specified day.
+
+    """
     try:
         # Note: selenium and lxml modules are required to make this work. Install them
         chrome_options = Options()
@@ -393,7 +443,19 @@ def scrape_weather(full_date_str, station):
 
 
 def dst_status(date_str):
-    """Returns string statuses depending on whether a day falls inside/outside/on the edge of dst."""
+    """Returns string statuses depending on whether a day falls inside/outside/on the edge of dst.
+
+    Parameters
+    ----------
+    date_str : str
+        The date to be checked in yymmdd format.
+
+    Returns
+    -------
+    str
+        A status for the date: inside if the date is inside dst, outside if out, or beginning/end for the boundaries.
+
+    """
     year = int(g_century + date_str[0:2])
     month = int(date_str[2:4])
     day = int(date_str[4:])
@@ -425,7 +487,23 @@ def dst_status(date_str):
 
 
 def dst_conversion(date_str, event_time, timezone_conversion):
-    """Returns an updated utc to local conversion number depending on the given date and time."""
+    """Returns an updated utc to local conversion number depending on the given date and time.
+
+    Parameters
+    ----------
+    date_str : str
+        The date to be converted in yymmdd format.
+    event_time : float
+        The time that the event occurred in units of seconds since the beginning of the day.
+    timezone_conversion : int
+        A number giving the hour difference between local time and UTC.
+
+    Returns
+    -------
+    int
+        An updated timezone conversion that accounts for dst.
+
+    """
 
     temp_time = event_time + (timezone_conversion * g_sec_per_hour)
     if temp_time > g_sec_per_day:
