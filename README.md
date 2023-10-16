@@ -3,14 +3,14 @@
 ## Currently supported detectors: THOR, GODOT, Santis Instrument (after adafruit update), Croatia instrument.
 
 ## **Requirements for use:**
-- python 3.10 (or later)
+- Python 3.10 (or later)
 - All the following .py files:
   - search.py (core program)
   - search_module.py (program tools and functions)
   - search_classes.py (program objects)
   - searchGUI.py (program GUI)
   - DataReaderFinal.py (functions for reading and importing data files)
-- All the following python libraries:
+- All the following Python libraries:
   - scipy
   - numpy
   - pandas
@@ -20,14 +20,14 @@
   - lxml
 
 # **Instructions for Use:**
-First, open a command line and navigate to the directory where search.py is located.
+First, open a command line and navigate to the directory where all the .py files are located.
 
-## **Using the GUI (preferred):**
+## **Using the GUI (Preferred):**
 In the command line, type the following command:
 
-    python searchGUI.py
+    python3 searchGUI.py
 
-Note that if you have multiple versions of python installed you may need to replace 'python' with 'python3'. This 
+Note that if you are running the program on Windows you may need to replace 'python3' with 'python'. This 
 command will open the program's graphical user interface. 
 
 To start a search, enter the first date in your search range in the entry box labeled 'Date one'. 
@@ -95,22 +95,22 @@ they include:
 ### **Single day:**
 To search a single day only, enter a command of the following form:
 
-    python search.py yymmdd yymmdd detector
+    python3 search.py yymmdd yymmdd detector
 
 where 'yy' corresponds to the year, 'mm' corresponds to the month, and 'dd' corresponds to the day.
 <br/>
-Note that if you have multiple python versions installed you may need to replace 'python' with 'python3'.
+Note that if you are running the program on Windows you may need to replace 'python3' with 'python'.
 <br/>
 Here's an example for GODOT data on December 3rd, 2015:
 
-    python search.py 151203 151203 GODOT
+    python3 search.py 151203 151203 GODOT
 
 ### **Date Range:**
 To search a range of dates, follow the same instructions given for a single day, but replace the second 'yymmdd' 
 with the last date in the desired range.
 Here's an example for THOR5 data from July 1st, 2022 to August 31st, 2022:
 
-    python search.py 220701 220831 THOR5
+    python3 search.py 220701 220831 THOR5
 
 ### **Program Modes:**
 The program has several 'modes' that give it enhanced functionality. Here's a list of them all and how to use them:
@@ -130,14 +130,14 @@ Before using this mode, the custom file path must first be specified. To do so, 
 
 Once you've done this, run the program the same as above but add the word 'custom' to the end:
 
-    python search.py yymmdd yymmdd detector custom
+    python3 search.py yymmdd yymmdd detector custom
 
 #### **'allscints' Mode:**
 This mode tells the program to run the short event search algorithm on all the scintillators 
 (by default the program only searches the large plastic scintillator).
 To run the program in this mode, run the program the same as above but add the word 'plastics' to the end:
 
-    python search.py yymmdd yymmdd detector allscints
+    python3 search.py yymmdd yymmdd detector allscints
 
 #### **'template' Mode:**
 In order to accurately calibrate the large plastic scintillator, the program needs a template. New templates must be made
@@ -145,7 +145,7 @@ for each new detector location, and this mode allows you to make the template.
 <br/>
 To run the program in this mode, run the program the same as above but add the word 'template' to the end:
 
-    python search.py yymmdd yymmdd detector template
+    python3 search.py yymmdd yymmdd detector template
 
 To make templates, follow the instructions given by the program to adjust the vertical lines to match the locations of
 the compton shoulders. A picture of what the template should look like is located in the program's GitHub repository:
@@ -158,7 +158,7 @@ It's recommended that the mode 'skcali' is used in conjunction with this.
 </br>
 To run the program in this mode, run the program the same as above but add the word 'aircraft' to the end:
 
-    python search.py yymmdd yymmdd detector aircraft
+    python3 search.py yymmdd yymmdd detector aircraft
 
 #### **'processed' Mode:**
 In this mode (which is only available for GODOT) the program will search processed data instead of raw data. Note that
@@ -167,14 +167,14 @@ properly.
 </br>
 To run the program in this mode, run the program the same as above but add the word 'processed' to the end:
 
-    python search.py yymmdd yymmdd detector processed
+    python3 search.py yymmdd yymmdd detector processed
 
 #### **Other Things to Know:**
 It is possible to use as many of these modes in tandem as the user needs 
 <br/>
 (i.e. commands like this are possible):
 
-    python search.py yymmdd yymmdd detector custom plastics template
+    python3 search.py yymmdd yymmdd detector custom plastics template
 
 ### **Additional (developer) modes:**
 The program also includes several bonus modes that are largely intended for developer use; 
@@ -193,7 +193,7 @@ they include:
 
 ### **Changing the export location of program results:**
 In order to change the location where the program exports its results 
-(i.e. short event scatterplots, long event histograms, scintillator spectra, logs)
+(i.e. short event scatter plots, long event histograms, scintillator spectra, logs)
 follow these steps:
 - Use a text editor or your favorite IDE to open search_module.py and look for the function 'results_loc'
 - Once you've found the function, look for the variable called 'path' and enter your custom path inside the single 
