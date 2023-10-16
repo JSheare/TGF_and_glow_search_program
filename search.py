@@ -630,7 +630,7 @@ for date in requested_dates:
     # Initializes the detector object
     print('Importing data...')
     try:
-        detector = sc.Detector(unit, first_sec, modes)
+        detector = sc.Detector(unit, first_sec, modes, print_feedback=True)
     except ValueError:
         print('Not a valid detector.')
         exit()
@@ -756,7 +756,7 @@ for date in requested_dates:
         chunk_list = []
 
         for chunk_num in range(1, num_chunks + 1):
-            chunk = sc.Chunk(unit, first_sec, modes)
+            chunk = sc.Chunk(unit, first_sec, modes, print_feedback=True)
             chunk.log = log
             chunk_list.append(chunk)
 

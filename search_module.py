@@ -97,38 +97,32 @@ def results_loc():
 
 def G_raw_data_loc():
     """Location of GODOT raw data on Sol."""
-    path = '/media/AllDetectorData/Detectors/GODOT/Data'
-    return path
+    return '/media/AllDetectorData/Detectors/GODOT/Data'
 
 
 def T_raw_data_loc():
     """Location of THOR raw data on Sol."""
-    path = '/media/AllDetectorData/Detectors/THOR'
-    return path
+    return '/media/AllDetectorData/Detectors/THOR'
 
 
 def S_raw_data_loc():
     """Location of Santis instrument raw data on Sol."""
-    path = '/media/AllDetectorData/Detectors/SANTIS/Data'
-    return path
+    return '/media/AllDetectorData/Detectors/SANTIS/Data'
 
 
 def CR_raw_data_loc():
     """Location of Croatia instrument raw data on Sol."""
-    path = '/media/AllDetectorData/Detectors/SANTIS/Data'
-    return path
+    return '/media/AllDetectorData/Detectors/SANTIS/Data'
 
 
 def G_processed_data_loc():
     """Location of GODOT processed data on Sol."""
-    path = '/media/godot/godot/monthly_processed'
-    return path
+    return '/media/godot/godot/monthly_processed'
 
 
 def memory_allowance():
     """Returns maximum amount of memory that the program is allowed to use (in bytes), not including data."""
-    memory = 100e6
-    return memory
+    return 100e6
 
 
 def T_eRC(unit, day):

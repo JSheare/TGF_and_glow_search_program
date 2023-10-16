@@ -43,6 +43,8 @@ class Detector:
         The first second in EPOCH time of the day that data analysis is being requested for.
     modes : list
         A list of the requested modes that the program should operate under.
+    print_feedback : bool
+        A flag specifying whether the object should print feedback to stdout or not.
 
     Attributes
     ----------
@@ -92,12 +94,13 @@ class Detector:
 
     """
 
-    def __init__(self, unit, first_sec, modes):
+    def __init__(self, unit, first_sec, modes, print_feedback=False):
         # Basic information
         self.unit = unit
         self.first_sec = first_sec
-        self.log = None
         self.modes = modes
+        self.print_feedback = print_feedback  # add documentation
+        self.log = None
         self.date_str = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%y%m%d')  # In format yymmdd
         self.full_date_str = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%Y-%m-%d')  # In format yyyy-mm-dd
         self.location = sm.location(self.unit, self.date_str)  # Might need to change this to full_date_str
@@ -214,7 +217,7 @@ class Detector:
 
         if 'custom' in self.modes:
             self.custom = True  # Not necessary for anything right now
-            self.import_path = f'{sm.C_raw_data_loc()}'
+            self.import_path = sm.C_raw_data_loc()
 
         if 'processed' in self.modes:
             self.processed = True
@@ -409,9 +412,11 @@ class Detector:
 
         template_bin_plot_edge = self.calibration_params['template_bin_plot_edge']
 
-        sm.print_logger('Entering template mode...', self.log)
-        print('\n')
-        print('Use the sliders to adjust the line positions. The K40 line comes first.')
+        print('Entering template mode...', file=self.log)
+        if self.print_feedback:
+            print('Entering template mode...')
+            print('\n')
+            print('Use the sliders to adjust the line positions. The K40 line comes first.')
 
         def line_locs(e1, e2):
             return energy_bins[np.array([e1, e2]).astype(int)]
@@ -471,7 +476,8 @@ class Detector:
                                                            np.zeros(len(energy_hist[0:bin_plot_edge]) - 2))})
         sm.path_maker('Templates')
         template.to_csv(f'Templates/{self.unit}_{self.location["Location"]}_template.csv', index=False)
-        print('Template made')
+        if self.print_feedback:
+            print('Template made')
 
     def _calibrate_NaI(self, energy_bins, energy_hist, spectra_conversions, spectra_frame):
         """Calibration algorithm for the sodium iodide scintillators."""
@@ -511,7 +517,9 @@ class Detector:
             flagged_indices = edge_indices + shift_amount
             self.good_lp_calibration = True
         except FileNotFoundError:
-            sm.print_logger('No LP template found for this location...', self.log)
+            print('No LP template found for this location...', file=self.log)
+            if self.print_feedback:
+                print('No LP template found for this location...')
 
         calibration = energy_bins[flagged_indices.astype(int)]
         if len(calibration) >= 2:
@@ -686,11 +694,14 @@ class Detector:
                 missing_data_scints.append(scint)
 
         if not data_present:
-            print('\n')
             print('\n', file=self.log)
-            sm.print_logger('No/missing necessary data for specified day.', self.log)
+            print('No/missing necessary data for specified day.', file=self.log)
             print(f'Necessary data missing in the following: {", ".join(missing_data_scints)}', file=self.log)
-            print('\n')
+            if self.print_feedback:
+                print('\n')
+                print('No/missing necessary data for specified day.')
+                print('\n')
+
             raise FileNotFoundError
 
         # Determines whether there is enough free memory to load the entire dataset
@@ -703,8 +714,11 @@ class Detector:
         for scintillator in self.scintillators:
             eRC = self.attribute_retriever(scintillator, 'eRC')
             filelist = self.attribute_retriever(scintillator, 'filelist')
-            sm.print_logger('\n', self.log)
-            sm.print_logger(f'For eRC {eRC} ({scintillator}):', self.log)
+            print('\n', file=self.log)
+            print(f'For eRC {eRC} ({scintillator}):', file=self.log)
+            if self.print_feedback:
+                print('\n')
+                print(f'For eRC {eRC} ({scintillator}):')
 
             try:
                 # Tests to make sure that filelist isn't empty
@@ -724,9 +738,9 @@ class Detector:
                 print('File|File Behavior|File Time Gap (sec)', file=self.log)
                 filecount_switch = True
                 for file in filelist:
-                    if not self.GUI:
+                    if not self.GUI and self.print_feedback:
                         print(f'{files_imported}/{len(filelist)} files imported', end='\r')
-                    elif self.GUI and filecount_switch:
+                    elif self.GUI and filecount_switch and self.print_feedback:
                         print(f'Importing {len(filelist)} files...')
                         filecount_switch = False
 
@@ -771,7 +785,8 @@ class Detector:
 
                     print(f'{file}|{file_behavior}|{file_time_gap}', file=self.log)
 
-                print(f'{files_imported}/{len(filelist)} files imported', end='\r')
+                if self.print_feedback:
+                    print(f'{files_imported}/{len(filelist)} files imported', end='\r')
 
                 # Makes the final arrays and exports them
                 times = np.concatenate(time_list)
@@ -803,13 +818,17 @@ class Detector:
 
             except AssertionError:
                 print('Missing data for the specified day.', file=self.log)
-                print('Missing data for the specified day.', end='\r')
+                if self.print_feedback:
+                    print('Missing data for the specified day.', end='\r')
+
                 continue
 
             except Exception as ex:
                 if str(ex) == 'Reader Error':
                     print('Error with data reader.', file=self.log)
-                    print('Error with data reader.', end='\r')
+                    if self.print_feedback:
+                        print('Error with data reader.', end='\r')
+
                     continue
                 else:
                     raise
@@ -831,6 +850,8 @@ class Chunk(Detector):
         The first second in EPOCH time of the day that data analysis is being requested for.
     modes : list
         A list of the requested modes that the program should operate under.
+    print_feedback : bool
+        A flag specifying whether the object should print feedback to stdout or not.
 
     Attributes
     ----------
@@ -839,8 +860,8 @@ class Chunk(Detector):
 
     """
 
-    def __init__(self, unit, first_sec, modes):
-        super().__init__(unit, first_sec, modes)
+    def __init__(self, unit, first_sec, modes, print_feedback=False):
+        super().__init__(unit, first_sec, modes, print_feedback)
         self.scint_list = list(self.scintillators.keys())
 
     def return_passtime(self):
