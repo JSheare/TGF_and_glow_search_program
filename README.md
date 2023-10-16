@@ -38,7 +38,7 @@ box if you only want to search a single day).
 Afterward, specify the detector you want to search in the box labeled 'Detector' (a full list of supported detectors 
 appears to the right of the box).
 
-If you are running the program on Sol (UCSC TGF group computer) you are now ready to begin a search. Otherwise, 
+If you're running the program on Sol (UCSC TGF group computer) you're now ready to begin a search. Otherwise, 
 you may need to specify an import directory for the data. This can be done by entering the data directory in the box
 labeled 'Import Location' or by clicking on the 'Browse' button to the right of the box and navigating to the data
 directory. 
