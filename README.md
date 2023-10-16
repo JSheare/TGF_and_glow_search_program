@@ -1,28 +1,98 @@
 # TGF and Glow Search Program
-## This program was written to search raw data from the intstruments of the terrestrial gamma-ray flash group at UCSC.
-## Currently supported detectors: THOR, GODOT, Santis Instrument (after adafruit update), Croatia instrument
-<br/>
+## This program was written to search raw data from the instruments of the terrestrial gamma-ray flash group at UCSC.
+## Currently supported detectors: THOR, GODOT, Santis Instrument (after adafruit update), Croatia instrument.
 
-##**Requirements for use:**
-- python 3.6.6 (or later)
-- All of the following .py files:
+## **Requirements for use:**
+- python 3.10 (or later)
+- All the following .py files:
   - search.py (core program)
   - search_module.py (program tools and functions)
   - search_classes.py (program objects)
+  - searchGUI.py (program GUI)
   - DataReaderFinal.py (functions for reading and importing data files)
-- All of the following python libraries:
+- All the following python libraries:
   - scipy
   - numpy
   - pandas
   - matplotlib
-  - warnings
-  - datetime
   - psutil
+  - Selenium
+  - lxml
 
-##**Instructions for Use:**
+# **Instructions for Use:**
 First, open a command line and navigate to the directory where search.py is located.
 
-###**Single day:**
+## **Using the GUI (preferred):**
+In the command line, type the following command:
+
+    python searchGUI.py
+
+Note that if you have multiple versions of python installed you may need to replace 'python' with 'python3'. This 
+command will open the program's graphical user interface. 
+
+To start a search, enter the first date in your search range in the entry box labeled 'Date one'. 
+
+Next, enter the last date in your search range in the entry box labeled 'Date Two' (enter the same date as in the first 
+box if you only want to search a single day). 
+
+Afterward, specify the detector you want to search in the box labeled 'Detector' (a full list of supported detectors 
+appears to the right of the box).
+
+If you are running the program on Sol (UCSC TGF group computer) you are now ready to begin a search. Otherwise, 
+you may need to specify an import directory for the data. This can be done by entering the data directory in the box
+labeled 'Import Location' or by clicking on the 'Browse' button to the right of the box and navigating to the data
+directory. 
+
+Finally, to begin a search, simply click the 'Start' button. Output from the search will now appear onscreen, and
+search results will be stored in a folder called 'Results' located inside the directory specified in the 
+'Export Location' entry box (same as program location by default).
+
+The search can be stopped at any time by clicking the 'Stop' button, and text can be cleared from onscreen by
+clicking 'Clear Text'. You can also reset the entered dates/detector/modes all at once by clicking the 'Reset' button.
+
+### **Program Modes:**
+The program has several 'modes' that give it enhanced functionality. To run the program with any of the modes, simply
+check the mode's corresponding tick box. Here's a list of each mode and their functions:
+<br/>
+#### **Normal Modes:**
+
+- **'allscints' Mode** - This mode tells the program to run the short event search algorithm on all the scintillators 
+(by default the program only searches the large plastic scintillator).
+
+
+- **'template' Mode** - In order to accurately calibrate the large plastic scintillator, the program needs a template. New templates must be made
+for each new detector location, and this mode allows you to make the template. To make templates, follow the instructions given by the program to adjust the vertical lines to match the locations of
+the compton shoulders. A picture of what the template should look like is located in the program's GitHub repository:
+https://github.com/JSheare/TGF_and_glow_search_program (look for 'lp calibration example.JPG').
+
+
+- **'aircraft' Mode** - If the detector you are searching was deployed to an aircraft during the search period, this is 
+the mode that you want to use. It adds a special check to the short event search algorithm that filters out false 
+alarms caused by cosmic rays. It's recommended that the mode 'skcali' is used in conjunction with this.
+
+
+- **'processed' Mode:** - In this mode (which is only available for GODOT) the program will search processed data instead 
+of raw data. Note that this mode is largely deprecated and that processed data must exist for your specified search 
+range for it to work properly.
+
+#### **Developer Modes:**
+The program also includes several bonus modes that are largely intended for developer use; 
+they include:
+- **'skcali' Mode** - Skips the scintillator calibration algorithm.
+
+
+- **'skshort' Mode** - Skips the short event search algorithm.
+
+
+- **'skglow' mode** - Skips the long event search algorithm.
+
+
+- **'pickle' mode** - Serializes and saves the detector object for later use OR imports an 
+  already-serialized detector object
+
+## **Running the Program Through the Command Line:**
+
+### **Single day:**
 To search a single day only, enter a command of the following form:
 
     python search.py yymmdd yymmdd detector
@@ -35,17 +105,17 @@ Here's an example for GODOT data on December 3rd, 2015:
 
     python search.py 151203 151203 GODOT
 
-###**Date Range:**
+### **Date Range:**
 To search a range of dates, follow the same instructions given for a single day, but replace the second 'yymmdd' 
 with the last date in the desired range.
 Here's an example for THOR5 data from July 1st, 2022 to August 31st, 2022:
 
     python search.py 220701 220831 THOR5
 
-###**Program Modes:**
+### **Program Modes:**
 The program has several 'modes' that give it enhanced functionality. Here's a list of them all and how to use them:
 <br/>
-####**'custom' Mode:**
+#### **'custom' Mode:**
 This mode instructs the program to look for data in a custom, user-specified location (this feature is designed mainly 
 for those using the program who are not on Sol, the primary host of the UCSC TGF groups' raw data).
 <br/>
@@ -62,14 +132,14 @@ Once you've done this, run the program the same as above but add the word 'custo
 
     python search.py yymmdd yymmdd detector custom
 
-####**'allscints' Mode:**
+#### **'allscints' Mode:**
 This mode tells the program to run the short event search algorithm on all the scintillators 
 (by default the program only searches the large plastic scintillator).
 To run the program in this mode, run the program the same as above but add the word 'plastics' to the end:
 
     python search.py yymmdd yymmdd detector allscints
 
-####**'template' Mode:**
+#### **'template' Mode:**
 In order to accurately calibrate the large plastic scintillator, the program needs a template. New templates must be made
 for each new detector location, and this mode allows you to make the template.
 <br/>
@@ -78,32 +148,50 @@ To run the program in this mode, run the program the same as above but add the w
     python search.py yymmdd yymmdd detector template
 
 To make templates, follow the instructions given by the program to adjust the vertical lines to match the locations of
-the compton shoulders. A picture of what the template should look like is located in the program's github repository:
+the compton shoulders. A picture of what the template should look like is located in the program's GitHub repository:
 https://github.com/JSheare/TGF_and_glow_search_program (look for 'lp calibration example.JPG').
 
-####**Other Things to Know:**
+#### **'aircraft' Mode:**
+If the detector you are searching was deployed to an aircraft during the search period, this is the mode that you want 
+to use. It adds a special check to the short event search algorithm that filters out false alarms caused by cosmic rays.
+It's recommended that the mode 'skcali' is used in conjunction with this.
+</br>
+To run the program in this mode, run the program the same as above but add the word 'aircraft' to the end:
+
+    python search.py yymmdd yymmdd detector aircraft
+
+#### **'processed' Mode:**
+In this mode (which is only available for GODOT) the program will search processed data instead of raw data. Note that
+this mode is largely deprecated and that processed data must exist for your specified search range for it to work 
+properly.
+</br>
+To run the program in this mode, run the program the same as above but add the word 'processed' to the end:
+
+    python search.py yymmdd yymmdd detector processed
+
+#### **Other Things to Know:**
 It is possible to use as many of these modes in tandem as the user needs 
 <br/>
 (i.e. commands like this are possible):
 
     python search.py yymmdd yymmdd detector custom plastics template
 
-###**Additional (developer) modes:**
-The program also includes several bonus modes that can be used to skip various algorithms; 
+### **Additional (developer) modes:**
+The program also includes several bonus modes that are largely intended for developer use; 
 they include:
-- skcali: Skips the scintillator calibration algorithm.
+- **'skcali' Mode** - Skips the scintillator calibration algorithm.
 
 
-- skshort: Skips the short event search algorithm.
+- **'skshort' Mode** - Skips the short event search algorithm.
 
 
-- skglow: Skips the long event search algorithm.
+- **'skglow' mode** - Skips the long event search algorithm.
 
 
-- pickle: Pickles and saves the detector object for later use OR imports an 
-  already-pickled detector object
+- **'pickle' mode** - Serializes and saves the detector object for later use OR imports an 
+  already-serialized detector object
 
-###**Changing the export location of program results:**
+### **Changing the export location of program results:**
 In order to change the location where the program exports its results 
 (i.e. short event scatterplots, long event histograms, scintillator spectra, logs)
 follow these steps:
