@@ -148,15 +148,13 @@ def location(unit, date):
     else:
         deployment_file_loc = S_raw_data_loc()[:-5]
 
-    deployment_files = glob.glob(f'{deployment_file_loc}/{unit.lower()}_*_*.json')
-
-    for file in deployment_files:
+    for file in glob.glob(f'{deployment_file_loc}/{unit.lower()}_*_*.json'):
         if int(file[6:12]) <= date <= int(file[13:19]):
             with open(file, 'r') as deployment:
                 return json.load(deployment)
 
     return {'Location': 'no location listed', 'Instrument': unit, 'Start date': '', 'End date': '',
-            'UTC conversion to local time': '', 'Station': '', 'Daylight Savings?': '',
+            'UTC conversion to local time': '', 'Nearest weather station': '', 'Daylight Savings?': '',
             'Latitude (N)': '', 'Longitude (E, 0-360)': '', 'Altitude (km)': '',
             'Notes': ''}
 
@@ -375,13 +373,11 @@ def get_weather_conditions(full_date_str, event_time, detector, weather_cache):
             else:
                 weather.append(None)
 
-        lightning_variations = ['Thunder', 'T-Storm', 'Storm', 'Lightning', 'Hail']
         heavy_rain = False
         rain = False
-        print(weather)
         for condition in weather:
             if condition:
-                for variation in lightning_variations:
+                for variation in ['Thunder', 'T-Storm', 'Storm', 'Lightning', 'Hail']:
                     if variation in condition:
                         return 3
 

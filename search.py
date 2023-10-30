@@ -6,6 +6,7 @@ import glob as glob
 import os as os
 import psutil as psutil
 import gc as gc
+import heapq
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -27,17 +28,18 @@ def long_event_cutoff(detector_obj, chunk_obj=None):
             if skcali or not existing_calibration:
                 le_energies = operating_obj.attribute_retriever(scintillator, 'energy')
             else:
-                calibration = detector_obj.attribute_retriever(scintillator, 'calibration')
-                le_energies = sm.channel_to_mev(operating_obj.attribute_retriever(scintillator, 'energy'), calibration,
+                le_energies = sm.channel_to_mev(operating_obj.attribute_retriever(scintillator, 'energy'),
+                                                detector_obj.attribute_retriever(scintillator, 'calibration'),
                                                 scintillator)
         else:
             le_times = np.append(le_times, operating_obj.attribute_retriever(scintillator, 'time'))
             if skcali or not existing_calibration:
                 le_energies = np.append(le_energies, operating_obj.attribute_retriever(scintillator, 'energy'))
             else:
-                calibration = detector_obj.attribute_retriever(scintillator, 'calibration')
-                le_energies = np.append(le_energies, sm.channel_to_mev(operating_obj.attribute_retriever(
-                    scintillator, 'energy'), calibration, scintillator))
+                le_energies = np.append(le_energies,
+                                        sm.channel_to_mev(operating_obj.attribute_retriever(scintillator, 'energy'),
+                                                          detector_obj.attribute_retriever(scintillator, 'calibration'),
+                                                          scintillator))
 
     # Removes entries that are below a certain cutoff energy
     if (not detector_obj.good_lp_calibration and 'LP' in detector_obj.long_event_scint_list) or skcali:
@@ -54,15 +56,90 @@ def long_event_cutoff(detector_obj, chunk_obj=None):
     return le_times
 
 
+def is_good_short_event(detector_obj, stats, event_times, event_energies):
+    # Noise filter parameters:
+    channel_range_width = 300
+    channel_ratio = 0.5
+    min_noise_counts = 3
+    noise_cutoff_energy = 300
+
+    # Successive crs filter parameters:
+    difference_threshold = 2e-6
+    gap_threshold = 10e-6
+    clumpiness_threshold = 0.27
+
+    event_length = len(event_times)
+
+    low_channel_counts = 0
+    high_channel_counts = 0
+
+    priority_queue = []
+
+    clumpiness = 0
+    clump_counts = 0
+
+    # All filters share a single loop to speed things up
+    for i in range(event_length):
+        # Counting for low/high energy ratio filter
+        if event_length >= 30 and not detector_obj.THOR:
+            if 200 <= event_energies[i] <= (200 + channel_range_width):
+                low_channel_counts += 1
+
+            if (300 + channel_range_width) <= event_energies[i] <= (300 + 2 * channel_range_width):
+                high_channel_counts += 1
+
+        # Adding to priority queue for counts above minimum energy threshold filter
+        heapq.heappush(priority_queue, -1 * event_energies[i])  # -1 to turn this into a max heap
+
+        # Measuring clumpiness for successive crs filter
+        if aircraft and event_length < 30 and i > 0:
+            difference = event_times[i] - event_times[i - 1]
+            if difference < difference_threshold:
+                clump_counts += 1
+                if i == event_length:
+                    clump_counts += 1
+
+            else:
+                # Adding to clumpiness when there's a clump of three or more
+                if clump_counts >= 3:
+                    clumpiness += 1
+                    clump_counts = 0
+
+                # Adding to the clumpiness when the gap between sufficient counts is greater than the threshold
+                if difference >= gap_threshold and clump_counts == 0:
+                    clumpiness += 1
+
+                clump_counts = 0
+
+    # Checks that there are fewer counts in the higher energy channels than the low energy channels
+    # High/low channel ratio is not checked for THOR or for events with < 30 counts
+    if not detector_obj.THOR and event_length >= 30:
+        if low_channel_counts == 0 or high_channel_counts / low_channel_counts > channel_ratio:
+            stats['removed_channel_ratio'] += 1
+            return False
+
+    # Eliminates the low energy events, which are likely just noise
+    # At least min_noise_counts must be above noise_cutoff_energy
+    for i in range(min_noise_counts):
+        if -1 * heapq.heappop(priority_queue) < noise_cutoff_energy:
+            stats['removed_low_energy'] += 1
+            return False
+
+    # Eliminates events that are just successive cosmic ray showers
+    if aircraft and event_length < 30:
+        clumpiness /= event_length
+        if clumpiness >= clumpiness_threshold:
+            stats['removed_crs'] += 1
+            return False
+
+    return True
+
+
 def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
     # Parameters:
     rollgap = 18 if aircraft else 4
     event_time_spacing = 1e-3  # 1 millisecond
     event_min_counts = 10
-    noise_cutoff_energy = 300
-    min_noise_counts = 3
-    channel_range_width = 300
-    channel_ratio = 0.5
 
     event_numbers = prev_event_numbers if prev_event_numbers is not None else {}
     for scintillator in detector_obj:
@@ -77,160 +154,67 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
         filelist = detector_obj.attribute_retriever(scintillator, 'filelist')
         filetime_extrema = detector_obj.attribute_retriever(scintillator, 'filetime_extrema')
 
+        stats = {
+            'total_potential_events':   0,
+            'total_threshold_reached':  0,
+            'removed_len':              0,
+            'removed_channel_ratio':    0,
+            'removed_low_energy':       0,
+            'removed_crs':              0
+        }
+
         # Checks for an event by looking for a certain number of counts (rollgap + 1) in a small timeframe
         potential_event_list = []
         event_start = 0
         event_length = 0
-
-        # Stats
-        total_potential_events = 0
-        total_threshold_reached = 0
-        removed_len = 0
-        removed_channel_ratio = 0
-        removed_low_energy = 0
-        removed_noise_general = 0
-        removed_crs = 0
-
-        rolled_array = np.roll(times, -rollgap)
-        interval = rolled_array - times
-        for i in range(len(interval)):
-            if 0 < interval[i] <= event_time_spacing:
+        for i in range(len(times)):
+            rolled_index = i + rollgap if i + rollgap < len(times) else (i + rollgap) - len(times)
+            interval = times[rolled_index] - times[i]
+            if 0 < interval <= event_time_spacing:
                 # Records the beginning index of a potential event
                 if event_length == 0:
                     event_start = i
                     event_length = 1 + rollgap  # 1 for first count, rollgap for the others
-                    total_potential_events += 1
+                    stats['total_potential_events'] += 1
                 # Measures the length of a potential event
                 else:
                     event_length += 1
 
                 # Counts the total number of times that the detection threshold was reached
-                total_threshold_reached += 1
+                stats['total_threshold_reached'] += 1
 
             # Records the rough length of a potential event
-            if interval[i] > event_time_spacing and event_length > 0:
+            if interval > event_time_spacing and event_length > 0:
                 # Keeps potential event if it's longer than the specified minimum number of counts
                 if event_length >= event_min_counts:
-                    potential_event = sc.ShortEvent(event_start, event_length, scintillator)
-                    potential_event_list.append(potential_event)
+                    # Runs potential event through filters
+                    event_stop = event_start + event_length
+                    if is_good_short_event(detector_obj, stats, times[event_start:event_stop],
+                                           energies[event_start:event_stop]):
+                        potential_event_list.append(sc.ShortEvent(event_start, event_length, scintillator))
 
-                if event_length < event_min_counts:
-                    removed_len += 1
+                else:
+                    stats['removed_len'] += 1
 
                 event_start = 0
                 event_length = 0
 
-        # Eliminates noisy events
-        f_potential_event_list = []
-        for event in potential_event_list:
-            event_energies = energies[event.start:event.stop]
-            event_length = len(event_energies)
-
-            # Checks that there are fewer counts in the higher energy channels than the low energy channels
-            # High/low channel ratio is not checked for THOR
-            good_channel_ratio = True if detector_obj.THOR else False
-            if event_length >= 30:
-                low_channel_counts = 0
-                high_channel_counts = 0
-                for i in event_energies:
-                    if 200 <= i <= (200 + channel_range_width):
-                        low_channel_counts += 1
-
-                    if (300 + channel_range_width) <= i <= (300 + 2 * channel_range_width):
-                        high_channel_counts += 1
-
-                try:
-                    if high_channel_counts / low_channel_counts <= channel_ratio:
-                        good_channel_ratio = True
-
-                except ZeroDivisionError:
-                    pass
-            # High/low channel ratio is also not checked for events with < 30 counts
-            else:
-                good_channel_ratio = True
-
-            # Eliminates the low energy events, which are likely just noise
-            # At least min_noise_counts must be above noise_cutoff_energy
-            max_indices = (-event_energies).argsort()[:min_noise_counts]
-            max_energies = np.array([])
-            for i in max_indices:
-                max_energies = np.append(max_energies, event_energies[i])
-
-            is_greater_than_thresh = np.all((max_energies > noise_cutoff_energy))
-
-            # Adds everything that passed the two tests to a separate array
-            if is_greater_than_thresh and good_channel_ratio:
-                f_potential_event_list.append(event)
-            else:
-                if not good_channel_ratio and is_greater_than_thresh:
-                    removed_channel_ratio += 1
-                elif not is_greater_than_thresh and good_channel_ratio:
-                    removed_low_energy += 1
-                else:
-                    removed_noise_general += 1
-
-        potential_event_list = f_potential_event_list
-
-        # Eliminates events that are just successive cosmic ray showers
-        if aircraft:
-            a_potential_event_list = []
-            # Parameters
-            difference_threshold = 2e-6
-            gap_threshold = 10e-6
-            clumpiness_threshold = 0.27
-            for event in potential_event_list:
-                time_slice = times[event.start:event.stop] - times[event.start]
-                if event.length >= 30:
-                    a_potential_event_list.append(event)
-                    continue
-                else:
-                    clumpiness = 0
-                    clump_counts = 0
-                    for i in range(len(time_slice) - 1):
-                        difference = time_slice[i+1] - time_slice[i]
-                        if difference < difference_threshold:
-                            clump_counts += 1
-                            if i+1 == len(time_slice):
-                                clump_counts += 1
-                        else:
-                            # Adding to clumpiness when there's a clump of three or more
-                            if clump_counts >= 3:
-                                clumpiness += 1
-                                clump_counts = 0
-
-                            # Adding to clumpiness when the gap between sufficient counts is greater than the threshold
-                            if difference >= gap_threshold and clump_counts == 0:
-                                clumpiness += 1
-
-                            clump_counts = 0
-
-                    clumpiness /= len(time_slice)
-                    if clumpiness < clumpiness_threshold:
-                        a_potential_event_list.append(event)
-                    else:
-                        removed_crs += 1
-
-            potential_event_list = a_potential_event_list
-
         sm.print_logger(f'\n{len(potential_event_list)} potential events recorded', detector_obj.log)
-        if removed_len > 0:
-            sm.print_logger(f'{removed_len} events removed due to insufficient length', detector_obj.log)
+        if stats['removed_len'] > 0:
+            sm.print_logger(f'{stats["removed_len"]} events removed due to insufficient length', detector_obj.log)
 
-        if removed_channel_ratio > 0:
-            sm.print_logger(f'{removed_channel_ratio} events removed due to noise (bad high-to-low channel ratio)',
-                            detector_obj.log)
+        if stats['removed_channel_ratio'] > 0:
+            sm.print_logger(f'{stats["removed_channel_ratio"]} events removed due to noise '
+                            f'(bad high-to-low channel ratio)', detector_obj.log)
 
-        if removed_low_energy > 0:
-            sm.print_logger(f'{removed_low_energy} events removed due to noise (minimum energy threshold not reached)',
-                            detector_obj.log)
+        if stats['removed_low_energy'] > 0:
+            sm.print_logger(f'{stats["removed_low_energy"]} events removed due to noise '
+                            f'(minimum energy threshold not reached)', detector_obj.log)
 
-        if removed_noise_general > 0:
-            sm.print_logger(f'{removed_noise_general} events removed due to noise (general)', detector_obj.log)
+        if stats['removed_crs'] > 0:
+            sm.print_logger(f'{stats["removed_crs"]} events removed due to successive CRS', detector_obj.log)
 
-        if removed_crs > 0:
-            sm.print_logger(f'{removed_crs} events removed due to successive CRS', detector_obj.log)
-
-        sm.print_logger(f'Detection threshold reached {total_threshold_reached} times', detector_obj.log)
+        sm.print_logger(f'Detection threshold reached {stats["total_threshold_reached"]} times', detector_obj.log)
         print('\n', file=detector_obj.log)
 
         if len(potential_event_list) > 0:
@@ -276,7 +260,7 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
                 event = potential_event_list[i]
 
                 # Checks the weather around the time of the event if the nearest weather station is known
-                if detector_obj.location['Station'] != '':
+                if detector_obj.location['Nearest weather station'] != '':
                     local_date, local_time = sm.convert_to_local(detector_obj.full_date_str, times[event.start])
                     weather_code = sm.get_weather_conditions(local_date, local_time, detector_obj, weather_cache)
                 else:
@@ -328,19 +312,33 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
     flag_threshold = 5
 
     # Calculates mean and z-scores
-    hist_allday_nz = hist_allday[hist_allday.nonzero()]
-    mue_val = sum(hist_allday_nz) / len(hist_allday_nz)  # Mean number of counts/bin
+    hist_sum = 0
+    hist_allday_nz = []
+    for bin_val in hist_allday:
+        if bin_val > 0:
+            hist_allday_nz.append(bin_val)
+            hist_sum += bin_val
+
+    mue_val = hist_sum / len(hist_allday_nz)  # Mean number of counts/bin
 
     # Removes outliers (3 sigma) and recalculates mue
-    abs_zscores = np.abs((hist_allday_nz - mue_val) / np.sqrt(mue_val))
-    hist_allday_nz = hist_allday_nz[np.argsort(abs_zscores)]
-    hist_allday_nz = hist_allday_nz[::-1]
-    for i in range(len(abs_zscores)):
-        if abs_zscores[i] < 3:
-            hist_allday_nz = hist_allday_nz[i:]
-            break
+    abs_zscores = [np.abs((s - mue_val)/np.sqrt(mue_val)) for s in hist_allday_nz]
+    sorting_order = np.argsort(abs_zscores)
+    # Finds the index of the first zscore above 3 (this is essentially just a modified binary search algorithm)
+    low = 0
+    high = len(sorting_order) - 1
+    while low < high:
+        mid = low + (high - low) // 2
+        if abs_zscores[sorting_order[mid]] >= 3:
+            high = mid
+        else:
+            low = mid + 1
 
-    mue_val = sum(hist_allday_nz) / len(hist_allday_nz)
+    hist_sum = 0
+    for i in range(0, low):
+        hist_sum += hist_allday_nz[sorting_order[i]]
+
+    mue_val = hist_sum / len(hist_allday_nz)
 
     mue = np.ones(len(day_bins)-1) * mue_val
     sigma = np.ones(len(day_bins)-1) * np.sqrt(mue_val)
@@ -415,14 +413,14 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
 
                 window_index += window
 
-    z_scores = np.array([])  # The z-scores themselves
-    z_flags = np.array([]).astype(int)
+    z_scores = []  # The z-scores themselves
+    z_flags = []
     # Flags only those z-scores > flag_threshold
     for i in range(len(hist_allday)):
         z_score = (hist_allday[i] - mue[i]) / sigma[i]
-        z_scores = np.append(z_scores, z_score)
+        z_scores.append(z_score)
         if z_score >= flag_threshold:
-            z_flags = np.append(z_flags, i)
+            z_flags.append(i)
 
     # Sorts z-flags into actual potential glows
     glow_start = 0
@@ -438,6 +436,7 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
         elif (glow_length > 0 and day_bins[flag] - binsize > previous_time) or flag == z_flags[-1]:
             # Makes glow object and fills it out
             glow = sc.PotentialGlow(glow_start, glow_length)
+            # These functions should probably just be run in the glow object constructor
             glow.highest_score = glow.highest_zscore(z_scores)
             glow.start_sec, glow.stop_sec = glow.beginning_and_end_seconds(day_bins, binsize)
             potential_glow_list.append(glow)
@@ -451,8 +450,8 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
         a_potential_glow_list = []
         minimum_counts = 1000
         for glow in potential_glow_list:
-            for bin_counts in hist_allday[glow.start:glow.stop]:
-                if bin_counts > minimum_counts:
+            for i in range(glow.start, glow.stop):
+                if hist_allday[i] > minimum_counts:
                     a_potential_glow_list.append(glow)
                     break
 
@@ -520,9 +519,7 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
 
         sm.print_logger('Done.', detector_obj.log)
 
-        glow_sorting_order = np.argsort(highest_scores)
-        glow_sorting_order = glow_sorting_order[::-1]
-        potential_glow_list = [potential_glow_list[s] for s in glow_sorting_order]
+        potential_glow_list = [potential_glow_list[s] for s in np.argsort(highest_scores)[::-1]]
 
         # Plotting the histograms
         sm.print_logger('\n', detector_obj.log)

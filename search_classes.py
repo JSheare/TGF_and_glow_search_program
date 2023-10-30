@@ -99,7 +99,7 @@ class Detector:
         self.unit = unit
         self.first_sec = first_sec
         self.modes = modes
-        self.print_feedback = print_feedback  # add documentation
+        self.print_feedback = print_feedback
         self.log = None
         self.date_str = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%y%m%d')  # In format yymmdd
         self.full_date_str = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%Y-%m-%d')  # In format yyyy-mm-dd
@@ -247,16 +247,14 @@ class Detector:
 
     # Debugging string magic method
     def __repr__(self):
-        data_attributes = ['time', 'energy', 'wc']
         scintillators_with_data = []
         has_data = False
         for scintillator in self.scintillators:
-            medium = self.scintillators[scintillator]
-            for attribute in data_attributes:
-                if len(medium[attribute]) > 0:
-                    has_data = True
-                    scintillators_with_data.append(scintillator)
-                    break
+            # Using energy as the check here is arbitrary; It could just as easily have been time instead
+            if len(self.attribute_retriever(scintillator, 'energy')) > 0:
+                has_data = True
+                scintillators_with_data.append(scintillator)
+                break
 
         default_string = self.__str__()
         data_string = f' in {scintillators_with_data}' if has_data else ''
@@ -276,9 +274,8 @@ class Detector:
             necessary_scintillators = self.long_event_scint_list + ['LP']
 
         data_present = True
-        for scint in necessary_scintillators:
-            # Using energy as the check here is arbitrary; It could just as easily have been time instead
-            if len(self.attribute_retriever(scint, 'energy')) == 0:
+        for scintillator in necessary_scintillators:
+            if len(self.attribute_retriever(scintillator, 'energy')) == 0:
                 data_present = False
 
         return data_present
@@ -323,8 +320,7 @@ class Detector:
         if scintillator in self.scintillators:
             medium = self.scintillators[scintillator]
             if attribute in medium:
-                desired_attribute = medium[attribute]
-                return desired_attribute
+                return medium[attribute]
             else:
                 raise AttributeError('AttributeError: not a valid attribute')
 
@@ -597,49 +593,31 @@ class Detector:
 
     def _filter_files(self, complete_filelist):
         """Returns an ordered list of files with duplicate/incompatible files filtered out."""
-        # Filters out trace mode files and .txtp files (whatever those are)
-        filtered_filelist = []
-        unfiltered_filelist = []
-        for j in range(len(complete_filelist)):
-            current_file = complete_filelist[j]
-            if current_file[-3:] == 'xtr' or current_file[-4:] == 'txtp' or current_file[-5:] == 'xtrpp':
-                continue
-            elif current_file[-7:] == '.txt.gz':
-                filtered_filelist.append(current_file)
-            else:
-                unfiltered_filelist.append(current_file)
-
-        # Eliminates duplicate files
-        for j in range(len(unfiltered_filelist)):
-            current_file = unfiltered_filelist[j]
-            if f'{current_file}.gz' in filtered_filelist:
-                continue
-            else:
-                filtered_filelist.append(current_file)
-
-        # Puts the files in the correct order
+        unique_files = set()
         files = []
         extensions = []
-        for j in range(len(filtered_filelist)):
-            file = filtered_filelist[j]
-            if file[-4:] == '.txt':
-                files.append(file.replace('.txt', ''))
-                extensions.append('.txt')
-            elif file[-4:] == '.csv':
-                files.append(file.replace('.csv', ''))
-                extensions.append('.csv')
-            elif file[-7:] == '.txt.gz':
-                files.append(file.replace('.txt.gz', ''))
-                extensions.append('.txt.gz')
+        for file in complete_filelist:
+            # Filters out trace mode files and .txtp files (whatever those are)
+            if file[-3:] == 'xtr' or file[-4:] == 'txtp' or file[-5:] == 'xtrpp':
+                continue
+            # Filters out duplicates
+            else:
+                if file[-7:] == '.txt.gz':
+                    file = file[:-7]
+                    extension = '.txt.gz'
+                elif file[-4:] == '.txt':
+                    file = file[:-4]
+                    extension = '.txt'
+                else:
+                    file = file[:-4]
+                    extension = '.csv'
 
-        file_order = np.argsort(files)
-        files.sort()
-        extensions = [extensions[s] for s in file_order]
-        filelist = []
-        for j in range(len(files)):
-            filelist.append(f'{files[j]}{extensions[j]}')
+                if file not in unique_files:
+                    unique_files.add(file)
+                    files.append(file)
+                    extensions.append(extension)
 
-        return filelist
+        return [files[s] + extensions[s] for s in np.argsort(files)]  # Puts the files back in order
 
     def calculate_fileset_size(self):
         """Returns the total size (in bytes) of all the currently held files for the day."""
