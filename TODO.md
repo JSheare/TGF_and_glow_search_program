@@ -1,5 +1,6 @@
 ### To-do list:
 - [ ] Write duplicate file eliminator/sorter for general data
+- [ ] Optimize aircraft mode glow search sliding window code
 - [ ] Remove pickle support for low memory mode when the program is finished
 
 ### Completed
