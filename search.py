@@ -674,44 +674,43 @@ for date in requested_dates:
             print('\n', file=detector.log)
             sm.print_logger('No/Missing data for specified day.\n', detector.log)
             print('\n')
-            raise FileNotFoundError
+        else:
+            print('\n\n')
+            print('Done.')
 
-        print('\n\n')
-        print('Done.')
+            # Calibrates each scintillator
+            if not skcali:
+                print('\n')
+                sm.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
 
-        # Calibrates each scintillator
-        if not skcali:
-            print('\n')
-            sm.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
+                # Calling the calibration algorithm
+                detector.calibrate()
 
-            # Calling the calibration algorithm
-            detector.calibrate()
+                sm.print_logger('Done.', detector.log)
 
-            sm.print_logger('Done.', detector.log)
+            # Short event search
+            if not skshort:
+                sm.print_logger('\n', detector.log)
+                sm.print_logger('Starting search for short events...', detector.log)
+                sm.print_logger('\n', detector.log)
 
-        # Short event search
-        if not skshort:
-            sm.print_logger('\n', detector.log)
-            sm.print_logger('Starting search for short events...', detector.log)
-            sm.print_logger('\n', detector.log)
+                # Calling the short event search algorithm
+                short_event_search(detector)
 
-            # Calling the short event search algorithm
-            short_event_search(detector)
+                sm.print_logger('Done.', detector.log)
+                sm.print_logger('\n', detector.log)
 
-            sm.print_logger('Done.', detector.log)
-            sm.print_logger('\n', detector.log)
+            # Long event search
+            if not skglow:
+                sm.print_logger('Starting search for glows...', detector.log)
+                # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
+                times = long_event_cutoff(detector)
 
-        # Long event search
-        if not skglow:
-            sm.print_logger('Starting search for glows...', detector.log)
-            # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
-            times = long_event_cutoff(detector)
+                # Calling the long event search algorithm
+                long_event_search(detector, times)
 
-            # Calling the long event search algorithm
-            long_event_search(detector, times)
-
-            sm.print_logger('Done.', detector.log)
-            sm.print_logger('\n', detector.log)
+                sm.print_logger('Done.', detector.log)
+                sm.print_logger('\n', detector.log)
 
     # Low memory mode:
     except MemoryError:
@@ -781,6 +780,7 @@ for date in requested_dates:
         # Temporary pickle feature for low memory mode. REMOVE WHEN PROGRAM IS FINISHED
         pickled_chunk_paths = glob.glob(f'{detector.results_loc}Results/{unit}/{date_str}/chunk*.pickle')
         pickled_chunk_paths.sort()
+        missing_data = False
         if picklem and len(pickled_chunk_paths) > 0:
             chunk_path_list = pickled_chunk_paths
         else:
@@ -825,87 +825,87 @@ for date in requested_dates:
 
                 else:
                     # Aborts the program for the day if necessary scintillator data is missing in any of the chunks
+                    missing_data = True
                     print('\n\n')
                     print('\n', file=detector.log)
                     sm.print_logger('No/Missing data for specified day.', detector.log)
                     print('\n')
                     for chunk_path in chunk_path_list:
                         os.remove(chunk_path)
+
                     break
 
-        print('Done.')
+        if not missing_data:
 
-        # Calibrates each scintillator
-        if not skcali:
-            print('\n')
-            sm.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
-            existing_spectra = {scint: np.array([]) for scint in chunk_scint_list}
-            for chunk_path in chunk_path_list:
-                chunk = sm.chunk_unpickler(chunk_path)
-                chunk_spectra = chunk.make_spectra_hist(existing_spectra)
-                del chunk
+            print('Done.')
 
-            # Calling the calibration algorithm
-            detector.calibrate(existing_spectra=existing_spectra)
-
-            sm.print_logger('Done.', detector.log)
-
-        # Short event search
-        if not skshort:
-            sm.print_logger('\n', detector.log)
-            sm.print_logger('Starting search for short events...', detector.log)
-            sm.print_logger('\n', detector.log)
-            existing_event_numbers = {scint: 0 for scint in chunk_scint_list}
-
-            chunk_num = 1
-            for chunk_path in chunk_path_list:
-                chunk = sm.chunk_unpickler(chunk_path)
-                chunk.log = log
-                sm.print_logger(f'Chunk {chunk_num}:', detector.log)
+            # Calibrates each scintillator
+            if not skcali:
                 print('\n')
+                sm.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
+                existing_spectra = {scint: np.array([]) for scint in chunk_scint_list}
+                for chunk_path in chunk_path_list:
+                    chunk = sm.chunk_unpickler(chunk_path)
+                    chunk_spectra = chunk.make_spectra_hist(existing_spectra)
+                    del chunk
 
-                # Calling the short event search algorithm
-                existing_event_numbers = short_event_search(chunk, existing_event_numbers, low_mem=True)
+                # Calling the calibration algorithm
+                detector.calibrate(existing_spectra=existing_spectra)
 
-                del chunk
-                gc.collect()
-                chunk_num += 1
+                sm.print_logger('Done.', detector.log)
+
+            # Short event search
+            if not skshort:
+                sm.print_logger('\n', detector.log)
+                sm.print_logger('Starting search for short events...', detector.log)
+                sm.print_logger('\n', detector.log)
+                existing_event_numbers = {scint: 0 for scint in chunk_scint_list}
+
+                chunk_num = 1
+                for chunk_path in chunk_path_list:
+                    chunk = sm.chunk_unpickler(chunk_path)
+                    chunk.log = log
+                    sm.print_logger(f'Chunk {chunk_num}:', detector.log)
+                    print('\n')
+
+                    # Calling the short event search algorithm
+                    existing_event_numbers = short_event_search(chunk, existing_event_numbers, low_mem=True)
+
+                    del chunk
+                    gc.collect()
+                    chunk_num += 1
+
+                    sm.print_logger('Done.', detector.log)
+                    sm.print_logger('\n', detector.log)
+
+            # Long event search
+            if not skglow:
+                sm.print_logger('Starting search for glows...', detector.log)
+                le_hist = np.array([])
+                for chunk_path in chunk_path_list:
+                    chunk = sm.chunk_unpickler(chunk_path)
+                    # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
+                    times = long_event_cutoff(detector, chunk)
+
+                    # Histograms the counts from each chunk and combines them with the main one
+                    chunk_hist = long_event_search(detector, times, low_mem=True)
+                    le_hist = chunk_hist if len(le_hist) == 0 else le_hist + chunk_hist
+
+                    del chunk
+                    gc.collect()
+
+                # Calling the long event search algorithm
+                long_event_search(detector, np.array([]), existing_hist=le_hist)
 
                 sm.print_logger('Done.', detector.log)
                 sm.print_logger('\n', detector.log)
 
-        # Long event search
-        if not skglow:
-            sm.print_logger('Starting search for glows...', detector.log)
-            le_hist = np.array([])
-            for chunk_path in chunk_path_list:
-                chunk = sm.chunk_unpickler(chunk_path)
-                # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
-                times = long_event_cutoff(detector, chunk)
-
-                # Histograms the counts from each chunk and combines them with the main one
-                chunk_hist = long_event_search(detector, times, low_mem=True)
-                le_hist = chunk_hist if len(le_hist) == 0 else le_hist + chunk_hist
-
-                del chunk
-                gc.collect()
-
-            # Calling the long event search algorithm
-            long_event_search(detector, np.array([]), existing_hist=le_hist)
-
-            sm.print_logger('Done.', detector.log)
-            sm.print_logger('\n', detector.log)
-
-        log.close()
-        # Deletes chunk .pickle files
-        # REMOVE CONDITIONAL STATEMENT WHEN PROGRAM IS DONE
-        if not picklem:
-            for chunk_path in chunk_path_list:
-                os.remove(chunk_path)
-
-    # Missing data for necessary scintillators
-    except FileNotFoundError:
-        pass
+            log.close()
+            # Deletes chunk .pickle files
+            # REMOVE CONDITIONAL STATEMENT WHEN PROGRAM IS DONE
+            if not picklem:
+                for chunk_path in chunk_path_list:
+                    os.remove(chunk_path)
 
     finally:
         del detector
