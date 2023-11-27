@@ -62,6 +62,9 @@ class Detector:
         A lambda function that, when given the eRC serial number, returns the regex for a scintillator's files.
     good_lp_calibration : bool
         A flag for whether the program was able to calibrate the detector's large plastic scintillator or not.
+    default_scintillator : str
+        A string representing the default scintillator. Data from this scintillator must be present for the program
+        to run.
     long_event_scint_list : list
         A list of the scintillators used by the long event search algorithm.
     calibration_params : dict
@@ -105,6 +108,7 @@ class Detector:
         self.full_date_str = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%Y-%m-%d')  # In format yyyy-mm-dd
         self.location = sm.location(self.unit, self.date_str)  # Might need to change this to full_date_str
         self.good_lp_calibration = False
+        self.default_scintillator = 'LP'  # Don't change this unless you have a really good reason
 
         # Detector information
         self.THOR = False
@@ -266,19 +270,25 @@ class Detector:
         for scintillator in scintillator_keys:
             yield scintillator
 
-    # Bool casting overload. Returns True if data for necessary scintillators (LP, NaI) is present
+    # Bool casting overload. Returns True if data for default scintillator (LP) is present
     def __bool__(self):
-        if 'LP' in self.long_event_scint_list:
-            necessary_scintillators = self.long_event_scint_list
-        else:
-            necessary_scintillators = self.long_event_scint_list + ['LP']
+        return self.is_data_present(self.default_scintillator)
 
-        data_present = True
-        for scintillator in necessary_scintillators:
-            if len(self.attribute_retriever(scintillator, 'energy')) == 0:
-                data_present = False
+    def is_data_present(self, scint):
+        """Returns True if data is present for the requested scintillator and False otherwise.
 
-        return data_present
+        Parameters
+        ----------
+        scint : str
+            A string corresponding to the scintillator of interest.
+
+        Returns
+        -------
+        bool
+            True if data present in the requested scintillator, False otherwise.
+        """
+
+        return len(self.attribute_retriever(scint, 'energy')) != 0
 
     def attribute_retriever(self, scintillator, attribute):
         """Retrieves the requested attribute for a particular scintillator
@@ -309,6 +319,7 @@ class Detector:
         attribute : str
             A string corresponding to the scintillator attribute of interest. See attribute
             summary above for a full list of allowed values.
+
         Returns
         -------
         str, list, np.array, dict
@@ -572,24 +583,35 @@ class Detector:
         spectra_frame = pd.DataFrame()
         spectra_frame['energy bins'] = energy_bins[:-1]
         if self or existing_spectra:
-            energy_hist = self._generate_hist(energy_bins, 'LP', existing_spectra)  # Putting this up here
-            # so that we don't have to do it again just for template mode
-            if self.template:
-                self._make_template(energy_bins, energy_hist)
+            if self.is_data_present('LP'):
+                energy_hist = self._generate_hist(energy_bins, 'LP', existing_spectra)  # Putting this up here
+                # so that we don't have to do it again just for template mode
+                if self.template:
+                    self._make_template(energy_bins, energy_hist)
 
-            # Calibrates the LP scintillator and plots the calibration
-            flagged_indices = self._calibrate_LP(energy_bins, energy_hist, spectra_conversions, spectra_frame)
-            self._plot_spectra('LP', energy_bins, energy_hist, flagged_indices, sp_path)
+                # Calibrates the LP scintillator and plots the calibration
+                flagged_indices = self._calibrate_LP(energy_bins, energy_hist, spectra_conversions, spectra_frame)
+                self._plot_spectra('LP', energy_bins, energy_hist, flagged_indices, sp_path)
+            else:
+                print('Cannot calibrate LP (missing data)...', file=self.log)
+                if self.print_feedback:
+                    print('Cannot calibrate LP (missing data)...')
 
-            # Calibrates the NaI scintillator and plots the calibration
-            energy_hist = self._generate_hist(energy_bins, 'NaI', existing_spectra)
-            flagged_indices = self._calibrate_NaI(energy_bins, energy_hist, spectra_conversions, spectra_frame)
-            self._plot_spectra('NaI', energy_bins, energy_hist, flagged_indices, sp_path)
+            # Calibrates the NaI scintillator (if possible) and plots the calibration
+            if self.is_data_present('NaI'):
+                energy_hist = self._generate_hist(energy_bins, 'NaI', existing_spectra)
+                flagged_indices = self._calibrate_NaI(energy_bins, energy_hist, spectra_conversions, spectra_frame)
+                self._plot_spectra('NaI', energy_bins, energy_hist, flagged_indices, sp_path)
+            else:
+                print('Cannot calibrate NaI (missing data)...', file=self.log)
+                if self.print_feedback:
+                    print('Cannot calibrate NaI (missing data)...')
 
             spectra_frame.to_json(f'{sp_path}{self.date_str}_spectra.json')
             spectra_conversions.close()
+
         else:
-            raise ValueError("ValueError: Data for calibration is either missing or hasn't been imported")
+            raise ValueError("ValueError: Data necessary for calibration is either missing or hasn't been imported")
 
     def _filter_files(self, complete_filelist):
         """Returns an ordered list of files with duplicate/incompatible files filtered out."""
@@ -641,7 +663,7 @@ class Detector:
 
         """
 
-        for scintillator in self:
+        for scintillator in self.scintillators:
             if existing_filelists:
                 break
 
@@ -659,22 +681,15 @@ class Detector:
             self.attribute_updator(scintillator, 'filelist', filelist)
 
         # Checks to see if the necessary files for a full search are present
-        if 'LP' in self.long_event_scint_list:
-            necessary_scintillators = self.long_event_scint_list
-        else:
-            necessary_scintillators = self.long_event_scint_list + ['LP']
+        if len(self.attribute_retriever(self.default_scintillator, 'filelist')) == 0:
+            missing_data_scints = []
+            for scintillator in self.scintillators:
+                if len(self.attribute_retriever(scintillator, 'filelist')) == 0:
+                    missing_data_scints.append(scintillator)
 
-        data_present = True
-        missing_data_scints = []
-        for scint in necessary_scintillators:
-            if len(self.attribute_retriever(scint, 'filelist')) == 0:
-                data_present = False
-                missing_data_scints.append(scint)
-
-        if not data_present:
             print('\n', file=self.log)
             print('No/missing necessary data for specified day.', file=self.log)
-            print(f'Necessary data missing in the following: {", ".join(missing_data_scints)}', file=self.log)
+            print(f'Data missing in the following: {", ".join(missing_data_scints)}', file=self.log)
             if self.print_feedback:
                 print('\n')
                 print('No/missing necessary data for specified day.')
@@ -1115,6 +1130,12 @@ class PotentialGlow:
         The index of the histogram bin which corresponds to the start of the event.
     glow_length : int
         The number of histogram bins which make up an event.
+    z_scores : list
+        A list containing the z-scores for each bin in the daily histogram.
+    day_bins : np.array
+        An array containing the bins for the daily histogram.
+    binsize : int
+        A number representing the length (in seconds) of a bin in the daily histogram
 
     Attributes
     ----------
@@ -1135,13 +1156,13 @@ class PotentialGlow:
 
     """
 
-    def __init__(self, glow_start, glow_length):
+    def __init__(self, glow_start, glow_length, z_scores, day_bins, binsize):
         self.start = int(glow_start)
         self.length = int(glow_length)
         self.stop = int(glow_start + glow_length - 1) if self.length > 1 else int(glow_start + glow_length)
         self.peak_index = 0
-        self.highest_score = 0
-        self.start_sec = 0
+        self.highest_score = self._highest_zscore(z_scores)
+        self.start_sec, self.stop_sec = self._beginning_and_end_seconds(day_bins, binsize)
         self.stop_sec = 0
 
     # String casting magic method
@@ -1152,14 +1173,14 @@ class PotentialGlow:
     def __repr__(self):
         return f'Long event; start:{self.start}; stop:{self.stop}; length:{self.length}'
 
-    def highest_zscore(self, z_scores):
+    def _highest_zscore(self, z_scores):
         """Identifies the highest z-score and its corresponding bin for an event."""
         glow_scores = z_scores[self.start:self.stop]
         highest_score = np.max(glow_scores)
         self.peak_index = np.argmax(glow_scores) + self.start
         return highest_score
 
-    def beginning_and_end_seconds(self, day_bins, binsize):
+    def _beginning_and_end_seconds(self, day_bins, binsize):
         """Retrieves the beginning and total length of an event in seconds."""
         glow_times = day_bins[self.start:self.stop]
         first_sec = glow_times[0]

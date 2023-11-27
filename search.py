@@ -16,11 +16,18 @@ import search_module as sm
 
 
 def long_event_cutoff(detector_obj, chunk_obj=None):
-    operating_obj = chunk_obj if chunk_obj is not None else detector_obj
     # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
+    operating_obj = chunk_obj if chunk_obj is not None else detector_obj
     le_times = np.array([])
     le_energies = np.array([])
+    # Checks to see that data is present in all preferred scintillators. Otherwise, defaults to the large plastic.
+    long_event_scintillators = operating_obj.long_event_scint_list
     for scintillator in operating_obj.long_event_scint_list:
+        if not operating_obj.is_data_present(scintillator):
+            long_event_scintillators = [operating_obj.default_scintillator]
+            break
+
+    for scintillator in long_event_scintillators:
         existing_calibration = True if len(
             detector_obj.attribute_retriever(scintillator, 'calibration')) == 2 else False
         if scintillator == operating_obj.long_event_scint_list[0]:
@@ -42,21 +49,20 @@ def long_event_cutoff(detector_obj, chunk_obj=None):
                                                           scintillator))
 
     # Removes entries that are below a certain cutoff energy
-    if (not detector_obj.good_lp_calibration and 'LP' in detector_obj.long_event_scint_list) or skcali:
+    if (not detector_obj.good_lp_calibration and 'LP' in long_event_scintillators) or skcali:
         print('Missing calibration(s), beware radon washout!',
               file=detector_obj.log)
     else:
         energy_cutoff = 1.9  # MeV
-        cut_indices = np.where(le_energies < energy_cutoff)
-        le_times = np.delete(le_times, cut_indices)
+        le_times = np.delete(le_times, np.where(le_energies < energy_cutoff))
 
-    if detector.processed:
+    if detector_obj.processed:
         le_times = le_times - first_sec
 
     return le_times
 
 
-def is_good_short_event(detector_obj, stats, event_times, event_energies):
+def is_good_short_event(detector_obj, stats, times, energies, start, length):
     # Noise filter parameters:
     channel_range_width = 300
     channel_ratio = 0.5
@@ -68,8 +74,6 @@ def is_good_short_event(detector_obj, stats, event_times, event_energies):
     gap_threshold = 10e-6
     clumpiness_threshold = 0.27
 
-    event_length = len(event_times)
-
     low_channel_counts = 0
     high_channel_counts = 0
 
@@ -79,24 +83,24 @@ def is_good_short_event(detector_obj, stats, event_times, event_energies):
     clump_counts = 0
 
     # All filters share a single loop to speed things up
-    for i in range(event_length):
+    for i in range(start, start + length):
         # Counting for low/high energy ratio filter
-        if event_length >= 30 and not detector_obj.THOR:
-            if 200 <= event_energies[i] <= (200 + channel_range_width):
+        if length >= 30 and not detector_obj.THOR:
+            if 200 <= energies[i] <= (200 + channel_range_width):
                 low_channel_counts += 1
 
-            if (300 + channel_range_width) <= event_energies[i] <= (300 + 2 * channel_range_width):
+            if (300 + channel_range_width) <= energies[i] <= (300 + 2 * channel_range_width):
                 high_channel_counts += 1
 
         # Adding to priority queue for counts above minimum energy threshold filter
-        heapq.heappush(priority_queue, -1 * event_energies[i])  # -1 to turn this into a max heap
+        heapq.heappush(priority_queue, -1 * energies[i])  # -1 to turn this into a max heap
 
         # Measuring clumpiness for successive crs filter
-        if aircraft and event_length < 30 and i > 0:
-            difference = event_times[i] - event_times[i - 1]
+        if aircraft and length < 30 and i > start:
+            difference = times[i] - times[i - 1]
             if difference < difference_threshold:
                 clump_counts += 1
-                if i == event_length:
+                if i == length:
                     clump_counts += 1
 
             else:
@@ -113,7 +117,7 @@ def is_good_short_event(detector_obj, stats, event_times, event_energies):
 
     # Checks that there are fewer counts in the higher energy channels than the low energy channels
     # High/low channel ratio is not checked for THOR or for events with < 30 counts
-    if not detector_obj.THOR and event_length >= 30:
+    if not detector_obj.THOR and length >= 30:
         if low_channel_counts == 0 or high_channel_counts / low_channel_counts > channel_ratio:
             stats['removed_channel_ratio'] += 1
             return False
@@ -126,8 +130,8 @@ def is_good_short_event(detector_obj, stats, event_times, event_energies):
             return False
 
     # Eliminates events that are just successive cosmic ray showers
-    if aircraft and event_length < 30:
-        clumpiness /= event_length
+    if aircraft and length < 30:
+        clumpiness /= length
         if clumpiness >= clumpiness_threshold:
             stats['removed_crs'] += 1
             return False
@@ -188,9 +192,7 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
                 # Keeps potential event if it's longer than the specified minimum number of counts
                 if event_length >= event_min_counts:
                     # Runs potential event through filters
-                    event_stop = event_start + event_length
-                    if is_good_short_event(detector_obj, stats, times[event_start:event_stop],
-                                           energies[event_start:event_stop]):
+                    if is_good_short_event(detector_obj, stats, times, energies, event_start, event_length):
                         potential_event_list.append(sc.ShortEvent(event_start, event_length, scintillator))
 
                 else:
@@ -340,78 +342,102 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
 
     mue_val = hist_sum / len(hist_allday_nz)
 
-    mue = np.ones(len(day_bins)-1) * mue_val
-    sigma = np.ones(len(day_bins)-1) * np.sqrt(mue_val)
+    mue = np.full(len(day_bins)-1, mue_val)
+    sigma = np.full(len(day_bins)-1, np.sqrt(mue_val))
 
     if aircraft:
-        fitting_window = 20
-        window = 1
+        center_index = 0
+        window_size = 20
         gap = 5
-        num_bins = len(day_bins) - 1
+        num_bins = len(day_bins) - 1  # Hist array is shorter than bins array by 1 (-_-)
         so_poly = lambda t, a, b, c: a * t ** 2 + b * t + c
-        line = lambda t, a, b: a*t + b
-        window_index = 0
-        while window_index < num_bins - 1:
-            fit_curve = so_poly
-            l_bins = []
-            l_counts = []
-            r_bins = []
-            r_counts = []
-            for i in range(fitting_window):
-                # Checking left side bins
-                left_bin_index = window_index - (i + 1 + gap)
-                if not left_bin_index < 0:
-                    if hist_allday[left_bin_index] > 0:
-                        left_nz = True
-                        right_nz = False if hist_allday[left_bin_index + 1] == 0 else True
-                        if not left_bin_index - 1 < 0:
-                            if hist_allday[left_bin_index - 1] == 0:
-                                left_nz = False
+        line = lambda t, a, b: a * t + b
 
-                        if left_nz and right_nz:
-                            l_bins.append(day_bins[left_bin_index])
-                            l_counts.append(hist_allday[left_bin_index])
-                        else:
-                            fit_curve = line
-                    else:
-                        fit_curve = line
+        l_bins = []
+        l_counts = []
+        l_bool = []
+        l_zeros = 0
 
-                # Checking right side bins
-                right_bin_index = window_index + gap + i + window
-                if not right_bin_index > (num_bins - 1):
-                    if hist_allday[right_bin_index] > 0:
-                        left_nz = False if hist_allday[right_bin_index - 1] == 0 else True
-                        right_nz = True
-                        if not right_bin_index + 1 > (num_bins - 1):
-                            if hist_allday[right_bin_index + 1] == 0:
-                                right_nz = False
+        r_bins = []
+        r_counts = []
+        r_bool = []
+        r_zeros = 0
 
-                        if left_nz and right_nz:
-                            r_bins.append(day_bins[right_bin_index])
-                            r_counts.append(hist_allday[right_bin_index])
-                        else:
-                            fit_curve = line
-
-                    else:
-                        fit_curve = line
-
-            if len(l_bins[::-1] + r_bins) < 3:
-                window_index += window
-                continue
+        # Setting up the initial right window
+        for i in range(window_size - 1):
+            too_short = True if len(r_bool) == 0 else False
+            index = center_index + gap + 1 + i
+            if hist_allday[index] > 0 and (too_short or hist_allday[i - 1]):
+                r_bins.append(day_bins[index])
+                r_counts.append(hist_allday[index])
+                r_bool.append(True)
             else:
-                params, pcov = curve_fit(fit_curve, l_bins[::-1] + r_bins, l_counts[::-1] + r_counts)
-                window_bins = day_bins[window_index:window_index + window]
-                if fit_curve == so_poly:
-                    mean_curve = so_poly(window_bins, params[0], params[1], params[2])
+                r_zeros += 1
+                r_bool.append(False)
+
+        # Traversing the bins:
+        while center_index < num_bins:
+            # Advancing the left window
+            # Adding to the front of the window
+            l_index = center_index - (gap + 1)
+            if l_index >= 0:
+                # Setting up the left side bins as we go
+                too_short = True if len(l_bool) == 0 else False
+                # The bin being examined must be nonzero itself and have a nonzero neighbor in order to be added
+                if hist_allday[l_index] > 0 and (too_short or hist_allday[l_index + 1] > 0):
+                    l_bins.append(day_bins[l_index])
+                    l_counts.append(hist_allday[l_index])
+                    l_bool.append(True)
                 else:
-                    mean_curve = line(window_bins, params[0], params[1])
+                    l_bool.append(False)
+                    l_zeros += 1
 
-                for i in range(len(mean_curve)):
-                    if window_index + i < (num_bins - 1):
-                        mue[window_index + i] = mean_curve[i]
-                        sigma[window_index + i] = np.sqrt(mean_curve[i])
+            # Removing from the back of the window
+            if len(l_bool) > window_size:
+                if l_bool[0]:
+                    l_bins.pop(0)
+                    l_counts.pop(0)
+                else:
+                    l_zeros -= 1
 
-                window_index += window
+                l_bool.pop(0)
+
+            # Advancing the right window
+            # Adding to the front of the window
+            r_index = center_index + gap + window_size
+            if r_index < num_bins:
+                if hist_allday[r_index] > 0 and hist_allday[r_index - 1] > 0:
+                    r_bins.append(day_bins[r_index])
+                    r_counts.append(hist_allday[r_index])
+                    r_bool.append(True)
+                else:
+                    r_bool.append(False)
+                    r_zeros += 1
+
+            # Removing from the back of the window
+            if len(r_bool) > 0 and center_index > 0:
+                if r_bool[0]:
+                    r_bins.pop(0)
+                    r_counts.pop(0)
+                else:
+                    r_zeros -= 1
+
+                r_bool.pop(0)
+
+            # Fitting curve is linear if either of the windows contains a zero value bin
+            fit_curve = line if l_zeros != 0 or r_zeros != 0 else so_poly
+
+            if len(l_bins) + len(r_bins) >= 3:
+                params, pcov = curve_fit(fit_curve, l_bins + r_bins, l_counts + r_counts)
+                if fit_curve == so_poly:
+                    # Float casting is necessary for later parts of the day due to integer overflow
+                    mue[center_index] = so_poly(float(day_bins[center_index]), params[0], params[1], params[2])
+                else:
+                    mue[center_index] = line(day_bins[center_index], params[0], params[1])
+
+                sigma[center_index] = np.sqrt(mue[center_index])
+
+            center_index += 1
 
     z_scores = []  # The z-scores themselves
     z_flags = []
@@ -427,19 +453,16 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
     glow_length = 0
     previous_time = 0
     potential_glow_list = []
-    for flag in z_flags:
+    for i in range(len(z_flags)):
+        flag = z_flags[i]
         if glow_length == 0:  # First zscore only
             glow_start = flag
             glow_length += 1
         elif glow_length > 0 and day_bins[flag] - binsize == previous_time:
             glow_length += 1
-        elif (glow_length > 0 and day_bins[flag] - binsize > previous_time) or flag == z_flags[-1]:
-            # Makes glow object and fills it out
-            glow = sc.PotentialGlow(glow_start, glow_length)
-            # These functions should probably just be run in the glow object constructor
-            glow.highest_score = glow.highest_zscore(z_scores)
-            glow.start_sec, glow.stop_sec = glow.beginning_and_end_seconds(day_bins, binsize)
-            potential_glow_list.append(glow)
+        elif (glow_length > 0 and day_bins[flag] - binsize > previous_time) or i == len(z_flags) - 1:
+            # Makes glow object
+            potential_glow_list.append(sc.PotentialGlow(glow_start, glow_length, z_scores, day_bins, binsize))
             glow_start = flag
             glow_length = 1
 
@@ -494,7 +517,14 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
             print(f'{dt.datetime.utcfromtimestamp(glow.start_sec + first_sec)} UTC ({glow.start_sec} '
                   f'seconds of day), {glow.stop_sec - glow.start_sec} seconds long, highest z-score: '
                   f'{highest_score}', file=event_file)
+
+            long_event_scintillators = detector_obj.long_event_scint_list
             for scintillator in detector_obj.long_event_scint_list:
+                if not detector_obj.is_data_present(scintillator):
+                    long_event_scintillators = [detector_obj.default_scintillator]
+                    break
+
+            for scintillator in long_event_scintillators:
                 print(f'{scintillator}:', file=event_file)
                 filelist = detector_obj.attribute_retriever(scintillator, 'filelist')
                 filetime_extrema = detector_obj.attribute_retriever(scintillator, 'filetime_extrema')
@@ -558,7 +588,6 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
                 continue
 
         plt.tight_layout()
-        plt.plot()
 
         # Saves the histograms:
         hist_path = f'{detector_obj.results_loc}Results/{unit}/{date_str}/'
@@ -612,6 +641,7 @@ if first_date != second_date:
             requested_dates.append(date_str)
 
 for date in requested_dates:
+    low_memory_mode = False
     date_str = str(date)  # In format yymmdd
     day = int(date_str[4:])
     month = int(date_str[2:4])
@@ -674,6 +704,7 @@ for date in requested_dates:
             print('\n', file=detector.log)
             sm.print_logger('No/Missing data for specified day.\n', detector.log)
             print('\n')
+        # Otherwise runs normally
         else:
             print('\n\n')
             print('Done.')
@@ -712,202 +743,211 @@ for date in requested_dates:
                 sm.print_logger('Done.', detector.log)
                 sm.print_logger('\n', detector.log)
 
-    # Low memory mode:
     except MemoryError:
-        sm.print_logger('\n', detector.log)
-        sm.print_logger('Not enough memory. Entering low memory mode...', detector.log)
-        sm.print_logger('\n', detector.log)
-        # Measures the total combined size of all the data files
-        total_file_size = 0
-        for scint in detector:
-            master_filelist = detector.attribute_retriever(scint, 'filelist')
-            # Clears leftover data (just to be sure)
-            detector.attribute_updator(scint, ['time', 'energy', 'filetime_extrema'],
-                                       [np.array([]), np.array([]), []])
-            for file in master_filelist:
-                total_file_size += os.path.getsize(file)
+        low_memory_mode = True
 
-        gc.collect()
+    except FileNotFoundError:  # Missing necessary data
+        pass
 
-        # Determines the appropriate number of chunks to split the day into
-        operating_memory = sm.memory_allowance()
-        available_memory = psutil.virtual_memory()[1]/4
-        allowed_memory = available_memory
+    # Low memory mode
+    if low_memory_mode:
+        try:
+            sm.print_logger('\n', detector.log)
+            sm.print_logger('Not enough memory. Entering low memory mode...', detector.log)
+            sm.print_logger('\n', detector.log)
+            # Measures the total combined size of all the data files
+            total_file_size = 0
+            for scint in detector:
+                master_filelist = detector.attribute_retriever(scint, 'filelist')
+                # Clears leftover data (just to be sure)
+                detector.attribute_updator(scint, ['time', 'energy', 'filetime_extrema'],
+                                           [np.array([]), np.array([]), []])
+                for file in master_filelist:
+                    total_file_size += os.path.getsize(file)
 
-        num_chunks = 2  # minimum number of chunks to split the day into
-        max_chunks = 16
-        max_not_exceeded = False
-        while num_chunks < max_chunks:
-            mem_per_chunk = total_file_size/num_chunks
-            if allowed_memory/(mem_per_chunk + operating_memory) >= 1:
-                max_not_exceeded = True
-                break
+            gc.collect()
 
-            num_chunks += 1
+            # Determines the appropriate number of chunks to split the day into
+            operating_memory = sm.memory_allowance()
+            available_memory = psutil.virtual_memory()[1] / 4
+            allowed_memory = available_memory
 
-        if not max_not_exceeded:
-            raise MemoryError('MemoryError: very low available memory on system.')
-
-        # Makes the chunks
-        chunk_list = []
-
-        for chunk_num in range(1, num_chunks + 1):
-            chunk = sc.Chunk(unit, first_sec, modes, print_feedback=True)
-            chunk.log = log
-            chunk_list.append(chunk)
-
-        chunk_scint_list = chunk_list[0].scint_list
-
-        for scint in detector:
-            current_filelist = detector.attribute_retriever(scint, 'filelist')
-            filelist_len = len(current_filelist)
-            chunk_num = 1
-            for chunk in chunk_list:
-                if chunk_num == num_chunks:
-                    chunk.attribute_updator(scint, 'filelist', current_filelist)
-                else:
-                    filelist_chunk = current_filelist[:int(filelist_len/num_chunks)]
-                    chunk.attribute_updator(scint, 'filelist', filelist_chunk)
-                    current_filelist = current_filelist[int(filelist_len/num_chunks):]
-
-                chunk_num += 1
-
-        # Imports data to each chunk and then pickles the chunks (and checks that data is actually present)
-        print('Importing data...')
-        print('\n')
-        chunk_num = 1
-        chunk_path_list = []
-        # Temporary pickle feature for low memory mode. REMOVE WHEN PROGRAM IS FINISHED
-        pickled_chunk_paths = glob.glob(f'{detector.results_loc}Results/{unit}/{date_str}/chunk*.pickle')
-        pickled_chunk_paths.sort()
-        missing_data = False
-        if picklem and len(pickled_chunk_paths) > 0:
-            chunk_path_list = pickled_chunk_paths
-        else:
-            # Keeps timings consistent between chunks
-            passtime = chunk_list[0].attribute_retriever(chunk_scint_list[0], 'passtime')
-            passtime_dict = {scint: passtime.copy() for scint in chunk_scint_list}
-
-            for chunk in chunk_list:
-                # Updates chunk to include previous chunk's passtime
-                chunk.update_passtime(passtime_dict)
-
-                sm.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
-                chunk.data_importer(existing_filelists=True)
-
-                # Checking that data is present in the necessary scintillators
-                if chunk:
-                    print('\n\n')
-                    # Makes a full list of filetime extrema for long event search
-                    for scint in chunk:
-                        extrema = detector.attribute_retriever(scint, 'filetime_extrema')
-                        extrema += chunk.attribute_retriever(scint, 'filetime_extrema')
-                        detector.attribute_updator(scint, 'filetime_extrema', extrema)
-
-                    # Updates passtime
-                    passtime_dict = chunk.return_passtime()
-
-                    chunk_pickle_path = f'{detector.results_loc}Results/{unit}/{date_str}/' \
-                                        f'chunk{chunk_num}.pickle'
-                    chunk_path_list.append(chunk_pickle_path)
-                    chunk_pickle = open(chunk_pickle_path, 'wb')
-                    chunk.log = None
-                    chunk.regex = None
-                    pickle.dump(chunk, chunk_pickle)
-                    chunk_pickle.close()
-
-                    # Eliminates the chunk from active memory
-                    del chunk
-                    gc.collect()
-                    chunk_list[chunk_num - 1] = 0
-
-                    chunk_num += 1
-
-                else:
-                    # Aborts the program for the day if necessary scintillator data is missing in any of the chunks
-                    missing_data = True
-                    print('\n\n')
-                    print('\n', file=detector.log)
-                    sm.print_logger('No/Missing data for specified day.', detector.log)
-                    print('\n')
-                    for chunk_path in chunk_path_list:
-                        os.remove(chunk_path)
-
+            num_chunks = 2  # minimum number of chunks to split the day into
+            max_chunks = 16
+            max_not_exceeded = False
+            while num_chunks < max_chunks:
+                mem_per_chunk = total_file_size / num_chunks
+                if allowed_memory / (mem_per_chunk + operating_memory) >= 1:
+                    max_not_exceeded = True
                     break
 
-        if not missing_data:
+                num_chunks += 1
 
-            print('Done.')
+            if not max_not_exceeded:
+                raise MemoryError('MemoryError: very low available memory on system.')
 
-            # Calibrates each scintillator
-            if not skcali:
-                print('\n')
-                sm.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
-                existing_spectra = {scint: np.array([]) for scint in chunk_scint_list}
-                for chunk_path in chunk_path_list:
-                    chunk = sm.chunk_unpickler(chunk_path)
-                    chunk_spectra = chunk.make_spectra_hist(existing_spectra)
-                    del chunk
+            # Makes the chunks
+            chunk_list = []
 
-                # Calling the calibration algorithm
-                detector.calibrate(existing_spectra=existing_spectra)
+            for chunk_num in range(1, num_chunks + 1):
+                chunk = sc.Chunk(unit, first_sec, modes, print_feedback=True)
+                chunk.log = log
+                chunk_list.append(chunk)
 
-                sm.print_logger('Done.', detector.log)
+            chunk_scint_list = chunk_list[0].scint_list
 
-            # Short event search
-            if not skshort:
-                sm.print_logger('\n', detector.log)
-                sm.print_logger('Starting search for short events...', detector.log)
-                sm.print_logger('\n', detector.log)
-                existing_event_numbers = {scint: 0 for scint in chunk_scint_list}
-
+            for scint in detector:
+                current_filelist = detector.attribute_retriever(scint, 'filelist')
+                filelist_len = len(current_filelist)
                 chunk_num = 1
-                for chunk_path in chunk_path_list:
-                    chunk = sm.chunk_unpickler(chunk_path)
-                    chunk.log = log
-                    sm.print_logger(f'Chunk {chunk_num}:', detector.log)
-                    print('\n')
+                for chunk in chunk_list:
+                    if chunk_num == num_chunks:
+                        chunk.attribute_updator(scint, 'filelist', current_filelist)
+                    else:
+                        filelist_chunk = current_filelist[:int(filelist_len / num_chunks)]
+                        chunk.attribute_updator(scint, 'filelist', filelist_chunk)
+                        current_filelist = current_filelist[int(filelist_len / num_chunks):]
 
-                    # Calling the short event search algorithm
-                    existing_event_numbers = short_event_search(chunk, existing_event_numbers, low_mem=True)
-
-                    del chunk
-                    gc.collect()
                     chunk_num += 1
+
+            # Imports data to each chunk and then pickles the chunks (and checks that data is actually present)
+            print('Importing data...')
+            print('\n')
+            chunk_num = 1
+            chunk_path_list = []
+            # Temporary pickle feature for low memory mode. REMOVE WHEN PROGRAM IS FINISHED
+            pickled_chunk_paths = glob.glob(f'{detector.results_loc}Results/{unit}/{date_str}/chunk*.pickle')
+            pickled_chunk_paths.sort()
+            missing_data = False
+            if picklem and len(pickled_chunk_paths) > 0:
+                chunk_path_list = pickled_chunk_paths
+            else:
+                # Keeps timings consistent between chunks
+                passtime = chunk_list[0].attribute_retriever(chunk_scint_list[0], 'passtime')
+                passtime_dict = {scint: passtime.copy() for scint in chunk_scint_list}
+
+                for chunk in chunk_list:
+                    # Updates chunk to include previous chunk's passtime
+                    chunk.update_passtime(passtime_dict)
+
+                    sm.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
+                    chunk.data_importer(existing_filelists=True)
+
+                    # Checking that data is present in the necessary scintillators
+
+                    # Aborts the program for the day if necessary scintillator data is missing in any of the chunks
+                    if not chunk:
+                        missing_data = True
+                        print('\n\n')
+                        print('\n', file=detector.log)
+                        sm.print_logger('No/Missing data for specified day.', detector.log)
+                        print('\n')
+                        for chunk_path in chunk_path_list:
+                            os.remove(chunk_path)
+
+                        break
+                    # Otherwise runs normally
+                    else:
+                        print('\n\n')
+                        # Makes a full list of filetime extrema for long event search
+                        for scint in chunk:
+                            extrema = detector.attribute_retriever(scint, 'filetime_extrema')
+                            extrema += chunk.attribute_retriever(scint, 'filetime_extrema')
+                            detector.attribute_updator(scint, 'filetime_extrema', extrema)
+
+                        # Updates passtime
+                        passtime_dict = chunk.return_passtime()
+
+                        chunk_pickle_path = f'{detector.results_loc}Results/{unit}/{date_str}/' \
+                                            f'chunk{chunk_num}.pickle'
+                        chunk_path_list.append(chunk_pickle_path)
+                        chunk_pickle = open(chunk_pickle_path, 'wb')
+                        chunk.log = None
+                        chunk.regex = None
+                        pickle.dump(chunk, chunk_pickle)
+                        chunk_pickle.close()
+
+                        # Eliminates the chunk from active memory
+                        del chunk
+                        gc.collect()
+                        chunk_list[chunk_num - 1] = 0
+
+                        chunk_num += 1
+
+            if not missing_data:
+                print('Done.')
+
+                # Calibrates each scintillator
+                if not skcali:
+                    print('\n')
+                    sm.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
+                    existing_spectra = {scint: np.array([]) for scint in chunk_scint_list}
+                    for chunk_path in chunk_path_list:
+                        chunk = sm.chunk_unpickler(chunk_path)
+                        chunk_spectra = chunk.make_spectra_hist(existing_spectra)
+                        del chunk
+
+                    # Calling the calibration algorithm
+                    detector.calibrate(existing_spectra=existing_spectra)
+
+                    sm.print_logger('Done.', detector.log)
+
+                # Short event search
+                if not skshort:
+                    sm.print_logger('\n', detector.log)
+                    sm.print_logger('Starting search for short events...', detector.log)
+                    sm.print_logger('\n', detector.log)
+                    existing_event_numbers = {scint: 0 for scint in chunk_scint_list}
+
+                    chunk_num = 1
+                    for chunk_path in chunk_path_list:
+                        chunk = sm.chunk_unpickler(chunk_path)
+                        chunk.log = log
+                        sm.print_logger(f'Chunk {chunk_num}:', detector.log)
+                        print('\n')
+
+                        # Calling the short event search algorithm
+                        existing_event_numbers = short_event_search(chunk, existing_event_numbers, low_mem=True)
+
+                        del chunk
+                        gc.collect()
+                        chunk_num += 1
+
+                        sm.print_logger('Done.', detector.log)
+                        sm.print_logger('\n', detector.log)
+
+                # Long event search
+                if not skglow:
+                    sm.print_logger('Starting search for glows...', detector.log)
+                    le_hist = np.array([])
+                    for chunk_path in chunk_path_list:
+                        chunk = sm.chunk_unpickler(chunk_path)
+                        # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
+                        times = long_event_cutoff(detector, chunk)
+
+                        # Histograms the counts from each chunk and combines them with the main one
+                        chunk_hist = long_event_search(detector, times, low_mem=True)
+                        le_hist = chunk_hist if len(le_hist) == 0 else le_hist + chunk_hist
+
+                        del chunk
+                        gc.collect()
+
+                    # Calling the long event search algorithm
+                    long_event_search(detector, np.array([]), existing_hist=le_hist)
 
                     sm.print_logger('Done.', detector.log)
                     sm.print_logger('\n', detector.log)
 
-            # Long event search
-            if not skglow:
-                sm.print_logger('Starting search for glows...', detector.log)
-                le_hist = np.array([])
-                for chunk_path in chunk_path_list:
-                    chunk = sm.chunk_unpickler(chunk_path)
-                    # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
-                    times = long_event_cutoff(detector, chunk)
+                log.close()
+                # Deletes chunk .pickle files
+                # REMOVE CONDITIONAL STATEMENT WHEN PROGRAM IS DONE
+                if not picklem:
+                    for chunk_path in chunk_path_list:
+                        os.remove(chunk_path)
 
-                    # Histograms the counts from each chunk and combines them with the main one
-                    chunk_hist = long_event_search(detector, times, low_mem=True)
-                    le_hist = chunk_hist if len(le_hist) == 0 else le_hist + chunk_hist
+        except FileNotFoundError:
+            pass
 
-                    del chunk
-                    gc.collect()
-
-                # Calling the long event search algorithm
-                long_event_search(detector, np.array([]), existing_hist=le_hist)
-
-                sm.print_logger('Done.', detector.log)
-                sm.print_logger('\n', detector.log)
-
-            log.close()
-            # Deletes chunk .pickle files
-            # REMOVE CONDITIONAL STATEMENT WHEN PROGRAM IS DONE
-            if not picklem:
-                for chunk_path in chunk_path_list:
-                    os.remove(chunk_path)
-
-    finally:
-        del detector
-        log.close()
-        gc.collect()
+    del detector
+    log.close()
+    gc.collect()
