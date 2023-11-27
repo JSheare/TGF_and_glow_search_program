@@ -79,11 +79,13 @@ def is_good_short_event(detector_obj, stats, times, energies, start, length):
 
     priority_queue = []
 
+    stop = start + length
+
     clumpiness = 0
     clump_counts = 0
 
     # All filters share a single loop to speed things up
-    for i in range(start, start + length):
+    for i in range(start, stop):
         # Counting for low/high energy ratio filter
         if length >= 30 and not detector_obj.THOR:
             if 200 <= energies[i] <= (200 + channel_range_width):
@@ -100,7 +102,7 @@ def is_good_short_event(detector_obj, stats, times, energies, start, length):
             difference = times[i] - times[i - 1]
             if difference < difference_threshold:
                 clump_counts += 1
-                if i == length:
+                if i == stop - 1:
                     clump_counts += 1
 
             else:
@@ -381,10 +383,11 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
             # Adding to the front of the window
             l_index = center_index - (gap + 1)
             if l_index >= 0:
-                # Setting up the left side bins as we go
-                too_short = True if len(l_bool) == 0 else False
-                # The bin being examined must be nonzero itself and have a nonzero neighbor in order to be added
-                if hist_allday[l_index] > 0 and (too_short or hist_allday[l_index + 1] > 0):
+                on_end = True if l_index - 1 < 0 else False
+                # The bin being examined must be nonzero itself and have nonzero neighbors in order to be added
+                # Neighbors are not checked for those bins on the ends, though
+                if hist_allday[l_index] > 0 and (on_end or (
+                        hist_allday[l_index - 1] > 0 and hist_allday[l_index + 1] > 0)):
                     l_bins.append(day_bins[l_index])
                     l_counts.append(hist_allday[l_index])
                     l_bool.append(True)
@@ -406,7 +409,9 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
             # Adding to the front of the window
             r_index = center_index + gap + window_size
             if r_index < num_bins:
-                if hist_allday[r_index] > 0 and hist_allday[r_index - 1] > 0:
+                on_end = True if r_index + 1 >= num_bins else False
+                if hist_allday[r_index] > 0 and (on_end or (
+                        hist_allday[r_index - 1] > 0 and hist_allday[r_index + 1] > 0)):
                     r_bins.append(day_bins[r_index])
                     r_counts.append(hist_allday[r_index])
                     r_bool.append(True)
