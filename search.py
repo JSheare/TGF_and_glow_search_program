@@ -15,6 +15,7 @@ import search_classes as sc
 import search_module as sm
 
 
+# Combines time data from several scintillators (if applicable) and cuts out counts below a certain energy
 def long_event_cutoff(detector_obj, chunk_obj=None):
     # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
     operating_obj = chunk_obj if chunk_obj is not None else detector_obj
@@ -62,6 +63,7 @@ def long_event_cutoff(detector_obj, chunk_obj=None):
     return le_times
 
 
+# Checks whether a short event is valid by passing it through several filters
 def is_good_short_event(detector_obj, stats, times, energies, start, length):
     # Noise filter parameters:
     channel_range_width = 300
@@ -141,6 +143,104 @@ def is_good_short_event(detector_obj, stats, times, energies, start, length):
     return True
 
 
+# Calculates the ranking subscores for a potential short event
+def calculate_subscores(detector_obj, event, times, energies, weather_cache):
+    # Length parameters
+    max_score_len = 30
+
+    # Clumpiness parameters
+    difference_threshold = 2e-6
+    gap_threshold = 10e-6
+    clumpiness_threshold = 0.27
+
+    # High energy lead parameters
+    energy_thresh = 50000
+    tossup = 5
+
+    clumpiness = 0
+    clump_counts = 0
+
+    high_energy_lead = 0
+    leading_counts = 0
+
+    for i in range(event.start, event.stop):
+        if i > event.start:
+            difference = times[i] - times[i - 1]
+            if difference < difference_threshold:
+                clump_counts += 1
+                if i == event.stop - 1:
+                    clump_counts += 1
+
+                if clump_counts == 1:
+                    leading_counts += 1
+                    if energies[i] >= energy_thresh:
+                        high_energy_lead += 1
+
+            else:
+                # Adding to clumpiness when there's a clump of three or more
+                if clump_counts >= 3:
+                    clumpiness += 1
+                    clump_counts = 0
+
+                # Adding to the clumpiness when the gap between sufficient counts is greater than the threshold
+                if difference >= gap_threshold and clump_counts == 0:
+                    clumpiness += 1
+
+                clump_counts = 0
+
+    clumpiness /= event.length
+    if leading_counts > 0:
+        high_energy_lead /= leading_counts
+
+    # Calculating the length subscore
+    len_subscore = 1/max_score_len * event.length
+
+    # Calculating the clumpiness subscore
+    clumpiness_subscore = (-1/clumpiness_threshold) * clumpiness + 1
+
+    # Calculaing high energy leading count subscore
+    hel_subscore = np.e ** -((-np.log(0.5)/tossup) * high_energy_lead)
+
+    # Getting weather subscore
+    if detector_obj.location['Nearest weather station'] != '':
+        local_date, local_time = sm.convert_to_local(detector_obj.full_date_str, times[event.start])
+        weather_subscore = sm.get_weather_conditions(local_date, local_time, detector_obj, weather_cache)
+    else:
+        weather_subscore = -1
+
+    return len_subscore, clumpiness_subscore, hel_subscore, weather_subscore
+
+
+# Calculates subscores, then uses them to calculate a final score for each event and then rank all the events
+def rank_events(detector_obj, potential_events, times, energies):
+    # Subscore weights
+    len_weight = 0.3
+    clumpiness_weight = 0.2
+    hel_weight = 0.2
+    weather_weight = 0.3
+    assert len_weight + clumpiness_weight + hel_weight + weather_weight <= 1
+
+    weather_cache = {}
+    subscores = []
+    scores = []
+    for event in potential_events:
+        length, clumpiness, hel, weather = calculate_subscores(detector_obj, event, times, energies, weather_cache)
+        subscores.append((length, clumpiness, hel, weather))
+        # If weather info couldn't be obtained, the weather subscore is removed and the remaining weights are adjusted
+        # so that they stay proportional to one another
+        if weather == -1:
+            proportionality = 1/(len_weight + clumpiness_weight + hel_weight)
+            score = proportionality * (len_weight * length + clumpiness_weight * clumpiness + hel_weight * hel)
+        else:
+            score = len_weight * length + clumpiness_weight * clumpiness + hel_weight * hel + weather_weight * weather
+
+        scores.append(-score)  # Negative so that we get a descending order sort
+
+    rankings = np.argsort(scores) + 1
+    return [(event, subscores, rank) for event, subscores, rank in zip(potential_events, subscores, rankings)]
+
+
+# Short event search algorithm
 def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
     # Parameters:
     rollgap = 18 if aircraft else 4
@@ -244,8 +344,10 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
             else:
                 max_plots = len(potential_event_list)
 
+            # Remakes the event list to include subscores and ranking for each event
+            potential_event_list = rank_events(detector_obj, potential_event_list, times, energies)
+
             plots_made = 0
-            weather_cache = {}
             filecount_switch = True
             print('Potential short events:', file=detector_obj.log)
             for i in range(len(potential_event_list)):
@@ -261,19 +363,16 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
                     print(f'Making {max_plots} plots...')
                     filecount_switch = False
 
-                event = potential_event_list[i]
-
-                # Checks the weather around the time of the event if the nearest weather station is known
-                if detector_obj.location['Nearest weather station'] != '':
-                    local_date, local_time = sm.convert_to_local(detector_obj.full_date_str, times[event.start])
-                    weather_code = sm.get_weather_conditions(local_date, local_time, detector_obj, weather_cache)
-                else:
-                    weather_code = -1
+                event, subscores, rank = potential_event_list[i]
+                weather_score = subscores[3]
 
                 # Logs the event
                 start_second = times[event.start] - 86400 if times[event.start] > 86400 else times[event.start]
                 print(f'{dt.datetime.utcfromtimestamp(times[event.start] + first_sec)} UTC '
-                      f'({start_second} seconds of day) - weather: {sm.weather_from_code(weather_code)}',
+                      f'({start_second} seconds of day) - weather: {sm.weather_from_score(weather_score)}',
+                      file=detector_obj.log)
+                print(f'    Rank: {rank}, '
+                      f'Subscores: [Length: {subscores[0]}, Clumpiness: {subscores[1]}, HEL: {subscores[2]}]\n',
                       file=detector_obj.log)
 
                 # Note: I know the parameter lists below are long, but I'd rather have some ugly syntax here
@@ -282,10 +381,10 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
                 # Makes the scatter plot
                 event_file, filelist, filetime_extrema = event.get_filename(times, filelist, filetime_extrema)
                 event.scatterplot_maker(ts_list, detector_obj, times, energies,
-                                        i + 1 + plots_already_made, event_file, weather_code)
+                                        i + 1 + plots_already_made, event_file, weather_score, rank)
 
                 # Makes the event file
-                event.json_maker(detector_obj, times, energies, wallclock, i + 1 + plots_already_made, event_file)
+                event.json_maker(detector_obj, times, energies, wallclock, i + 1 + plots_already_made, event_file, rank)
 
                 plots_made += 1
 
@@ -300,6 +399,7 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
         return event_numbers
 
 
+# Long event search algorithm
 def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False):
     # Makes one bin for every binsize seconds of the day (plus around 300 seconds more for the next day)
     binsize = 4

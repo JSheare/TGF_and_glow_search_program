@@ -337,8 +337,8 @@ def get_weather_conditions(full_date_str, event_time, detector, weather_cache):
     Returns
     -------
     int
-        A code corresponding to the weather conditions around the time of the event. See the function weather_from_code
-        for a summary of what the codes mean.
+        A score corresponding to the weather conditions around the time of the event. See the function
+        weather_from_score for a summary of what the scores mean.
 
     """
     if full_date_str in weather_cache and weather_cache[full_date_str] is not None:
@@ -379,7 +379,7 @@ def get_weather_conditions(full_date_str, event_time, detector, weather_cache):
             if condition:
                 for variation in ['Thunder', 'T-Storm', 'Storm', 'Lightning', 'Hail']:
                     if variation in condition:
-                        return 3
+                        return 1
 
                 if 'Heavy' in condition:
                     heavy_rain = True
@@ -387,9 +387,9 @@ def get_weather_conditions(full_date_str, event_time, detector, weather_cache):
                     rain = True
 
         if heavy_rain:
-            return 2
+            return 0.75
         elif rain:
-            return 1
+            return 0.5
 
         return 0
     else:
@@ -540,15 +540,15 @@ def convert_clock_hour(clock_hour):
     return float((hour * 3600) + (minute * 60))
 
 
-def weather_from_code(code):
+def weather_from_score(score):
     """Returns the weather for each code given by the function get_weather_conditions."""
-    if code == 0:
+    if score == 0:
         return 'fair'
-    elif code == 1:
+    elif score == 0.5:
         return 'light rain'
-    elif code == 2:
+    elif score == 0.75:
         return 'heavy rain'
-    elif code == 3:
+    elif score == 1:
         return 'Lightning or hail'
     else:
         return 'error getting weather data'

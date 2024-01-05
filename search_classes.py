@@ -1004,7 +1004,7 @@ class ShortEvent:
 
         return event_file, new_filelist, new_filetime_extrema
 
-    def json_maker(self, detector, times, energies, wallclock, event_number, event_file):
+    def json_maker(self, detector, times, energies, wallclock, event_number, event_file, rank):
         """Makes the short event JSON files.
 
         Parameters
@@ -1022,6 +1022,8 @@ class ShortEvent:
             event for whatever scintillator, 2 would be the second, and so on).
         event_file : str
             The name of the file that the event occurred in.
+        rank : int
+            The event's ranking among all the other events
 
         """
 
@@ -1039,9 +1041,9 @@ class ShortEvent:
         event_frame['file'] = event_file  # Note: this column will be filled by the same file name over and over again
 
         # Saves the json file
-        event_frame.to_json(f'{eventpath}{detector.date_str}_{self.scintillator}_event{event_number}.json')
+        event_frame.to_json(f'{eventpath}{detector.date_str}_{self.scintillator}_event{event_number}_rank{rank}.json')
 
-    def scatterplot_maker(self, timescales, detector, times, energies, event_number, event_file, weather_code):
+    def scatterplot_maker(self, timescales, detector, times, energies, event_number, event_file, weather_score, rank):
         """Makes the short event scatter plots.
 
         Parameters
@@ -1059,8 +1061,10 @@ class ShortEvent:
             event for whatever scintillator, 2 would be the second, and so on).
         event_file : str
             The name of the file that the event occurred in.
-        weather_code : int
-            A code describing the weather conditions at the time of the event.
+        weather_score : int
+            A score describing the weather conditions at the time of the event.
+        rank : int
+            The event's ranking among all the other events.
 
         """
 
@@ -1079,7 +1083,8 @@ class ShortEvent:
         figure1 = plt.figure(figsize=[20, 11.0])
         figure1.suptitle(f'{self.scintillator} Event {str(event_number)}, '
                          f'{dt.datetime.utcfromtimestamp(times[self.start] + detector.first_sec)} UTC, '
-                         f'{len(event_energies)} counts \n Weather: {sm.weather_from_code(weather_code)}', fontsize=20)
+                         f'{len(event_energies)} counts \n Weather: {sm.weather_from_score(weather_score)} \n'
+                         f'Rank: {rank}', fontsize=20)
         ax1 = figure1.add_subplot(3, 1, 1)
         ax2 = figure1.add_subplot(3, 1, 2)
         ax3 = figure1.add_subplot(3, 1, 3)
@@ -1117,7 +1122,7 @@ class ShortEvent:
         scatterpath = (f'{detector.results_loc}Results/{detector.unit}/'
                        f'{detector.date_str}/scatterplots/')
         sm.path_maker(scatterpath)
-        figure1.savefig(f'{scatterpath}{detector.date_str}_{self.scintillator}_event{event_number}.png')
+        figure1.savefig(f'{scatterpath}{detector.date_str}_{self.scintillator}_event{event_number}_rank{rank}.png')
         plt.close(figure1)
 
 
