@@ -330,7 +330,7 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
             # Subplot timescales
             ts1 = 1e-4   # 100 microseconds
             ts2 = 0.005  # 5 milliseconds
-            ts3 = 2      # 100 milliseconds
+            ts3 = 2      # 2 seconds
             ts_list = [ts1, ts2, ts3]
 
             if prev_event_numbers is not None:
@@ -1002,6 +1002,8 @@ for date in requested_dates:
                 if not skshort:
                     sm.print_logger('\n', detector.log)
                     sm.print_logger('Starting search for short events...', detector.log)
+                    sm.print_logger('Warning! In low memory mode, short events will be ranked on a per-chunk basis.',
+                                    detector.log)
                     sm.print_logger('\n', detector.log)
                     existing_event_numbers = {scint: 0 for scint in chunk_scint_list}
 
