@@ -152,10 +152,10 @@ def calculate_subscores(detector_obj, event, times, energies, weather_cache):
     difference_threshold = 2e-6
     gap_threshold = 10e-6
     clumpiness_threshold = 0.27
+    tossup = 0.2
 
     # High energy lead parameters
-    energy_thresh = 50000
-    tossup = 5
+    energy_thresh = 15000
 
     clumpiness = 0
     clump_counts = 0
@@ -168,13 +168,14 @@ def calculate_subscores(detector_obj, event, times, energies, weather_cache):
             difference = times[i] - times[i - 1]
             if difference < difference_threshold:
                 clump_counts += 1
-                if i == event.stop - 1:
-                    clump_counts += 1
-
                 if clump_counts == 1:
                     leading_counts += 1
-                    if energies[i] >= energy_thresh:
+                    if energies[i - 1] >= energy_thresh:  # Clump starts on the previous index
                         high_energy_lead += 1
+
+                # For the last count in the event
+                if i == event.stop - 1:
+                    clump_counts += 1
 
             else:
                 # Adding to clumpiness when there's a clump of three or more
@@ -196,10 +197,10 @@ def calculate_subscores(detector_obj, event, times, energies, weather_cache):
     len_subscore = 1/max_score_len * event.length
 
     # Calculating the clumpiness subscore
-    clumpiness_subscore = (-1/clumpiness_threshold) * clumpiness + 1
+    clumpiness_subscore = 1/(1 + np.e**(40*(clumpiness - tossup)))
 
     # Calculaing high energy leading count subscore
-    hel_subscore = np.e ** -((-np.log(0.5)/tossup) * high_energy_lead)
+    hel_subscore = np.e ** -(5.3 * high_energy_lead)
 
     # Getting weather subscore
     if detector_obj.location['Nearest weather station'] != '':
