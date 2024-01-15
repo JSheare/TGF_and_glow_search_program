@@ -1004,11 +1004,13 @@ class ShortEvent:
 
         return event_file, new_filelist, new_filetime_extrema
 
-    def json_maker(self, detector, times, energies, wallclock, event_number, event_file, rank):
+    def json_maker(self, max_files, detector, times, energies, wallclock, event_number, event_file, rank):
         """Makes the short event JSON files.
 
         Parameters
         ----------
+        max_files : int
+            The maximum number of event files that can be made.
         detector : Detector object
             The detector object used to store all the data and relevant information.
         times : np.array
@@ -1041,15 +1043,19 @@ class ShortEvent:
         event_frame['file'] = event_file  # Note: this column will be filled by the same file name over and over again
 
         # Saves the json file
-        event_frame.to_json(f'{eventpath}{detector.date_str}_{self.scintillator}_event{event_number}_rank{rank}.json')
+        event_num_padding = '0' * (len(str(max_files)) - len(str(event_number)))
+        rank_padding = '0' * (len(str(max_files)) - len(str(rank)))
+        event_frame.to_json(f'{eventpath}{detector.date_str}_{self.scintillator}_'
+                            f'event{event_num_padding}{event_number}_rank{rank_padding}{rank}.json')
 
-    def scatterplot_maker(self, timescales, detector, times, energies, event_number, event_file, weather_score, rank):
+    def scatterplot_maker(self, info, detector, times, energies, event_number, event_file, weather_score, rank):
         """Makes the short event scatter plots.
 
         Parameters
         ----------
-        timescales : list
-            A list of the timescales (in seconds) that the scatter plots are generated in.
+        info : tuple
+            A  tuple containing a list of the timescales (in seconds) that the scatter plots are generated in and
+                the max number of scatter plots that can be generated.
         detector : Detector object
             The detector object used to store all the data and relevant information.
         times : np.array
@@ -1091,7 +1097,7 @@ class ShortEvent:
         ax_list = [ax1, ax2, ax3]
 
         for i in range(len(ax_list)):
-            ts = timescales[i]
+            ts = info[0][i]
             ax = ax_list[i]
             padding = (ts - event_length) / 2
             if event_length >= ts:
@@ -1100,7 +1106,7 @@ class ShortEvent:
             else:
                 ax.set_xlim(xmin=event_times[0] - padding, xmax=event_times[-1] + padding)
 
-            dot_size = 3 if ts == timescales[0] else 1  # makes larger dots for top plot
+            dot_size = 3 if ts == info[0][0] else 1  # makes larger dots for top plot
             ax.set_yscale('log')
             ax.set_ylim([0.5, 1e5])
             ax.scatter(trunc_times, trunc_energies + 0.6, s=dot_size, zorder=1, alpha=1.0)
@@ -1122,7 +1128,10 @@ class ShortEvent:
         scatterpath = (f'{detector.results_loc}Results/{detector.unit}/'
                        f'{detector.date_str}/scatterplots/')
         sm.path_maker(scatterpath)
-        figure1.savefig(f'{scatterpath}{detector.date_str}_{self.scintillator}_event{event_number}_rank{rank}.png')
+        event_num_padding = '0' * (len(str(info[1])) - len(str(event_number)))
+        rank_padding = '0' * (len(str(info[1])) - len(str(rank)))
+        figure1.savefig(f'{scatterpath}{detector.date_str}_{self.scintillator}_'
+                        f'event{event_num_padding}{event_number}_rank{rank_padding}{rank}.png')
         plt.close(figure1)
 
 

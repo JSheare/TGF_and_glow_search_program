@@ -338,7 +338,7 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
             else:
                 plots_already_made = 0
 
-            max_plots_total = 1000 if not aircraft else float('inf')
+            max_plots_total = 1000  # Things will break if you change this
             assert plots_already_made <= max_plots_total
             if (plots_already_made + len(potential_event_list)) >= max_plots_total:
                 max_plots = max_plots_total - plots_already_made
@@ -381,11 +381,12 @@ def short_event_search(detector_obj, prev_event_numbers=None, low_mem=False):
 
                 # Makes the scatter plot
                 event_file, filelist, filetime_extrema = event.get_filename(times, filelist, filetime_extrema)
-                event.scatterplot_maker(ts_list, detector_obj, times, energies,
+                event.scatterplot_maker((ts_list, max_plots_total), detector_obj, times, energies,
                                         i + 1 + plots_already_made, event_file, weather_score, rank)
 
                 # Makes the event file
-                event.json_maker(detector_obj, times, energies, wallclock, i + 1 + plots_already_made, event_file, rank)
+                event.json_maker(max_plots_total, detector_obj, times, energies, wallclock,
+                                 i + 1 + plots_already_made, event_file, rank)
 
                 plots_made += 1
 
