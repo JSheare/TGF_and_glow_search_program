@@ -1177,7 +1177,6 @@ class PotentialGlow:
         self.peak_index = 0
         self.highest_score = self._highest_zscore(z_scores)
         self.start_sec, self.stop_sec = self._beginning_and_end_seconds(day_bins, binsize)
-        self.stop_sec = 0
 
     # String casting magic method
     def __str__(self):

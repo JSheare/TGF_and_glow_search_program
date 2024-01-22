@@ -585,7 +585,7 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
         minimum_counts = 1000
         for glow in potential_glow_list:
             for i in range(glow.start, glow.stop):
-                if hist_allday[i] > minimum_counts:
+                if hist_allday[i] >= minimum_counts:
                     a_potential_glow_list.append(glow)
                     break
 
