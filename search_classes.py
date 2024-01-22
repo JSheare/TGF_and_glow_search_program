@@ -583,7 +583,7 @@ class Detector:
         spectra_frame = pd.DataFrame()
         spectra_frame['energy bins'] = energy_bins[:-1]
         if self or existing_spectra:
-            if self.is_data_present('LP'):
+            if self.is_data_present('LP') or (existing_spectra and len(existing_spectra['LP']) != 0):
                 energy_hist = self._generate_hist(energy_bins, 'LP', existing_spectra)  # Putting this up here
                 # so that we don't have to do it again just for template mode
                 if self.template:
@@ -598,7 +598,7 @@ class Detector:
                     print('Cannot calibrate LP (missing data)...')
 
             # Calibrates the NaI scintillator (if possible) and plots the calibration
-            if self.is_data_present('NaI'):
+            if self.is_data_present('NaI') or (existing_spectra and len(existing_spectra['NaI']) != 0):
                 energy_hist = self._generate_hist(energy_bins, 'NaI', existing_spectra)
                 flagged_indices = self._calibrate_NaI(energy_bins, energy_hist, spectra_conversions, spectra_frame)
                 self._plot_spectra('NaI', energy_bins, energy_hist, flagged_indices, sp_path)

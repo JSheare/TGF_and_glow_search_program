@@ -446,9 +446,13 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
 
     mue_val = hist_sum / len(hist_allday_nz)
 
+    # Note: mue is an array full of the mue values for each bin. On a normal day, mue will be
+    # filled entirely with mue_val. In aircraft mode, though, mue will be filled with a variety of different
+    # values dictated by the rolling baseline algorithm below
     mue = np.full(len(day_bins)-1, mue_val)
     sigma = np.full(len(day_bins)-1, np.sqrt(mue_val))
 
+    # Rolling baseline algorithm for use in aircraft mode
     if aircraft:
         center_index = 0
         window_size = 20
@@ -556,10 +560,10 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
             z_flags.append(i)
 
     # Sorts z-flags into actual potential glows
+    potential_glow_list = []
     glow_start = 0
     glow_length = 0
     previous_time = 0
-    potential_glow_list = []
     for i in range(len(z_flags)):
         flag = z_flags[i]
         if glow_length == 0:  # First zscore only
@@ -734,6 +738,10 @@ picklem = True if 'pickle' in modes else False
 allscints = True if 'allscints' in modes else False
 
 # Makes a list of all the dates on the requested range
+if int(second_date) < int(first_date):
+    print('Not a valid date range.')
+    exit()
+
 requested_dates = [first_date]
 if first_date != second_date:
     date_str = first_date
