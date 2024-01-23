@@ -7,6 +7,36 @@ import signal as signal
 import threading as threading
 
 
+# Need this to make sure that the search queue isn't emptied when the user presses the stop button
+class lockableQueue:
+    def __init__(self):
+        self.queue = []
+        self.locked = False
+
+    def __bool__(self):
+        return len(self.queue) > 0
+
+    def __contains__(self, item):
+        return item in self.queue
+
+    def __len__(self):
+        return len(self.queue)
+
+    def push(self, item):
+        if not self.locked:
+            self.queue.insert(0, item)
+
+    def pop(self):
+        if not self.locked:
+            return self.queue.pop()
+
+    def lock(self):
+        self.locked = True
+
+    def unlock(self):
+        self.locked = False
+
+
 # Creates a directory selection dialogue box and then puts the selected directory in the specified text entry box
 def select_dir(entry_box):
     directory = filedialog.askdirectory(initialdir='/')
@@ -36,67 +66,168 @@ def clear_box():
     text_box['state'] = tk.DISABLED
 
 
-# Stops the search script from running and unlocks the start button/tick boxes when the stop button is clicked
-def stop(regular_boxes, dev_boxes):
-    global pid
-    # Kills the program
-    if pid is not None:
-        print('Halting program execution (this might take a second)')
-        os.kill(pid, signal.SIGTERM)
+# Disables all checkboxes/buttons
+def disable_elements():
+    global regular_checkbox_list, dev_checkbox_list
+    start_button['state'] = tk.DISABLED
+    enqueue_button['state'] = tk.DISABLED
+    date_one['state'] = tk.DISABLED
+    date_two['state'] = tk.DISABLED
+    detector_entrybox['state'] = tk.DISABLED
+    custom_entrybox['state'] = tk.DISABLED
+    results_entrybox['state'] = tk.DISABLED
+    for box in regular_checkbox_list + dev_checkbox_list:
+        box['state'] = tk.DISABLED
 
-    pid = None
-    # Re-enabling buttons
+
+# Enables all checkboxes/buttons
+def enable_elements():
+    global regular_checkbox_list, dev_checkbox_list
     start_button['state'] = tk.NORMAL
-    for box in regular_boxes + dev_boxes:
+    enqueue_button['state'] = tk.NORMAL
+    date_one['state'] = tk.NORMAL
+    date_two['state'] = tk.NORMAL
+    detector_entrybox['state'] = tk.NORMAL
+    custom_entrybox['state'] = tk.NORMAL
+    results_entrybox['state'] = tk.NORMAL
+    for box in regular_checkbox_list + dev_checkbox_list:
         box['state'] = tk.NORMAL
 
 
-# Checks to see if there are items in the queue and prints them
-# Also unlocks the start button/tick boxes once the search script has finished executing
-def checker(regular_boxes, dev_boxes):
-    global gui, queue
-    queue = queue[::-1]
-    while len(queue) > 0:
-        text = queue.pop()
-        print(text)
-        if text == 'Search Concluded.':
-            # Re-enabling buttons
-            start_button['state'] = tk.NORMAL
-            for box in regular_boxes + dev_boxes:
-                box['state'] = tk.NORMAL
+# Checks whether a search command is valid
+def is_valid_search(first_date, second_date, detector):
+    # Checks that both dates are digits in the proper format
+    if not first_date.isdigit() or not second_date.isdigit() \
+            or len(first_date) != 6 or len(second_date) != 6:
+        print('Error: not a valid date. Please enter BOTH dates in yymmdd format.')
+        return False
 
-    milliseconds = 20
-    gui.after(milliseconds, checker, regular_boxes, dev_boxes)
+    # Checks that both dates are sequential
+    if int(first_date) > int(second_date):
+        print('Error: second date must be AFTER first date.')
+        return False
+
+    # Checks that a detector has been entered
+    if detector == '':
+        print('Error: Please enter a detector.')
+        return False
+
+    return True
 
 
-# Runs the search script and pipes stdout into the queue
-def run(command, arg):  # The useless arg is unfortunately necessary or threading will complain
-    global pid, queue
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    pid = process.pid
+def enqueue():
+    global search_queue, program_modes
+    first_date = date_one.get()
+    second_date = date_two.get()
+    detector = detector_entrybox.get()
+    # If the search command is valid, constructs the command and adds it to the queue
+    if is_valid_search(first_date, second_date, detector):
+        command = f'python3 -u search.py {first_date} {second_date} {detector.upper()}'.split()
+        for mode in program_modes:
+            command.append(mode)
 
-    while True:
-        output = process.stdout.readline()
-        if process.poll() is not None:
-            break
-        if output:
-            queue.append(output.strip().decode('utf-8'))
+        custom_results_dir = results_entrybox.get() if results_entrybox.get() != '' else 'none'
+        custom_import_dir = custom_entrybox.get() if custom_entrybox.get() != '' else 'none'
+        command.append('GUI')
+        command.append(str(custom_results_dir))
+        command.append(str(custom_import_dir))
+        if command not in search_queue and not search_queue.locked:
+            first_date_sep = f'{first_date[0:2]}/{first_date[2:4]}/{first_date[4:]}'
+            second_date_sep = f'{second_date[0:2]}/{second_date[2:4]}/{second_date[4:]}'
+            modes = (' ' + str(program_modes).replace("'", '')) if len(program_modes) > 0 else ''
+            print(f'Enqueueing {first_date_sep}'
+                  f'{" - " + second_date_sep if first_date != second_date else ""}'
+                  f' on {detector.upper()}{modes}.')
+            search_queue.push(command)
+
+
+# Starts the search script when the start button is clicked
+def start():
+    global search_queue, program_modes
+    enqueue()
+    if search_queue:
+        disable_elements()
+
+        # Runs the search script in a different thread to prevent the GUI from locking up
+        search_thread = threading.Thread(target=run, args=(0, ))
+        search_thread.start()
+
+
+# Stops the search script from running and unlocks the start button/tick boxes when the stop button is clicked
+def stop():
+    global pid, search_queue
+    # Kills the program
+    if pid is not None:
+        print('Halting program execution (this might take a second)')
+        search_queue.lock()
+        os.kill(pid, signal.SIGTERM)
 
     pid = None
-
-    out, err = process.communicate()
-    if err:
-        queue.append('\n')
-        queue.append('Search script terminated with the following error or warning:')
-        queue.append(err.strip().decode('utf-8'))
-        queue.append('\n')
-
-    queue.append('Search Concluded.')
+    enable_elements()
 
 
-# Resets all the text entry boxes and tick boxes, as well as the big text box, when the reset button is clicked
-def reset(modes, reg_variables, dev_variables, regular_boxes, dev_boxes):
-    stop(regular_boxes, dev_boxes)
+# Runs the search script and pipes stdout into the stdout queue
+def run(arg):  # The useless arg is unfortunately necessary or threading will complain
+    global pid, stdout_queue, search_queue
+    while search_queue and not search_queue.locked:
+        command = search_queue.pop()
+        # Prints feedback about what date and modes were selected
+        first_date = command[3]
+        second_date = command[4]
+        first_date_sep = f'{first_date[0:2]}/{first_date[2:4]}/{first_date[4:]}'
+        second_date_sep = f'{second_date[0:2]}/{second_date[2:4]}/{second_date[4:]}'
+        stdout_queue.append(f'Running search for {first_date_sep}'
+                            f'{(" - " + second_date_sep) if first_date != second_date else ""}'
+                            f' on {command[5]}.')
+
+        if len(command) > 9:
+            stdout_queue.append(f'This search will be run with the following modes: {", ".join(command[6:-3])}.')
+
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        pid = process.pid
+
+        while True:
+            output = process.stdout.readline()
+            if process.poll() is not None:
+                break
+            if output:
+                stdout_queue.append(output.strip().decode('utf-8'))
+
+        pid = None
+
+        out, err = process.communicate()
+        if err:
+            stdout_queue.append('\n')
+            stdout_queue.append('Search script terminated with the following error or warning:')
+            stdout_queue.append(err.strip().decode('utf-8'))
+            stdout_queue.append('\n')
+
+    stdout_queue.append('Search Concluded.')
+
+
+# Checks to see if there are items in the queue and prints them, updates the search queue counter, and unlocks the start
+# button/tick boxes once the search script has finished executing
+def checker():
+    global gui, stdout_queue, search_queue
+    while len(stdout_queue) > 0:
+        text = stdout_queue.pop(0)
+        print(text)
+        if text == 'Search Concluded.':
+            enable_elements()
+            search_queue.unlock()
+
+    enqueue_counter['text'] = f'Searches\nEnqueued:\n{len(search_queue)}'
+
+    milliseconds = 20
+    gui.after(milliseconds, checker)
+
+
+# Resets all the text entry boxes and tick boxes, as well as the big text box, when the reset button is clicked.
+# Also clears the search queue
+def reset():
+    global search_queue, program_modes, regular_checkbox_variables, dev_checkbox_variables
+    search_queue = lockableQueue()
+    stop()
 
     text_box['state'] = tk.NORMAL
     text_box.delete('1.0', 'end')
@@ -111,69 +242,16 @@ def reset(modes, reg_variables, dev_variables, regular_boxes, dev_boxes):
     results_entrybox.delete(0, 'end')
     custom_entrybox.delete(0, 'end')
 
-    for item in range(len(modes)):
-        modes.pop()
+    program_modes = []
 
-    for box in reg_variables + dev_variables:
+    for box in regular_checkbox_variables + dev_checkbox_variables:
         box.set(0)
 
 
-# Starts the search script when the start button is clicked
-def start(modes, regular_boxes, dev_boxes):
-    first_date = date_one.get()
-    second_date = date_two.get()
-
-    # Checks that both dates are digits in the proper format
-    if not first_date.isdigit() or not second_date.isdigit() \
-            or len(first_date) != 6 or len(second_date) != 6:
-        print('Error: not a valid date. Please enter BOTH dates in yymmdd format.')
-        return
-
-    # Checks that both dates are sequential
-    if int(first_date) > int(second_date):
-        print('Error: second date must be AFTER first date.')
-        return
-
-    # Checks that a detector has been entered
-    detector = detector_entrybox.get()
-    if detector == '':
-        print('Error: Please enter a detector.')
-        return
-
-    # Disabling all checkboxes/buttons
-    start_button['state'] = tk.DISABLED
-    for box in regular_boxes + dev_boxes:
-        box['state'] = tk.DISABLED
-
-    # Assembles the command and running it with search.py
-    command = f'python3 -u search.py {first_date} {second_date} {detector.upper()}'.split()
-
-    for mode in modes:
-        command.append(mode)
-
-    custom_results_dir = results_entrybox.get() if results_entrybox.get() != '' else 'none'
-    custom_import_dir = custom_entrybox.get() if custom_entrybox.get() != '' else 'none'
-    command.append('GUI')
-    command.append(str(custom_results_dir))
-    command.append(str(custom_import_dir))
-
-    # Prints feedback about what date and modes were selected
-    first_date_sep = f'{first_date[0:2]}/{first_date[2:4]}/{first_date[4:]}'
-    second_date_sep = f'{second_date[0:2]}/{second_date[2:4]}/{second_date[4:]}'
-    print(f'Running search for '
-          f'{first_date_sep + " - " + second_date_sep if first_date != second_date else first_date_sep}.')
-
-    if len(modes) != 0:
-        print(f'This search will be run with the following modes: {", ".join(modes)}.')
-
-    # Runs the search script in a different thread to prevent the GUI from locking up
-    search_thread = threading.Thread(target=run, args=(command, 0))
-    search_thread.start()
-
-
 program_modes = []
+search_queue = lockableQueue()  # Queue that holds all the enqueued days
+stdout_queue = []  # Queue that holds all the stdout output strings from the search script until they can be printed
 pid = None  # Program identification number for the search script
-queue = []  # Queue that holds all the stdout output strings from the search script until they can be printed
 
 # General GUI
 gui = tk.Tk()
@@ -203,18 +281,16 @@ text_box_label.pack()
 
 # Start and Stop buttons
 start_button = tk.Button(gui, height=3, width=10, text='Start',
-                         command=lambda: start(program_modes, regular_checkbox_list, dev_checkbox_list),
-                         bg='white')
+                         command=lambda: start(), bg='white')
 stop_button = tk.Button(gui, height=3, width=10, text='Stop',
-                        command=lambda: stop(regular_checkbox_list, dev_checkbox_list), bg='white')
+                        command=lambda: stop(), bg='white')
 
 start_button.place(x=430, y=510)
 stop_button.place(x=570, y=510)
 
-# Input reset button
-reset_button = tk.Button(gui, height=4, width=15, text='Reset',
-                         command=lambda: reset(program_modes, regular_checkbox_variables, dev_checkbox_variables,
-                                               regular_checkbox_list, dev_checkbox_list), bg='white')
+# Input/queue reset button
+reset_button = tk.Button(gui, height=4, width=15, text='Reset/\nClear Queue',
+                         command=lambda: reset(), bg='white')
 
 reset_button.place(x=810, y=510)
 
@@ -223,6 +299,17 @@ clear_button = tk.Button(gui, height=3, width=8, text='Clear\n Text',
                          command=lambda: clear_box(), bg='white')
 
 clear_button.place(x=950, y=427)
+
+# Enqueue button
+enqueue_button = tk.Button(gui, height=3, width=8, text='Enqueue',
+                           command=lambda: enqueue(), bg='white')
+
+enqueue_button.place(x=65, y=427)
+
+# Enqueue counter
+enqueue_counter = tk.Label(gui, text='')
+
+enqueue_counter.place(x=65, y=370)
 
 # Making and placing date entry boxes
 date_one_label = tk.Label(gui, text='Date One:')
@@ -327,5 +414,5 @@ custom_entrybox.place(x=250, y=680)
 custom_button.place(x=455, y=673)
 
 # Gui async loop
-checker(regular_checkbox_list, dev_checkbox_list)
+checker()
 tk.mainloop()

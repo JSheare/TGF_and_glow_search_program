@@ -22,3 +22,4 @@
 - [x] Make a standard for adding more detectors
 - [x] Make a child class of Detector called 'Chunk' for the low memory mode
 - [x] Profile the program for bottlenecks
+- [x] Optimize aircraft mode glow search sliding window code

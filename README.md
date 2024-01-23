@@ -30,7 +30,7 @@ In the command line, type the following command:
 Note that if you are running the program on Windows you may need to replace 'python3' with 'python'. This 
 command will open the program's graphical user interface. 
 
-To start a search, enter the first date in your search range in the entry box labeled 'Date one'. 
+To start a search, enter the first date in your search range in the entry box labeled 'Date One'. 
 
 Next, enter the last date in your search range in the entry box labeled 'Date Two' (enter the same date as in the first 
 box if you only want to search a single day). 
@@ -72,8 +72,8 @@ alarms caused by cosmic rays. It's recommended that the mode 'skcali' is used in
 
 
 - **'processed' Mode:** - In this mode (which is only available for GODOT) the program will search processed data instead 
-of raw data. Note that this mode is largely deprecated and that processed data must exist for your specified search 
-range for it to work properly.
+of raw data. Note that this mode is largely deprecated and that for it to work properly there must be processed data
+for your specified search range.
 
 #### **Developer Modes:**
 The program also includes several bonus modes that are largely intended for developer use; 
@@ -89,6 +89,14 @@ they include:
 
 - **'pickle' mode** - Serializes and saves the detector object for later use OR imports an 
   already-serialized detector object
+
+### **Enqueuing Multiple Searches:**
+If desired, several searches can be enqueued and then executed sequentially.
+To do this, simply fill out the search fields as described above and then press the 'Enqueue' button
+to the left of the display screen. Once you've added all of your desired searches to the queue,
+click 'Start' and the program will execute them all in the order in which they were entered.
+
+To clear the queue without running any searches, click the 'Reset' button.
 
 ## **Running the Program Through the Command Line:**
 
