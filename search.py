@@ -591,7 +591,33 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
 
         potential_glow_list = a_potential_glow_list
 
+    # Making histogram
+    figu = plt.figure(figsize=[20, 11.0])
+    plt.title(f'{unit} at {detector_obj.location["Location"]}, {str(full_day_str)}', loc='center')
+    plt.tick_params(left=False, right=False, labelleft=False, labelbottom=False, bottom=False)
+    ax1 = figu.add_subplot(5, 1, 1)  # Daily histogram
+    # The 4 top events in descending order (if they exist)
+    ax2 = figu.add_subplot(5, 1, 2)
+    ax3 = figu.add_subplot(5, 1, 3)
+    ax4 = figu.add_subplot(5, 1, 4)
+    ax5 = figu.add_subplot(5, 1, 5)
+
+    ax1.bar(day_bins[:-1], hist_allday, alpha=0.5, color='r', width=binsize)
+    ax1.set_xlabel('Seconds of Day (UT)')
+    ax1.set_ylabel('Counts/bin')
+    ax1.plot(day_bins[:-1], mue + flag_threshold * sigma, color='blue', linestyle='dashed')
+
+    # Creates legend
+    allday_data = mpatches.Patch(color='r', label='All Energies')
+    allday_thresh_sigma = mpatches.Patch(color='blue', label=f'{flag_threshold} Sigma Above All Energies',
+                                         linestyle='dashed')
+    ax1.legend(handles=[allday_data, allday_thresh_sigma, ], bbox_to_anchor=(1.05, 1), loc=1,
+               borderaxespad=0.)
+    ax1.grid(True)
+
     sm.print_logger('Done.', detector_obj.log)
+
+    # Making event files and subplots (if they exist)
     if len(potential_glow_list) == 0:
         sm.print_logger('\n', detector_obj.log)
         sm.print_logger(f'There were no potential glows on {full_day_str}', detector_obj.log)
@@ -662,35 +688,8 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
 
         potential_glow_list = [potential_glow_list[s] for s in np.argsort(highest_scores)[::-1]]
 
-        # Plotting the histograms
-        sm.print_logger('\n', detector_obj.log)
-        sm.print_logger('Generating Histogram...', detector_obj.log)
-        figu = plt.figure(figsize=[20, 11.0])
-        plt.title(f'{unit} at {detector_obj.location["Location"]}, {str(full_day_str)}', loc='center')
-        plt.tick_params(left=False, right=False, labelleft=False, labelbottom=False, bottom=False)
-        ax1 = figu.add_subplot(5, 1, 1)
-        ax2 = figu.add_subplot(5, 1, 2)
-        ax3 = figu.add_subplot(5, 1, 3)
-        ax4 = figu.add_subplot(5, 1, 4)
-        ax5 = figu.add_subplot(5, 1, 5)
-
-        ax_list = [ax2, ax3, ax4, ax5]
-
-        # Plots the histogram for the entire day (just the 1st subplot)
-        ax1.bar(day_bins[:-1], hist_allday, alpha=0.5, color='r', width=binsize)
-        ax1.set_xlabel('Seconds of Day (UT)')
-        ax1.set_ylabel('Counts/bin')
-        ax1.plot(day_bins[:-1], mue + flag_threshold*sigma, color='blue', linestyle='dashed')
-
-        # Creates legend
-        allday_data = mpatches.Patch(color='r', label='All Energies')
-        allday_thresh_sigma = mpatches.Patch(color='blue', label=f'{flag_threshold} Sigma Above All Energies',
-                                             linestyle='dashed')
-        ax1.legend(handles=[allday_data, allday_thresh_sigma, ], bbox_to_anchor=(1.05, 1), loc=1,
-                   borderaxespad=0.)
-        ax1.grid(True)
-
         # Makes the histogram subplots
+        ax_list = [ax2, ax3, ax4, ax5]
         for i in range(4):
             try:
                 glow = potential_glow_list[i]
@@ -698,13 +697,15 @@ def long_event_search(detector_obj, le_times, existing_hist=None, low_mem=False)
             except IndexError:
                 continue
 
-        plt.tight_layout()
+    plt.tight_layout()
 
-        # Saves the histograms:
-        hist_path = f'{detector_obj.results_loc}Results/{unit}/{date_str}/'
-        sm.path_maker(hist_path)
-        plt.savefig(f'{hist_path}{date_str}_histogram.png', dpi=500)
-        plt.close(figu)
+    # Saves the histogram(s):
+    sm.print_logger('\n', detector_obj.log)
+    sm.print_logger('Saving Histogram...', detector_obj.log)
+    hist_path = f'{detector_obj.results_loc}Results/{unit}/{date_str}/'
+    sm.path_maker(hist_path)
+    plt.savefig(f'{hist_path}{date_str}_histogram.png', dpi=500)
+    plt.close(figu)
 
 
 # Disables all warnings in the console because they're mostly just annoying
