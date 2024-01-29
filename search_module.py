@@ -70,14 +70,14 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support import expected_conditions as ec
 import pandas as pd
 
-# Global variables needed by various functions.
-g_two_am = 7200  # Number of seconds of the day corresponding to 2:00AM
-g_sec_per_hour = 3600
-g_sec_per_day = 86400
-g_century = '20'
+# Constants needed by various functions
+TWO_AM = 7200  # Number of seconds of the day corresponding to 2:00AM
+SEC_PER_HOUR = 3600
+SEC_PER_DAY = 86400
+CENTURY = '20'
 
 
 # Info functions:
@@ -182,7 +182,7 @@ def roll_date_forward(date_str):
     date_int += 1
     date_str = str(date_int)
     # Month rollover
-    if int(date_str[4:]) > days_per_month(int(date_str[2:4]), int(g_century + date_str[0:2])):
+    if int(date_str[4:]) > days_per_month(int(date_str[2:4]), int(CENTURY + date_str[0:2])):
         date_int = date_int + 100 - (int(date_str[4:]) - 1)
         date_str = str(date_int)
 
@@ -207,7 +207,7 @@ def roll_date_backward(date_str):
     # Month rollback
     if int(date_str[4:]) == 0:
         date_int -= 100
-        date_int += days_per_month(int(str(date_int)[2:4]), int(g_century + date_str[0:2]))
+        date_int += days_per_month(int(str(date_int)[2:4]), int(CENTURY + date_str[0:2]))
         date_str = str(date_int)
 
     return date_str
@@ -220,7 +220,7 @@ def full_date_to_short(full_date_str):
 
 def short_to_full_date(date_str):
     """Converts a date string of the form yymmdd to the form yyyy-mm-dd."""
-    return f'{g_century}{date_str[0:2]}-{date_str[2:4]}-{date_str[4:]}'
+    return f'{CENTURY}{date_str[0:2]}-{date_str[2:4]}-{date_str[4:]}'
 
 
 # Program functions:
@@ -298,8 +298,8 @@ def convert_to_local(detector, event_time):
     timezone_conversion = detector.location['UTC conversion to local time']
 
     # Just in case the event happened in the ~300 seconds of the next day typically included in the dataset
-    if event_time > g_sec_per_day:
-        event_time -= g_sec_per_day
+    if event_time > SEC_PER_DAY:
+        event_time -= SEC_PER_DAY
         date_str = roll_date_forward(date_str)
 
     # Corrects the UTC conversion if we're in daylight savings time
@@ -307,15 +307,15 @@ def convert_to_local(detector, event_time):
         timezone_conversion = dst_conversion(date_str, event_time, timezone_conversion)
 
     # If the event happened the next day local time
-    if (event_time + (g_sec_per_hour * timezone_conversion)) > g_sec_per_day:
+    if (event_time + (SEC_PER_HOUR * timezone_conversion)) > SEC_PER_DAY:
         date_str = roll_date_forward(date_str)
-        event_time = (event_time + (g_sec_per_hour * timezone_conversion)) - g_sec_per_day
+        event_time = (event_time + (SEC_PER_HOUR * timezone_conversion)) - SEC_PER_DAY
     # If the event happened the previous day local time
-    elif (event_time + (g_sec_per_hour * timezone_conversion)) < 0:
+    elif (event_time + (SEC_PER_HOUR * timezone_conversion)) < 0:
         date_str = roll_date_backward(timezone_conversion)
-        event_time = (event_time + (g_sec_per_hour * timezone_conversion)) + g_sec_per_day
+        event_time = (event_time + (SEC_PER_HOUR * timezone_conversion)) + SEC_PER_DAY
     else:
-        event_time = event_time + (g_sec_per_hour * timezone_conversion)
+        event_time = event_time + (SEC_PER_HOUR * timezone_conversion)
 
     return short_to_full_date(date_str), event_time
 
@@ -422,7 +422,7 @@ def scrape_weather(full_date_str, station):
             url = f'https://www.wunderground.com/history/daily/{station}/date/{full_date_str}'
 
             driver.get(url)
-            tables = WebDriverWait(driver, 20).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "table")))
+            tables = WebDriverWait(driver, 20).until(ec.presence_of_all_elements_located((By.CSS_SELECTOR, "table")))
 
         table = pd.read_html(tables[1].get_attribute('outerHTML'))[0]
 
@@ -446,7 +446,7 @@ def dst_status(date_str):
         A status for the date: inside if the date is inside dst, outside if out, or beginning/end for the boundaries.
 
     """
-    year = int(g_century + date_str[0:2])
+    year = int(CENTURY + date_str[0:2])
     month = int(date_str[2:4])
     day = int(date_str[4:])
 
@@ -495,12 +495,12 @@ def dst_conversion(date_str, event_time, timezone_conversion):
 
     """
 
-    temp_time = event_time + (timezone_conversion * g_sec_per_hour)
-    if temp_time > g_sec_per_day:
-        temp_time -= g_sec_per_day
+    temp_time = event_time + (timezone_conversion * SEC_PER_HOUR)
+    if temp_time > SEC_PER_DAY:
+        temp_time -= SEC_PER_DAY
         temp_date = roll_date_forward(date_str)
     elif temp_time < 0:
-        temp_time += g_sec_per_day
+        temp_time += SEC_PER_DAY
         temp_date = roll_date_backward(date_str)
     else:
         temp_date = date_str
@@ -511,12 +511,12 @@ def dst_conversion(date_str, event_time, timezone_conversion):
     elif temp_date_status == 'outside':  # Squarely outside dst
         return timezone_conversion
     elif temp_date_status == 'beginning':  # Beginning of dst (2nd Sunday of March at 2:00AM)
-        if temp_time >= g_two_am:
+        if temp_time >= TWO_AM:
             return timezone_conversion + 1
         else:
             return timezone_conversion
     else:  # End of dst (1st Sunday of November at 2:00AM)
-        if (temp_time + g_sec_per_hour) >= g_two_am:  # + sec_per_hour b/c temp time should be in dst
+        if (temp_time + SEC_PER_HOUR) >= TWO_AM:  # + sec_per_hour b/c temp time should be in dst
             return timezone_conversion
         else:
             return timezone_conversion + 1

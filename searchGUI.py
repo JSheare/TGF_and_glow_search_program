@@ -248,171 +248,170 @@ def reset():
         box.set(0)
 
 
-program_modes = []
-search_queue = lockableQueue()  # Queue that holds all the enqueued days
-stdout_queue = []  # Queue that holds all the stdout output strings from the search script until they can be printed
-pid = None  # Program identification number for the search script
+if __name__ == '__main__':
+    program_modes = []
+    search_queue = lockableQueue()  # Queue that holds all the enqueued days
+    stdout_queue = []  # Queue that holds all the stdout output strings from the search script until they can be printed
+    pid = None  # Program identification number for the search script
 
-# General GUI
-gui = tk.Tk()
-gui.title("TGF Search")
-gui.geometry("1080x720")
-gui.resizable(False, False)
+    # General GUI
+    gui = tk.Tk()
+    gui.title("TGF Search")
+    gui.geometry("1080x720")
+    gui.resizable(False, False)
 
-# Making the text box
-text_box = tk.Text(gui, height=30, width=100)
-text_box['state'] = tk.DISABLED
-text_box_label = tk.Label(gui, text='Search Output', anchor=tk.CENTER)
-
-
-# Redirecting stdout to the GUI text box
-def redirector(inputStr):
-    text_box['state'] = tk.NORMAL
-    text_box.insert("end", inputStr)
-    text_box.yview(tk.END)
+    # Making the text box
+    text_box = tk.Text(gui, height=30, width=100)
     text_box['state'] = tk.DISABLED
+    text_box_label = tk.Label(gui, text='Search Output', anchor=tk.CENTER)
+
+    # Redirecting stdout to the GUI text box
+    def redirector(inputStr):
+        text_box['state'] = tk.NORMAL
+        text_box.insert("end", inputStr)
+        text_box.yview(tk.END)
+        text_box['state'] = tk.DISABLED
 
 
-sys.stdout.write = redirector
+    sys.stdout.write = redirector
 
-# Packing the text box and label in
-text_box.pack()
-text_box_label.pack()
+    # Packing the text box and label in
+    text_box.pack()
+    text_box_label.pack()
 
-# Start and Stop buttons
-start_button = tk.Button(gui, height=3, width=10, text='Start',
-                         command=lambda: start(), bg='white')
-stop_button = tk.Button(gui, height=3, width=10, text='Stop',
-                        command=lambda: stop(), bg='white')
+    # Start and Stop buttons
+    start_button = tk.Button(gui, height=3, width=10, text='Start',
+                             command=lambda: start(), bg='white')
+    stop_button = tk.Button(gui, height=3, width=10, text='Stop',
+                            command=lambda: stop(), bg='white')
 
-start_button.place(x=430, y=510)
-stop_button.place(x=570, y=510)
+    start_button.place(x=430, y=510)
+    stop_button.place(x=570, y=510)
 
-# Input/queue reset button
-reset_button = tk.Button(gui, height=4, width=15, text='Reset/\nClear Queue',
-                         command=lambda: reset(), bg='white')
+    # Input/queue reset button
+    reset_button = tk.Button(gui, height=4, width=15, text='Reset/\nClear Queue',
+                             command=lambda: reset(), bg='white')
 
-reset_button.place(x=810, y=510)
+    reset_button.place(x=810, y=510)
 
-# Clear text box button
-clear_button = tk.Button(gui, height=3, width=8, text='Clear\n Text',
-                         command=lambda: clear_box(), bg='white')
+    # Clear text box button
+    clear_button = tk.Button(gui, height=3, width=8, text='Clear\n Text',
+                             command=lambda: clear_box(), bg='white')
 
-clear_button.place(x=950, y=427)
+    clear_button.place(x=950, y=427)
 
-# Enqueue button
-enqueue_button = tk.Button(gui, height=3, width=8, text='Enqueue',
-                           command=lambda: enqueue(), bg='white')
+    # Enqueue button
+    enqueue_button = tk.Button(gui, height=3, width=8, text='Enqueue',
+                               command=lambda: enqueue(), bg='white')
 
-enqueue_button.place(x=65, y=427)
+    enqueue_button.place(x=65, y=427)
 
-# Enqueue counter
-enqueue_counter = tk.Label(gui, text='')
+    # Enqueue counter
+    enqueue_counter = tk.Label(gui, text='')
 
-enqueue_counter.place(x=65, y=370)
+    enqueue_counter.place(x=65, y=370)
 
-# Making and placing date entry boxes
-date_one_label = tk.Label(gui, text='Date One:')
-date_one = tk.Entry(gui, width=15, borderwidth=5)
-date_one.insert(0, 'yymmdd')
-date_one.bind("<FocusIn>", lambda e: ghost_text_clear(date_one, 'yymmdd'))
+    # Making and placing date entry boxes
+    date_one_label = tk.Label(gui, text='Date One:')
+    date_one = tk.Entry(gui, width=15, borderwidth=5)
+    date_one.insert(0, 'yymmdd')
+    date_one.bind("<FocusIn>", lambda e: ghost_text_clear(date_one, 'yymmdd'))
 
-date_two_label = tk.Label(gui, text='Date Two: ')
-date_two = tk.Entry(gui, width=15, borderwidth=5)
-date_two.insert(0, 'yymmdd')
-date_two.bind("<FocusIn>", lambda e: ghost_text_clear(date_two, 'yymmdd'))
+    date_two_label = tk.Label(gui, text='Date Two: ')
+    date_two = tk.Entry(gui, width=15, borderwidth=5)
+    date_two.insert(0, 'yymmdd')
+    date_two.bind("<FocusIn>", lambda e: ghost_text_clear(date_two, 'yymmdd'))
 
-date_one_label.place(x=150, y=510)
-date_one.place(x=220, y=510)
-date_two_label.place(x=150, y=550)
-date_two.place(x=220, y=550)
+    date_one_label.place(x=150, y=510)
+    date_one.place(x=220, y=510)
+    date_two_label.place(x=150, y=550)
+    date_two.place(x=220, y=550)
 
-# Making and placing regular mode checkboxes
-regular_checkbox_label = tk.Label(gui, text='Modes:')
+    # Making and placing regular mode checkboxes
+    regular_checkbox_label = tk.Label(gui, text='Modes:')
 
-ascb = tk.IntVar()
-allscints_cb = tk.Checkbutton(gui, text='allscints', variable=ascb, onvalue=1, offvalue=0,
-                              command=lambda: tick_untick(ascb, program_modes, 'allscints'))
+    ascb = tk.IntVar()
+    allscints_cb = tk.Checkbutton(gui, text='allscints', variable=ascb, onvalue=1, offvalue=0,
+                                  command=lambda: tick_untick(ascb, program_modes, 'allscints'))
 
-tcb = tk.IntVar()
-template_cb = tk.Checkbutton(gui, text='template', variable=tcb, onvalue=1, offvalue=0,
-                             command=lambda: tick_untick(tcb, program_modes, 'template'))
+    tcb = tk.IntVar()
+    template_cb = tk.Checkbutton(gui, text='template', variable=tcb, onvalue=1, offvalue=0,
+                                 command=lambda: tick_untick(tcb, program_modes, 'template'))
 
-acb = tk.IntVar()
-aircraft_cb = tk.Checkbutton(gui, text='aircraft', variable=acb, onvalue=1, offvalue=0,
-                             command=lambda: tick_untick(acb, program_modes, 'aircraft'))
+    acb = tk.IntVar()
+    aircraft_cb = tk.Checkbutton(gui, text='aircraft', variable=acb, onvalue=1, offvalue=0,
+                                 command=lambda: tick_untick(acb, program_modes, 'aircraft'))
 
-procb = tk.IntVar()
-processed_cb = tk.Checkbutton(gui, text='processed', variable=procb, onvalue=1, offvalue=0,
-                              command=lambda: tick_untick(procb, program_modes, 'processed'))
+    procb = tk.IntVar()
+    processed_cb = tk.Checkbutton(gui, text='processed', variable=procb, onvalue=1, offvalue=0,
+                                  command=lambda: tick_untick(procb, program_modes, 'processed'))
 
-regular_checkbox_label.place(x=150, y=600)
-allscints_cb.place(x=220, y=600)
-template_cb.place(x=300, y=600)
-aircraft_cb.place(x=380, y=600)
-processed_cb.place(x=460, y=600)
+    regular_checkbox_label.place(x=150, y=600)
+    allscints_cb.place(x=220, y=600)
+    template_cb.place(x=300, y=600)
+    aircraft_cb.place(x=380, y=600)
+    processed_cb.place(x=460, y=600)
 
-regular_checkbox_list = [allscints_cb, template_cb, aircraft_cb, processed_cb]
-regular_checkbox_variables = [ascb, tcb, acb, procb]
+    regular_checkbox_list = [allscints_cb, template_cb, aircraft_cb, processed_cb]
+    regular_checkbox_variables = [ascb, tcb, acb, procb]
 
-# Making and placing developer mode checkboxes
-dev_checkbox_label = tk.Label(gui, text='Dev Modes:')
+    # Making and placing developer mode checkboxes
+    dev_checkbox_label = tk.Label(gui, text='Dev Modes:')
 
-sccb = tk.IntVar()
-skcali_cb = tk.Checkbutton(gui, text='skcali', variable=sccb, onvalue=1, offvalue=0,
-                           command=lambda: tick_untick(sccb, program_modes, 'skcali'))
+    sccb = tk.IntVar()
+    skcali_cb = tk.Checkbutton(gui, text='skcali', variable=sccb, onvalue=1, offvalue=0,
+                               command=lambda: tick_untick(sccb, program_modes, 'skcali'))
 
-sscb = tk.IntVar()
-skshort_cb = tk.Checkbutton(gui, text='skshort', variable=sscb, onvalue=1, offvalue=0,
-                            command=lambda: tick_untick(sscb, program_modes, 'skshort'))
+    sscb = tk.IntVar()
+    skshort_cb = tk.Checkbutton(gui, text='skshort', variable=sscb, onvalue=1, offvalue=0,
+                                command=lambda: tick_untick(sscb, program_modes, 'skshort'))
 
-sgcb = tk.IntVar()
-skglow_cb = tk.Checkbutton(gui, text='skglow', variable=sgcb, onvalue=1, offvalue=0,
-                           command=lambda: tick_untick(sgcb, program_modes, 'skglow'))
+    sgcb = tk.IntVar()
+    skglow_cb = tk.Checkbutton(gui, text='skglow', variable=sgcb, onvalue=1, offvalue=0,
+                               command=lambda: tick_untick(sgcb, program_modes, 'skglow'))
 
-pcb = tk.IntVar()
-pickle_cb = tk.Checkbutton(gui, text='pickle', variable=pcb, onvalue=1, offvalue=0,
-                           command=lambda: tick_untick(pcb, program_modes, 'pickle'))
+    pcb = tk.IntVar()
+    pickle_cb = tk.Checkbutton(gui, text='pickle', variable=pcb, onvalue=1, offvalue=0,
+                               command=lambda: tick_untick(pcb, program_modes, 'pickle'))
 
+    dev_checkbox_label.place(x=150, y=630)
+    skcali_cb.place(x=220, y=630)
+    skshort_cb.place(x=300, y=630)
+    skglow_cb.place(x=380, y=630)
+    pickle_cb.place(x=460, y=630)
 
-dev_checkbox_label.place(x=150, y=630)
-skcali_cb.place(x=220, y=630)
-skshort_cb.place(x=300, y=630)
-skglow_cb.place(x=380, y=630)
-pickle_cb.place(x=460, y=630)
+    dev_checkbox_list = [skcali_cb, skshort_cb, skglow_cb, pickle_cb]
+    dev_checkbox_variables = [sccb, sscb, sgcb, pcb]
 
-dev_checkbox_list = [skcali_cb, skshort_cb, skglow_cb, pickle_cb]
-dev_checkbox_variables = [sccb, sscb, sgcb, pcb]
+    # Making and placing detector entry box
+    detector_label = tk.Label(gui, text='Detector:')
+    detector_entrybox = tk.Entry(gui, width=10, borderwidth=5)
+    supported_label = tk.Label(gui, text='Supported\n Detectors:\nTHOR(1-6), GODOT,\nSANTIS, CROATIA')
 
-# Making and placing detector entry box
-detector_label = tk.Label(gui, text='Detector:')
-detector_entrybox = tk.Entry(gui, width=10, borderwidth=5)
-supported_label = tk.Label(gui, text='Supported\n Detectors:\nTHOR(1-6), GODOT,\nSANTIS, CROATIA')
+    detector_label.place(x=660, y=615)
+    detector_entrybox.place(x=720, y=615)
+    supported_label.place(x=800, y=595)
 
-detector_label.place(x=660, y=615)
-detector_entrybox.place(x=720, y=615)
-supported_label.place(x=800, y=595)
+    # Making and placing custom export location entry box and directory dialogue box button
+    results_label = tk.Label(gui, text='Export Location:')
+    results_entrybox = tk.Entry(gui, width=30, borderwidth=5)
+    results_button = tk.Button(gui, width=6, height=2, text='Browse',
+                               command=lambda: select_dir(results_entrybox), bg='white')
 
-# Making and placing custom export location entry box and directory dialogue box button
-results_label = tk.Label(gui, text='Export Location:')
-results_entrybox = tk.Entry(gui, width=30, borderwidth=5)
-results_button = tk.Button(gui, width=6, height=2, text='Browse',
-                           command=lambda: select_dir(results_entrybox), bg='white')
+    results_label.place(x=575, y=680)
+    results_entrybox.place(x=675, y=680)
+    results_button.place(x=880, y=673)
 
-results_label.place(x=575, y=680)
-results_entrybox.place(x=675, y=680)
-results_button.place(x=880, y=673)
+    # Making and placing custom import location entry box and directory dialogue box button
+    custom_label = tk.Label(gui, text='Import Location:')
+    custom_entrybox = tk.Entry(gui, width=30, borderwidth=5)
+    custom_button = tk.Button(gui, width=6, height=2, text='Browse',
+                              command=lambda: select_dir(custom_entrybox), bg='white')
 
-# Making and placing custom import location entry box and directory dialogue box button
-custom_label = tk.Label(gui, text='Import Location:')
-custom_entrybox = tk.Entry(gui, width=30, borderwidth=5)
-custom_button = tk.Button(gui, width=6, height=2, text='Browse',
-                          command=lambda: select_dir(custom_entrybox), bg='white')
+    custom_label.place(x=150, y=680)
+    custom_entrybox.place(x=250, y=680)
+    custom_button.place(x=455, y=673)
 
-custom_label.place(x=150, y=680)
-custom_entrybox.place(x=250, y=680)
-custom_button.place(x=455, y=673)
-
-# Gui async loop
-checker()
-tk.mainloop()
+    # Gui async loop
+    checker()
+    tk.mainloop()
