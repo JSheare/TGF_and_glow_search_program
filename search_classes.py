@@ -145,8 +145,8 @@ class Detector:
         elif self.unit[0:4] == 'THOR':
             self.THOR = True
             self.long_event_scint_list = ['NaI']
-            self.calibration_params = {'bin_range': 65535.0, 'bin_size': 1, 'band_starts': [2000, 5600],
-                                       'band_ends': [2500, 6300], 'template_bin_plot_edge': 8000}  # placeholder
+            self.calibration_params = {'bin_range': 65535.0, 'bin_size': 1, 'band_starts': [5600, 10833],
+                                       'band_ends': [6300, 12499], 'template_bin_plot_edge': 8000}
             self.import_path = f'{sm.T_raw_data_loc()}/{unit}/Data/{self.date_str}'
             self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.date_str}_*'
             self.scintillators = {'NaI': {'eRC': sm.T_eRC(self.unit, self.date_str)[0],
