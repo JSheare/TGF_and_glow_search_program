@@ -195,22 +195,20 @@ def calculate_subscores(detector_obj, event, times, energies, weather_cache):
         high_energy_lead /= leading_counts
 
     # Calculating the length subscore
-    len_subscore = 1/max_score_len * event.length
+    event.len_subscore = 1/max_score_len * event.length
 
     # Calculating the clumpiness subscore
-    clumpiness_subscore = 1/(1 + np.e**(40*(clumpiness - tossup)))
+    event.clumpiness_subscore = 1/(1 + np.e**(40*(clumpiness - tossup)))
 
     # Calculaing high energy leading count subscore
-    hel_subscore = np.e ** -(5.3 * high_energy_lead)
+    event.hel_subscore = np.e ** -(5.3 * high_energy_lead)
 
     # Getting weather subscore
     if detector_obj.location['Nearest weather station'] != '':
         local_date, local_time = sm.convert_to_local(detector_obj.full_date_str, times[event.start])
-        weather_subscore = sm.get_weather_conditions(local_date, local_time, detector_obj, weather_cache)
+        event.weather_subscore = sm.get_weather_conditions(local_date, local_time, detector_obj, weather_cache)
     else:
-        weather_subscore = -1
-
-    return len_subscore, clumpiness_subscore, hel_subscore, weather_subscore
+        event.weather_subscore = -1
 
 
 # Calculates subscores, then uses them to calculate a final score for each event and then rank all the events
@@ -223,23 +221,24 @@ def rank_events(detector_obj, potential_events, times, energies):
     assert len_weight + clumpiness_weight + hel_weight + weather_weight <= 1
 
     weather_cache = {}
-    subscores = []
-    scores = []
     for event in potential_events:
-        length, clumpiness, hel, weather = calculate_subscores(detector_obj, event, times, energies, weather_cache)
-        subscores.append((length, clumpiness, hel, weather))
+        calculate_subscores(detector_obj, event, times, energies, weather_cache)
         # If weather info couldn't be obtained, the weather subscore is removed and the remaining weights are adjusted
         # so that they stay proportional to one another
-        if weather == -1:
+        if event.weather_subscore == -1:
             proportionality = 1/(len_weight + clumpiness_weight + hel_weight)
-            score = proportionality * (len_weight * length + clumpiness_weight * clumpiness + hel_weight * hel)
+            event.total_score = proportionality * (len_weight * event.len_subscore +
+                                                   clumpiness_weight * event.clumpiness_subscore +
+                                                   hel_weight * event.hel_subscore)
         else:
-            score = len_weight * length + clumpiness_weight * clumpiness + hel_weight * hel + weather_weight * weather
+            event.total_score = (len_weight * event.len_subscore +
+                                 clumpiness_weight * event.clumpiness_subscore +
+                                 hel_weight * event.hel_subscore +
+                                 weather_weight * event.weather_subscore)
 
-        scores.append(-score)  # Negative so that we get a descending order sort
-
-    rankings = np.argsort(scores) + 1
-    return [(event, subscores, rank) for event, subscores, rank in zip(potential_events, subscores, rankings)]
+    ranked_events = sorted(potential_events, key=lambda x: -x.total_score)  # negative so we get a descending order sort
+    for i in range(len(ranked_events)):
+        ranked_events[i].rank = i + 1
 
 
 # Short event search algorithm
@@ -248,6 +247,7 @@ def short_event_search(detector_obj, mode_flags, prev_event_numbers=None, low_me
     rollgap = 18 if mode_flags['aircraft'] else 4
     event_time_spacing = 1e-3  # 1 millisecond
     event_min_counts = 10
+    max_plots_total = 1000
 
     event_numbers = prev_event_numbers if prev_event_numbers is not None else {}
     for scintillator in detector_obj:
@@ -297,7 +297,8 @@ def short_event_search(detector_obj, mode_flags, prev_event_numbers=None, low_me
                 if event_length >= event_min_counts:
                     # Runs potential event through filters
                     if is_good_short_event(detector_obj, mode_flags, stats, times, energies, event_start, event_length):
-                        potential_event_list.append(sc.ShortEvent(event_start, event_length, scintillator))
+                        potential_event_list.append(sc.ShortEvent(event_start, event_length,
+                                                                  scintillator, max_plots_total))
 
                 else:
                     stats['removed_len'] += 1
@@ -328,26 +329,19 @@ def short_event_search(detector_obj, mode_flags, prev_event_numbers=None, low_me
             sm.print_logger('Generating scatter plots and event files...', detector_obj.log)
             print('\n', file=detector_obj.log)
 
-            # Subplot timescales
-            ts1 = 1e-4   # 100 microseconds
-            ts2 = 0.005  # 5 milliseconds
-            ts3 = 2      # 2 seconds
-            ts_list = [ts1, ts2, ts3]
-
             if prev_event_numbers is not None:
                 plots_already_made = event_numbers[scintillator]
             else:
                 plots_already_made = 0
 
-            max_plots_total = 1000  # Things will break if you change this
             assert plots_already_made <= max_plots_total
             if (plots_already_made + len(potential_event_list)) >= max_plots_total:
                 max_plots = max_plots_total - plots_already_made
             else:
                 max_plots = len(potential_event_list)
 
-            # Remakes the event list to include subscores and ranking for each event
-            potential_event_list = rank_events(detector_obj, potential_event_list, times, energies)
+            # Updates each event object to include it's accurate subscores, total score, and rank
+            rank_events(detector_obj, potential_event_list, times, energies)
 
             plots_made = 0
             filecount_switch = True
@@ -365,29 +359,23 @@ def short_event_search(detector_obj, mode_flags, prev_event_numbers=None, low_me
                     print(f'Making {max_plots} plots...')
                     filecount_switch = False
 
-                event, subscores, rank = potential_event_list[i]
-                weather_score = subscores[3]
+                event = potential_event_list[i]
 
                 # Logs the event
                 start_second = times[event.start] - 86400 if times[event.start] > 86400 else times[event.start]
                 print(f'{dt.datetime.utcfromtimestamp(times[event.start] + first_sec)} UTC '
-                      f'({start_second} seconds of day) - weather: {sm.weather_from_score(weather_score)}',
+                      f'({start_second} seconds of day) - weather: {sm.weather_from_score(event.weather_subscore)}',
                       file=detector_obj.log)
-                print(f'    Rank: {rank}, '
-                      f'Subscores: [Length: {subscores[0]}, Clumpiness: {subscores[1]}, HEL: {subscores[2]}]\n',
+                print(f'    Rank: {event.rank}, Subscores: [Length: {event.len_subscore}, '
+                      f'Clumpiness: {event.clumpiness_subscore}, HEL: {event.hel_subscore}]\n',
                       file=detector_obj.log)
-
-                # Note: I know the parameter lists below are long, but I'd rather have some ugly syntax here
-                # than waste memory calling attribute_retriever and making unnecessary function-scoped copies
 
                 # Makes the scatter plot
                 event_file, filelist, filetime_extrema = event.get_filename(times, filelist, filetime_extrema)
-                event.scatterplot_maker((ts_list, max_plots_total), detector_obj, times, energies,
-                                        i + 1 + plots_already_made, event_file, weather_score, rank)
+                event.scatterplot_maker(detector_obj, times, energies, i + 1 + plots_already_made, event_file)
 
                 # Makes the event file
-                event.json_maker(max_plots_total, detector_obj, times, energies, wallclock,
-                                 i + 1 + plots_already_made, event_file, rank)
+                event.json_maker(detector_obj, times, energies, wallclock, i + 1 + plots_already_made, event_file)
 
                 plots_made += 1
 

@@ -931,6 +931,8 @@ class ShortEvent:
         The number of entries in the time array which make up the event.
     scintillator : str
         A string corresponding to the scintillator which the event was found in.
+    max_files : int
+        The maximum number of files that the search program will make for a given scintillator.
 
     Attributes
     ----------
@@ -942,14 +944,38 @@ class ShortEvent:
         The index of the time array which corresponds to the end of the event.
     scintillator : str
         A string corresponding to the scintillator which the event was found in.
+    max_files : int
+        The maximum number of files that the search program will make for a given scintillator.
+    len_subscore : int
+        The event's length score given by the ranking system.
+    clumpiness_subscore : int
+        The event's clumpiness score given by the ranking system.
+    hel_subscore : int
+        The event's high energy leading count score given by the ranking system.
+    weather_subscore : int
+        The event's weather score given by the ranking system.
+    total_score : int
+        The event's total score as determined by the subscores. Calculated by the ranking system.
+    rank : int
+        The event's rank among all the other events found.
 
     """
 
-    def __init__(self, event_start, event_length, scintillator):
+    def __init__(self, event_start, event_length, scintillator, max_files):
         self.start = int(event_start)
         self.length = int(event_length)
         self.stop = int(event_start + event_length)
         self.scintillator = scintillator
+        self.max_files = max_files
+
+        # Ranking scores
+        self.len_subscore = 0
+        self.clumpiness_subscore = 0
+        self.hel_subscore = 0
+        self.weather_subscore = 0
+        self.total_score = 0
+
+        self.rank = 0
 
     # String casting magic method
     def __str__(self):
@@ -1004,13 +1030,11 @@ class ShortEvent:
 
         return event_file, new_filelist, new_filetime_extrema
 
-    def json_maker(self, max_files, detector, times, energies, wallclock, event_number, event_file, rank):
+    def json_maker(self, detector, times, energies, wallclock, event_number, event_file):
         """Makes the short event JSON files.
 
         Parameters
         ----------
-        max_files : int
-            The maximum number of event files that can be made.
         detector : Detector object
             The detector object used to store all the data and relevant information.
         times : np.array
@@ -1024,8 +1048,6 @@ class ShortEvent:
             event for whatever scintillator, 2 would be the second, and so on).
         event_file : str
             The name of the file that the event occurred in.
-        rank : int
-            The event's ranking among all the other events
 
         """
 
@@ -1043,19 +1065,16 @@ class ShortEvent:
         event_frame['file'] = event_file  # Note: this column will be filled by the same file name over and over again
 
         # Saves the json file
-        event_num_padding = '0' * (len(str(max_files)) - len(str(event_number)))
-        rank_padding = '0' * (len(str(max_files)) - len(str(rank)))
+        event_num_padding = '0' * (len(str(self.max_files)) - len(str(event_number)))
+        rank_padding = '0' * (len(str(self.max_files)) - len(str(self.rank)))
         event_frame.to_json(f'{eventpath}{detector.date_str}_{self.scintillator}_'
-                            f'event{event_num_padding}{event_number}_rank{rank_padding}{rank}.json')
+                            f'event{event_num_padding}{event_number}_rank{rank_padding}{self.rank}.json')
 
-    def scatterplot_maker(self, info, detector, times, energies, event_number, event_file, weather_score, rank):
+    def scatterplot_maker(self, detector, times, energies, event_number, event_file):
         """Makes the short event scatter plots.
 
         Parameters
         ----------
-        info : tuple
-            A  tuple containing a list of the timescales (in seconds) that the scatter plots are generated in and
-                the max number of scatter plots that can be generated.
         detector : Detector object
             The detector object used to store all the data and relevant information.
         times : np.array
@@ -1067,12 +1086,10 @@ class ShortEvent:
             event for whatever scintillator, 2 would be the second, and so on).
         event_file : str
             The name of the file that the event occurred in.
-        weather_score : int
-            A score describing the weather conditions at the time of the event.
-        rank : int
-            The event's ranking among all the other events.
 
         """
+        # Subplot timescales
+        timescales = [1e-4, 0.005, 2]  # 100 microseconds, 5 milliseconds, 2 seconds
 
         # Truncated time and energy arrays to speed up scatter plot making
         fraction_of_day = 1/64
@@ -1089,15 +1106,15 @@ class ShortEvent:
         figure1 = plt.figure(figsize=[20, 11.0])
         figure1.suptitle(f'{self.scintillator} Event {str(event_number)}, '
                          f'{dt.datetime.utcfromtimestamp(times[self.start] + detector.first_sec)} UTC, '
-                         f'{len(event_energies)} counts \n Weather: {sm.weather_from_score(weather_score)} \n'
-                         f'Rank: {rank}', fontsize=20)
+                         f'{len(event_energies)} counts \n Weather: {sm.weather_from_score(self.weather_subscore)} \n'
+                         f'Rank: {self.rank}', fontsize=20)
         ax1 = figure1.add_subplot(3, 1, 1)
         ax2 = figure1.add_subplot(3, 1, 2)
         ax3 = figure1.add_subplot(3, 1, 3)
         ax_list = [ax1, ax2, ax3]
 
         for i in range(len(ax_list)):
-            ts = info[0][i]
+            ts = timescales[i]
             ax = ax_list[i]
             padding = (ts - event_length) / 2
             if event_length >= ts:
@@ -1106,7 +1123,7 @@ class ShortEvent:
             else:
                 ax.set_xlim(xmin=event_times[0] - padding, xmax=event_times[-1] + padding)
 
-            dot_size = 3 if ts == info[0][0] else 1  # makes larger dots for top plot
+            dot_size = 3 if ts == timescales[0] else 1  # makes larger dots for top plot
             ax.set_yscale('log')
             ax.set_ylim([0.5, 1e5])
             ax.scatter(trunc_times, trunc_energies + 0.6, s=dot_size, zorder=1, alpha=1.0)
@@ -1128,10 +1145,10 @@ class ShortEvent:
         scatterpath = (f'{detector.results_loc}Results/{detector.unit}/'
                        f'{detector.date_str}/scatterplots/')
         sm.path_maker(scatterpath)
-        event_num_padding = '0' * (len(str(info[1])) - len(str(event_number)))
-        rank_padding = '0' * (len(str(info[1])) - len(str(rank)))
+        event_num_padding = '0' * (len(str(self.max_files)) - len(str(event_number)))
+        rank_padding = '0' * (len(str(self.max_files)) - len(str(self.rank)))
         figure1.savefig(f'{scatterpath}{detector.date_str}_{self.scintillator}_'
-                        f'event{event_num_padding}{event_number}_rank{rank_padding}{rank}.png')
+                        f'event{event_num_padding}{event_number}_rank{rank_padding}{self.rank}.png')
         plt.close(figure1)
 
 
