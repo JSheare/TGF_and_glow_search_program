@@ -912,10 +912,9 @@ class Chunk(Detector):
             energies = self.attribute_retriever(scintillator, 'energy')
             chunk_hist, bin_edges = np.histogram(energies, bins=energy_bins)
             if len(existing_spectra_dict[scintillator]) == 0:
-                existing_spectra_dict.update({scintillator: chunk_hist})
+                existing_spectra_dict[scintillator] = chunk_hist
             else:
-                new_hist = existing_spectra_dict[scintillator] + chunk_hist
-                existing_spectra_dict.update({scintillator: new_hist})
+                existing_spectra_dict[scintillator] = existing_spectra_dict[scintillator] + chunk_hist
 
         return existing_spectra_dict
 

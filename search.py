@@ -58,7 +58,7 @@ def long_event_cutoff(detector_obj, mode_flags, chunk_obj=None):
         times = np.delete(times, np.where(energies < energy_cutoff))
 
     if detector_obj.processed:
-        times = times - first_sec
+        times = times - detector_obj.first_sec
 
     return times
 
@@ -363,7 +363,7 @@ def short_event_search(detector_obj, mode_flags, prev_event_numbers=None, low_me
 
                 # Logs the event
                 start_second = times[event.start] - 86400 if times[event.start] > 86400 else times[event.start]
-                print(f'{dt.datetime.utcfromtimestamp(times[event.start] + first_sec)} UTC '
+                print(f'{dt.datetime.utcfromtimestamp(times[event.start] + detector_obj.first_sec)} UTC '
                       f'({start_second} seconds of day) - weather: {sm.weather_from_score(event.weather_subscore)}',
                       file=detector_obj.log)
                 print(f'    Rank: {event.rank}, Subscores: [Length: {event.len_subscore}, '
@@ -582,7 +582,7 @@ def long_event_search(detector_obj, mode_flags, times, existing_hist=None, low_m
 
     # Making histogram
     figu = plt.figure(figsize=[20, 11.0])
-    plt.title(f'{unit} at {detector_obj.location["Location"]}, {str(full_day_str)}', loc='center')
+    plt.title(f'{detector_obj.unit} at {detector_obj.location["Location"]}, {detector_obj.full_date_str}', loc='center')
     plt.tick_params(left=False, right=False, labelleft=False, labelbottom=False, bottom=False)
     ax1 = figu.add_subplot(5, 1, 1)  # Daily histogram
     # The 4 top events in descending order (if they exist)
@@ -609,7 +609,7 @@ def long_event_search(detector_obj, mode_flags, times, existing_hist=None, low_m
     # Making event files and subplots (if they exist)
     if len(potential_glow_list) == 0:
         sm.print_logger('\n', detector_obj.log)
-        sm.print_logger(f'There were no potential glows on {full_day_str}', detector_obj.log)
+        sm.print_logger(f'There were no potential glows on {detector_obj.full_date_str}', detector_obj.log)
     else:
         # Logs potential glows and sorts them in descending order depending on their highest z-score
         sm.print_logger('\n', detector_obj.log)
@@ -634,13 +634,13 @@ def long_event_search(detector_obj, mode_flags, times, existing_hist=None, low_m
             glow = potential_glow_list[i]
             highest_score = glow.highest_score
             highest_scores.append(highest_score)
-            print(f'{dt.datetime.utcfromtimestamp(glow.start_sec + first_sec)} UTC ({glow.start_sec} '
+            print(f'{dt.datetime.utcfromtimestamp(glow.start_sec + detector_obj.first_sec)} UTC ({glow.start_sec} '
                   f'seconds of day), {glow.stop_sec - glow.start_sec} seconds long, highest z-score: '
                   f'{highest_score}', file=detector_obj.log)
 
             event_file = open(f'{eventpath}{detector_obj.date_str}_event{event_number}_zscore'
                               f'{int(highest_score)}.txt', 'w')
-            print(f'{dt.datetime.utcfromtimestamp(glow.start_sec + first_sec)} UTC ({glow.start_sec} '
+            print(f'{dt.datetime.utcfromtimestamp(glow.start_sec + detector_obj.first_sec)} UTC ({glow.start_sec} '
                   f'seconds of day), {glow.stop_sec - glow.start_sec} seconds long, highest z-score: '
                   f'{highest_score}', file=event_file)
 
@@ -691,13 +691,13 @@ def long_event_search(detector_obj, mode_flags, times, existing_hist=None, low_m
     # Saves the histogram(s):
     sm.print_logger('\n', detector_obj.log)
     sm.print_logger('Saving Histogram...', detector_obj.log)
-    hist_path = f'{detector_obj.results_loc}Results/{unit}/{date_str}/'
+    hist_path = f'{detector_obj.results_loc}Results/{detector_obj.unit}/{detector_obj.date_str}/'
     sm.path_maker(hist_path)
-    plt.savefig(f'{hist_path}{date_str}_histogram.png', dpi=500)
+    plt.savefig(f'{hist_path}{detector_obj.date_str}_histogram.png', dpi=500)
     plt.close(figu)
 
 
-if __name__ == '__main__':
+def main():
     # Disables all warnings in the console because they're mostly just annoying
     warnings.filterwarnings('ignore')
 
@@ -986,7 +986,7 @@ if __name__ == '__main__':
                         existing_spectra = {scint: np.array([]) for scint in chunk_scint_list}
                         for chunk_path in chunk_path_list:
                             chunk = sm.chunk_unpickler(chunk_path)
-                            chunk_spectra = chunk.make_spectra_hist(existing_spectra)
+                            existing_spectra = chunk.make_spectra_hist(existing_spectra)
                             del chunk
 
                         # Calling the calibration algorithm
@@ -1058,3 +1058,7 @@ if __name__ == '__main__':
         del detector
         log.close()
         gc.collect()
+
+
+if __name__ == '__main__':
+    main()

@@ -71,55 +71,61 @@ def search(detector, dates, path):
     return dates
 
 
-# Checks to see if the program is already running (maybe the dataset it's checking is quite large or long)
-try:
-    with open(autosearch_directory + 'pid.txt', 'r') as existing_pid_file:
-        pid = int(existing_pid_file.readline())
-        if psutil.pid_exists(pid):
-            exit()
-        else:
-            raise FileNotFoundError
-
-# Runs the program normally if it isn't running already
-except FileNotFoundError:
-    with open(autosearch_directory + 'pid.txt', 'w') as pid_file:
-        pid_file.write(str(os.getpid()))
-
+def main():
+    # Checks to see if the program is already running (maybe the dataset it's checking is quite large or long)
     try:
-        date_file = open(autosearch_directory + 'checked_dates.json')
-        checked_dates = json.load(date_file)
-        date_file.close()
-    # If the list ever gets deleted by accident or something (mostly here because I don't want to put the list together
-    # by hand)
+        with open(autosearch_directory + 'pid.txt', 'r') as existing_pid_file:
+            pid = int(existing_pid_file.readline())
+            if psutil.pid_exists(pid):
+                exit()
+            else:
+                raise FileNotFoundError
+
+    # Runs the program normally if it isn't running already
     except FileNotFoundError:
-        checked_dates = {'THOR1': [], 'THOR2': [], 'THOR3': [],
-                         'THOR4': [], 'THOR5': [], 'THOR6': [], 'GODOT': [], 'SANTIS': []}
+        with open(autosearch_directory + 'pid.txt', 'w') as pid_file:
+            pid_file.write(str(os.getpid()))
 
-    # Running the main program on each of the detectors
+        try:
+            date_file = open(autosearch_directory + 'checked_dates.json')
+            checked_dates = json.load(date_file)
+            date_file.close()
+        # If the list ever gets deleted by accident or something
+        # (mostly here because I don't want to put the list together by hand)
+        except FileNotFoundError:
+            checked_dates = {'THOR1': [], 'THOR2': [], 'THOR3': [],
+                             'THOR4': [], 'THOR5': [], 'THOR6': [], 'GODOT': [], 'SANTIS': []}
 
-    # THOR1
-    checked_dates = search('THOR1', checked_dates, sm.T_raw_data_loc() + '/THOR1/Data')
+        # Running the main program on each of the detectors
 
-    # THOR2
-    checked_dates = search('THOR2', checked_dates, sm.T_raw_data_loc() + '/THOR2/Data')
+        # THOR1
+        checked_dates = search('THOR1', checked_dates, sm.T_raw_data_loc() + '/THOR1/Data')
 
-    # THOR3
-    checked_dates = search('THOR3', checked_dates, sm.T_raw_data_loc() + '/THOR3/Data')
+        # THOR2
+        checked_dates = search('THOR2', checked_dates, sm.T_raw_data_loc() + '/THOR2/Data')
 
-    # THOR4
-    checked_dates = search('THOR4', checked_dates, sm.T_raw_data_loc() + '/THOR4/Data')
+        # THOR3
+        checked_dates = search('THOR3', checked_dates, sm.T_raw_data_loc() + '/THOR3/Data')
 
-    # THOR5
-    checked_dates = search('THOR5', checked_dates, sm.T_raw_data_loc() + '/THOR5/Data')
+        # THOR4
+        checked_dates = search('THOR4', checked_dates, sm.T_raw_data_loc() + '/THOR4/Data')
 
-    # THOR6
-    checked_dates = search('THOR6', checked_dates, sm.T_raw_data_loc() + '/THOR6/Data')
+        # THOR5
+        checked_dates = search('THOR5', checked_dates, sm.T_raw_data_loc() + '/THOR5/Data')
 
-    # GODOT
-    checked_dates = search('GODOT', checked_dates, sm.G_raw_data_loc())
+        # THOR6
+        checked_dates = search('THOR6', checked_dates, sm.T_raw_data_loc() + '/THOR6/Data')
 
-    # SANTIS
-    checked_dates = search('SANTIS', checked_dates, sm.S_raw_data_loc())
+        # GODOT
+        checked_dates = search('GODOT', checked_dates, sm.G_raw_data_loc())
 
-    # Deletes the pid file
-    os.remove(autosearch_directory + 'pid.txt')
+        # SANTIS
+        checked_dates = search('SANTIS', checked_dates, sm.S_raw_data_loc())
+
+        # Deletes the pid file
+        os.remove(autosearch_directory + 'pid.txt')
+
+
+if __name__ == '__main__':
+    main()
+    
