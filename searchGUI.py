@@ -342,18 +342,18 @@ if __name__ == '__main__':
     aircraft_cb = tk.Checkbutton(gui, text='aircraft', variable=acb, onvalue=1, offvalue=0,
                                  command=lambda: tick_untick(acb, program_modes, 'aircraft'))
 
-    procb = tk.IntVar()
-    processed_cb = tk.Checkbutton(gui, text='processed', variable=procb, onvalue=1, offvalue=0,
-                                  command=lambda: tick_untick(procb, program_modes, 'processed'))
+    combob = tk.IntVar()
+    combo_cb = tk.Checkbutton(gui, text='combo', variable=combob, onvalue=1, offvalue=0,
+                              command=lambda: tick_untick(combob, program_modes, 'combo'))
 
     regular_checkbox_label.place(x=150, y=600)
     allscints_cb.place(x=220, y=600)
     template_cb.place(x=300, y=600)
     aircraft_cb.place(x=380, y=600)
-    processed_cb.place(x=460, y=600)
+    combo_cb.place(x=460, y=600)
 
-    regular_checkbox_list = [allscints_cb, template_cb, aircraft_cb, processed_cb]
-    regular_checkbox_variables = [ascb, tcb, acb, procb]
+    regular_checkbox_list = [allscints_cb, template_cb, aircraft_cb, combo_cb]
+    regular_checkbox_variables = [ascb, tcb, acb, combob]
 
     # Making and placing developer mode checkboxes
     dev_checkbox_label = tk.Label(gui, text='Dev Modes:')

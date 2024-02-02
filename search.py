@@ -145,6 +145,8 @@ def is_good_short_event(detector_obj, mode_flags, stats, times, energies, start,
 
 
 # Calculates the ranking subscores for a potential short event
+# in the future this should probably be made into an event class method. And another one should be created
+# to calculate the final score too
 def calculate_subscores(detector_obj, event, times, energies, weather_cache):
     # Note: some of these parameters are also used in is_good_short_event above
     # Length parameters
@@ -244,23 +246,55 @@ def rank_events(detector_obj, potential_events, times, energies):
 # Short event search algorithm
 def short_event_search(detector_obj, mode_flags, prev_event_numbers=None, low_mem=False):
     # Parameters:
-    rollgap = 18 if mode_flags['aircraft'] else 4
+    if mode_flags['aircraft']:
+        rollgap = 18
+    elif mode_flags['combo']:
+        rollgap = 12
+    else:
+        rollgap = 4
+
     event_time_spacing = 1e-3  # 1 millisecond
     event_min_counts = 10
     max_plots_total = 1000
 
     event_numbers = prev_event_numbers if prev_event_numbers is not None else {}
     for scintillator in detector_obj:
-        if scintillator != 'LP' and not mode_flags['allscints']:
+        if scintillator != detector_obj.default_scintillator and not mode_flags['allscints']:
             continue
 
-        sm.print_logger(f'Searching eRC {detector_obj.attribute_retriever(scintillator, "eRC")} ({scintillator})...',
-                        detector_obj.log)
-        times = detector_obj.attribute_retriever(scintillator, 'time')
-        energies = detector_obj.attribute_retriever(scintillator, 'energy')
-        wallclock = detector_obj.attribute_retriever(scintillator, 'wc')
-        filelist = detector_obj.attribute_retriever(scintillator, 'filelist')
-        filetime_extrema = detector_obj.attribute_retriever(scintillator, 'filetime_extrema')
+        # Combining data from all available scintillators
+        if mode_flags['combo']:
+            sm.print_logger(
+                f'Searching combined scintillator data...', detector_obj.log)
+            times = []
+            energies = []
+            wallclock = []
+            count_scints = []
+            for temp in detector_obj:
+                times.append(detector_obj.attribute_retriever(temp, 'time'))
+                energies.append(detector_obj.attribute_retriever(temp, 'energy'))
+                wallclock.append(detector_obj.attribute_retriever(temp, 'wc'))
+                count_scints.append([temp]*len(times[-1]))
+
+            times = np.concatenate(times)
+            energies = np.concatenate(energies)
+            wallclock = np.concatenate(wallclock)
+            count_scints = np.concatenate(count_scints)
+
+            sorting_order = np.argsort(times)
+            times = times[sorting_order]
+            energies = energies[sorting_order]
+            wallclock = wallclock[sorting_order]
+            count_scints = count_scints[sorting_order]
+
+        # Normal operating mode (one scintillator at a time)
+        else:
+            sm.print_logger(f'Searching eRC {detector_obj.attribute_retriever(scintillator, "eRC")} '
+                            f'({scintillator})...', detector_obj.log)
+            times = detector_obj.attribute_retriever(scintillator, 'time')
+            energies = detector_obj.attribute_retriever(scintillator, 'energy')
+            wallclock = detector_obj.attribute_retriever(scintillator, 'wc')
+            count_scints = None
 
         stats = {
             'total_potential_events':   0,
@@ -370,12 +404,32 @@ def short_event_search(detector_obj, mode_flags, prev_event_numbers=None, low_me
                       f'Clumpiness: {event.clumpiness_subscore}, HEL: {event.hel_subscore}]\n',
                       file=detector_obj.log)
 
+                if mode_flags['combo']:
+                    filelist_dict = dict()
+                    filetime_extrema_dict = dict()
+                    for j in range(event.start, event.stop):
+                        if count_scints[j] not in filelist_dict:
+                            filelist_dict[count_scints[j]] = detector_obj.attribute_retriever(
+                                count_scints[j], 'filelist')
+                            filetime_extrema_dict[count_scints[j]] = detector_obj.attribute_retriever(
+                                count_scints[j], 'filetime_extrema')
+                else:
+                    filelist_dict = {scintillator: detector_obj.attribute_retriever(
+                        scintillator, 'filelist')}
+                    filetime_extrema_dict = {scintillator: detector_obj.attribute_retriever(
+                        scintillator, 'filetime_extrema')}
+
+                (event_file_dict,
+                 filelist_dict,
+                 filetime_extrema_dict) = event.get_filenames(times, count_scints, filelist_dict, filetime_extrema_dict)
+
                 # Makes the scatter plot
-                event_file, filelist, filetime_extrema = event.get_filename(times, filelist, filetime_extrema)
-                event.scatterplot_maker(detector_obj, times, energies, i + 1 + plots_already_made, event_file)
+                event.make_scatterplot(detector_obj, times, energies,
+                                       count_scints, i + 1 + plots_already_made, event_file_dict)
 
                 # Makes the event file
-                event.json_maker(detector_obj, times, energies, wallclock, i + 1 + plots_already_made, event_file)
+                event.make_json(detector_obj, times, energies,
+                                wallclock, count_scints, i + 1 + plots_already_made, event_file_dict)
 
                 plots_made += 1
 
@@ -385,6 +439,11 @@ def short_event_search(detector_obj, mode_flags, prev_event_numbers=None, low_me
             event_numbers.update({scintillator: plots_made + plots_already_made})
         else:
             print('\n')
+
+        # In combo mode, we only need to run through this loop once. The number of events found is tracked
+        # in event_numbers by whichever scintillator the loop makes it to first (LP normally, NaI in 'allscints' mode)
+        if mode_flags['combo']:
+            break
 
     if low_mem:
         return event_numbers
@@ -682,7 +741,7 @@ def long_event_search(detector_obj, mode_flags, times, existing_hist=None, low_m
         for i in range(4):
             try:
                 glow = potential_glow_list[i]
-                glow.hist_subplotter(ax_list[i], day_bins, hist_allday, mue, sigma, flag_threshold)
+                glow.make_hist_subplot(ax_list[i], day_bins, hist_allday, mue, sigma, flag_threshold)
             except IndexError:
                 continue
 
@@ -727,6 +786,9 @@ def main():
 
     # All scintillators mode (all the scintillators will be checked by the short event search algorithm)
     modes['allscints'] = True if 'allscints' in mode_info else False
+
+    # Combo mode (all scintillator data is combined into one set of arrays and examined by the short event search algo)
+    modes['combo'] = True if 'combo' in mode_info else False
 
     # Makes a list of all the dates on the requested range
     if int(second_date) < int(first_date):

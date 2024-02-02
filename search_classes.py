@@ -613,7 +613,8 @@ class Detector:
         else:
             raise ValueError("ValueError: Data necessary for calibration is either missing or hasn't been imported")
 
-    def _filter_files(self, complete_filelist):
+    @staticmethod  # static method. Make this into a standalone function
+    def _filter_files(complete_filelist):
         """Returns an ordered list of files with duplicate/incompatible files filtered out."""
         unique_files = set()
         files = []
@@ -984,53 +985,93 @@ class ShortEvent:
     def __repr__(self):
         return f'{self.scintillator} short event; start:{self.start}; stop:{self.stop}; length:{self.length}'
 
-    def get_filename(self, times, filelist, filetime_extrema):
-        """Gets the name of the file that the event occurred in.
+    def get_filenames(self, times, count_scints, filelist_dict, filetime_extrema_dict):
+        """Gets the names of the files that the event occurred in.
 
         Parameters
         ----------
         times : np.array
             A numpy array containing times for each count.
-        filelist : list
-            A list of all the files to be searched when looking for the beginning of an event. Once the name of the
-            file for an event has been found it is added to the scatter plot title.
-        filetime_extrema : list
-            A list of arrays containing the first and last second in each file.
+        count_scints : np.array
+            A numpy array containing the scintillator each count is from.
+        filelist_dict : dict
+            A dictionary containing a list of files for each scintillator.
+        filetime_extrema_dict : dict
+            A dictionary containing a list of file time extrema for each scintillator.
 
         Returns
         -------
-        filename : str
-            The name of the file that the event occurred in.
-        new_filelist : list
-            A shorter version of the filelist for the requested scintillator. This new list is
-            eventually used when the next scatter plot is generated to make file finding faster.
-        new_filetime_extrema : list
-            A shorter version of the file extrema for the requested scintillator. This new list is
-            eventually used when the next scatter plot is generated to make file finding faster.
+        event_file_dict : dict
+            A dictionary containing the name of the files that the event occurred in for each scintillator.
+            Normally, this will only contain one entry, but in combo mode there will be an entry for each
+            scintillator that contributed to the event.
+        filelist_dict : dict
+            An updated version of the parameter filelist_dict that only contains files that haven't been
+            searched and the most recent file searched.
+        filetime_extrema_dict : dict
+            An updated version of the parameter filetime_extrema_dict that only contains extrema for files
+            that haven't been searched and the most recent file searched.
 
         """
 
-        event_time = times[self.start] - 86400 if times[self.start] > 86400 else times[self.start]
+        event_file_dict = dict()
+        for i in range(self.start, self.stop):
+            if count_scints is not None:
+                scintillator = count_scints[i]
+            else:
+                scintillator = self.scintillator
 
-        event_file = ''
-        files_examined = 0
-        new_filelist = []
-        new_filetime_extrema = []
-        for i in range(len(filetime_extrema)):
-            first_time = filetime_extrema[i][0]
-            last_time = filetime_extrema[i][1]
-            if first_time <= event_time < last_time:
-                event_file = filelist[i]
-                new_filelist = filelist[files_examined:]
-                new_filetime_extrema = filetime_extrema[files_examined:]
+            if scintillator not in event_file_dict:
+                event_time = times[i] - 86400 if times[i] > 86400 else times[i]
+                event_file = ''
+                files_examined = 0
+                filetime_extrema = filetime_extrema_dict[scintillator]
+                filelist = filelist_dict[scintillator]
+                for j in range(len(filetime_extrema)):
+                    first_time = filetime_extrema[j][0]
+                    last_time = filetime_extrema[j][1]
+                    if first_time <= event_time <= last_time:
+                        event_file = filelist[j]
+                        filelist_dict[scintillator] = filelist[files_examined:]
+                        filetime_extrema_dict[scintillator] = filetime_extrema[files_examined:]
+                        break
+
+                    files_examined += 1
+
+                event_file_dict[scintillator] = event_file
+
+            # So that we don't loop through the whole event for no reason when not in combo mode
+            if count_scints is None:
                 break
 
-            files_examined += 1
+        return event_file_dict, filelist_dict, filetime_extrema_dict
 
-        return event_file, new_filelist, new_filetime_extrema
+    @staticmethod  # since this method is static, it should probably just be removed from the class outright
+    def _separate(times, energies, count_scints, start, stop):
+        """Separates the combined data produced in combo mode into separate data for each scintillator, organized
+            in two dictionaries: time_dict and energy_dict."""
+        time_dict = dict()
+        energy_dict = dict()
+        for i in range(start, stop):
+            scintillator = count_scints[i]
+            if scintillator not in time_dict:
+                time_dict[scintillator] = [times[i]]
+                energy_dict[scintillator] = [energies[i]]
+            else:
+                time_dict[scintillator].append(times[i])
+                energy_dict[scintillator].append(energies[i])
 
-    def json_maker(self, detector, times, energies, wallclock, event_number, event_file):
-        """Makes the short event JSON files.
+        # Converting back to numpy arrays
+        for scintillator in time_dict:
+            times = time_dict[scintillator]
+            energies = energy_dict[scintillator]
+            time_dict[scintillator] = np.array(times)
+            energy_dict[scintillator] = np.array(energies)
+
+        return time_dict, energy_dict
+
+    def make_json(self, detector, times, energies, wallclock, count_scints, event_number, event_file_dict):
+        """Makes the short event json files.
 
         Parameters
         ----------
@@ -1042,34 +1083,36 @@ class ShortEvent:
             A numpy array containing energies for each count.
         wallclock : np.array
             A numpy array containing wallclock times for each count.
+        count_scints : np.array / None
+            A numpy array containing the scintillator each count is from. Should be None unless in combo mode.
         event_number : int
             A number corresponding to the event's number for that particular scintillator (i.e. 1 would be the first
             event for whatever scintillator, 2 would be the second, and so on).
-        event_file : str
-            The name of the file that the event occurred in.
+        event_file_dict : dict
+            A dictionary containing the file that the event occurred in for each scintillator. Should only
+            contain one entry unless in combo mode.
 
         """
-
-        event_times = times[self.start:self.stop]
-        event_energies = energies[self.start:self.stop]
-        event_wallclock = wallclock[self.start:self.stop]
 
         eventpath = (f'{detector.results_loc}Results/{detector.unit}/'
                      f'{detector.date_str}/event files/short events/')
         sm.path_maker(eventpath)
         event_frame = pd.DataFrame()
-        event_frame['wc'] = event_wallclock
-        event_frame['SecondsOfDay'] = event_times
-        event_frame['energies'] = event_energies
-        event_frame['file'] = event_file  # Note: this column will be filled by the same file name over and over again
+        event_frame['wc'] = wallclock[self.start:self.stop]
+        event_frame['SecondsOfDay'] = times[self.start:self.stop]
+        event_frame['energies'] = energies[self.start:self.stop]
+        event_frame['count_scintillator'] = count_scints[self.start:self.stop] if count_scints is not None else (
+                [self.scintillator] * self.length)
+        # Note: the column will be filled by the same string over and over again
+        event_frame['file'] = ', '.join([event_file_dict[scintillator] for scintillator in event_file_dict])
 
         # Saves the json file
         event_num_padding = '0' * (len(str(self.max_files)) - len(str(event_number)))
         rank_padding = '0' * (len(str(self.max_files)) - len(str(self.rank)))
-        event_frame.to_json(f'{eventpath}{detector.date_str}_{self.scintillator}_'
+        event_frame.to_json(f'{eventpath}{detector.date_str}_{"CM" if count_scints is not None else self.scintillator}_'
                             f'event{event_num_padding}{event_number}_rank{rank_padding}{self.rank}.json')
 
-    def scatterplot_maker(self, detector, times, energies, event_number, event_file):
+    def make_scatterplot(self, detector, times, energies, count_scints, event_number, event_file_dict):
         """Makes the short event scatter plots.
 
         Parameters
@@ -1080,37 +1123,48 @@ class ShortEvent:
             A numpy array containing times for each count.
         energies : np.array
             A numpy array containing energies for each count.
+        count_scints : np.array / None
+            A numpy array containing the scintillator each count is from. Should be None unless in combo mode.
         event_number : int
             A number corresponding to the event's number for that particular scintillator (i.e. 1 would be the first
             event for whatever scintillator, 2 would be the second, and so on).
-        event_file : str
-            The name of the file that the event occurred in.
+        event_file_dict : dict
+            A dictionary containing the file that the event occurred in for each scintillator. Should only
+            contain one entry unless in combo mode.
 
         """
+
         # Subplot timescales
         timescales = [1e-4, 0.005, 2]  # 100 microseconds, 5 milliseconds, 2 seconds
 
+        # Dot colors. Note that if an instrument with more than just NaI, SP, MP, and LP is ever added, this
+        # will result in key errors
+        colors = {'NaI': 'tab:orange', 'SP': 'tab:red', 'MP': 'tab:green', 'LP': 'tab:blue'}
+
         # Truncated time and energy arrays to speed up scatter plot making
-        fraction_of_day = 1/64
-        spacer = int((len(times)*fraction_of_day)/2)
-        left_edge = 0 if self.start-spacer < 0 else self.start - spacer
+        fraction_of_day = 1 / 64
+        spacer = int((len(times) * fraction_of_day) / 2)
+        left_edge = 0 if self.start - spacer < 0 else self.start - spacer
         right_edge = (len(times) - 1) if self.stop + spacer > (len(times) - 1) else self.stop + spacer
-        trunc_times = times[left_edge:right_edge]
-        trunc_energies = energies[left_edge:right_edge]
+        if count_scints is not None:
+            times_dict, energies_dict = self._separate(times, energies, count_scints, left_edge, right_edge)
+        else:
+            times_dict = {self.scintillator: times[left_edge:right_edge]}
+            energies_dict = {self.scintillator: energies[left_edge:right_edge]}
 
         event_times = times[self.start:self.stop]
-        event_energies = energies[self.start:self.stop]
-        event_length = event_times[-1] - event_times[0]
+        event_length = event_times[-1] - event_times[0]  # in seconds
 
-        figure1 = plt.figure(figsize=[20, 11.0])
-        figure1.suptitle(f'{self.scintillator} Event {str(event_number)}, '
+        figure1 = plt.figure(figsize=[20, 11.0], dpi=150.)
+        figure1.suptitle(f'{"CM" if count_scints is not None else self.scintillator} Event {str(event_number)}, '
                          f'{dt.datetime.utcfromtimestamp(times[self.start] + detector.first_sec)} UTC, '
-                         f'{len(event_energies)} counts \n Weather: {sm.weather_from_score(self.weather_subscore)} \n'
+                         f'{self.length} counts \n Weather: {sm.weather_from_score(self.weather_subscore)} \n'
                          f'Rank: {self.rank}', fontsize=20)
         ax1 = figure1.add_subplot(3, 1, 1)
         ax2 = figure1.add_subplot(3, 1, 2)
         ax3 = figure1.add_subplot(3, 1, 3)
         ax_list = [ax1, ax2, ax3]
+        assert len(ax_list) == len(timescales)
 
         for i in range(len(ax_list)):
             ts = timescales[i]
@@ -1125,7 +1179,10 @@ class ShortEvent:
             dot_size = 3 if ts == timescales[0] else 1  # makes larger dots for top plot
             ax.set_yscale('log')
             ax.set_ylim([0.5, 1e5])
-            ax.scatter(trunc_times, trunc_energies + 0.6, s=dot_size, zorder=1, alpha=1.0)
+            for scintillator in times_dict:
+                ax.scatter(times_dict[scintillator], energies_dict[scintillator] + 0.6,
+                           s=dot_size, zorder=1, alpha=0.5, label=scintillator, color=colors[scintillator])
+
             ax.set_xlabel(f'Time (Seconds, {ts}s total)')
             ax.set_ylabel('Energy Channel')
             # Lines appear (100*percent)% to the left or right of event start/stop depending on subplot timescale
@@ -1134,8 +1191,13 @@ class ShortEvent:
             ax.vlines([event_times[0] - percent*ts, event_times[-1] + percent*ts], 0, 1e5,
                       colors=['orange', 'r'], linewidth=1, zorder=-1, alpha=0.3)
 
+        # Adds a legend to the plot if we're in combo mode
+        if count_scints is not None:
+            plt.legend(loc='lower right')
+
         # Adds the name of the relevant data file to the scatter plot
-        plt.title(f'Obtained from {event_file}', fontsize=15, y=-0.4)
+        if count_scints is None:
+            plt.title(f'Obtained from {event_file_dict[self.scintillator]}', fontsize=15, y=-0.4)
 
         # Saves the scatter plot
         # Note: with this code, if an event happens in that 200-300 seconds of the next day that are included in the
@@ -1146,7 +1208,7 @@ class ShortEvent:
         sm.path_maker(scatterpath)
         event_num_padding = '0' * (len(str(self.max_files)) - len(str(event_number)))
         rank_padding = '0' * (len(str(self.max_files)) - len(str(self.rank)))
-        figure1.savefig(f'{scatterpath}{detector.date_str}_{self.scintillator}_'
+        figure1.savefig(f'{scatterpath}{detector.date_str}_{"CM" if count_scints is not None else self.scintillator}_'
                         f'event{event_num_padding}{event_number}_rank{rank_padding}{self.rank}.png')
         plt.close(figure1)
 
@@ -1217,7 +1279,7 @@ class PotentialGlow:
         last_sec = first_sec + length
         return first_sec, last_sec
 
-    def hist_subplotter(self, ax, day_bins, hist_allday, mue, sigma, flag_threshold):
+    def make_hist_subplot(self, ax, day_bins, hist_allday, mue, sigma, flag_threshold):
         """Makes the flagged z-score subplots for the glow search algorithm's full day histogram.
 
         The subplots generated by this function are meant to highlight the four most interesting-looking potential glows
