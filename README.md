@@ -1,15 +1,9 @@
 # TGF and Glow Search Program
-## This program was written to search raw data from the instruments of the terrestrial gamma-ray flash group at UCSC.
-## Currently supported detectors: THOR, GODOT, Santis Instrument (after adafruit update), Croatia instrument.
+## A program that searches data from the instruments of the terrestrial gamma-ray flash group at UCSC.
+## Currently supported detectors: Thor, Godot, Santis Instrument (after adafruit update), Croatia instrument.
 
 ## **Requirements for use:**
 - Python 3.10 (or later)
-- All the following .py files:
-  - search.py (core program)
-  - search_module.py (program tools and functions)
-  - search_classes.py (program objects)
-  - searchGUI.py (program GUI)
-  - DataReaderFinal.py (functions for reading and importing data files)
 - All the following Python libraries:
   - scipy
   - numpy
@@ -20,15 +14,16 @@
   - lxml
 
 # **Instructions for Use:**
-First, open a command line and navigate to the directory where all the .py files are located.
+To install the program, run the following pip command in the command line:
+
+    pip install tgf_search@git+https://github.com/JSheare/TGF_and_glow_search_program
 
 ## **Using the GUI (Preferred):**
-In the command line, type the following command:
+In the command line, enter the following command:
 
-    python3 searchGUI.py
+    tgf-search
 
-Note that if you are running the program on Windows you may need to replace 'python3' with 'python'. This 
-command will open the program's graphical user interface. 
+This will open the program's graphical user interface. 
 
 To start a search, enter the first date in your search range in the entry box labeled 'Date One'. 
 
@@ -45,23 +40,24 @@ directory.
 
 Finally, to begin a search, simply click the 'Start' button. Output from the search will now appear onscreen, and
 search results will be stored in a folder called 'Results' located inside the directory specified in the 
-'Export Location' entry box (same as program location by default).
+'Export Location' entry box (present working directory by default).
 
 The search can be stopped at any time by clicking the 'Stop' button, and text can be cleared from onscreen by
 clicking 'Clear Text'. You can also reset the entered dates/detector/modes all at once by clicking the 'Reset' button.
 
 ### **Program Modes:**
 The program has several 'modes' that give it enhanced functionality. To run the program with any of the modes, simply
-check the mode's corresponding tick box. Here's a list of each mode and their functions:
+check the mode's corresponding tick box. Here's a list of each mode and its function:
 <br/>
 #### **Normal Modes:**
 
 - **'allscints' Mode** - This mode tells the program to run the short event search algorithm on all the scintillators 
-(by default the program only searches the large plastic scintillator).
+individually (by default the program only searches the large plastic scintillator).
 
 
-- **'template' Mode** - In order to accurately calibrate the large plastic scintillator, the program needs a template. New templates must be made
-for each new detector location, and this mode allows you to make the template. To make templates, follow the instructions given by the program to adjust the vertical lines to match the locations of
+- **'template' Mode** - In order to accurately calibrate the large plastic scintillator, the program needs a template. 
+New templates must be made for each new detector location, and this mode allows you to make the template. To make 
+templates, follow the instructions given by the program and adjust the vertical lines to match the locations of
 the compton shoulders. A picture of what the template should look like is located in the program's GitHub repository:
 https://github.com/JSheare/TGF_and_glow_search_program (look for 'lp calibration example.JPG').
 
@@ -71,9 +67,8 @@ the mode that you want to use. It adds a special check to the short event search
 alarms caused by cosmic rays. It's recommended that the mode 'skcali' is used in conjunction with this.
 
 
-- **'processed' Mode:** - In this mode (which is only available for GODOT) the program will search processed data instead 
-of raw data. Note that this mode is largely deprecated and that for it to work properly there must be processed data
-for your specified search range.
+- **'combo' Mode:** - This mode instructs the program to combine data from all available scintillators 
+when looking for TGFs.
 
 #### **Developer Modes:**
 The program also includes several bonus modes that are largely intended for developer use; 
@@ -103,57 +98,44 @@ To clear the queue without running any searches, click the 'Reset' button.
 ### **Single day:**
 To search a single day only, enter a command of the following form:
 
-    python3 search.py yymmdd yymmdd detector
+    tgf-search-cl yymmdd yymmdd detector
 
 where 'yy' corresponds to the year, 'mm' corresponds to the month, and 'dd' corresponds to the day.
 <br/>
-Note that if you are running the program on Windows you may need to replace 'python3' with 'python'.
-<br/>
 Here's an example for GODOT data on December 3rd, 2015:
 
-    python3 search.py 151203 151203 GODOT
+    tgf-search-cl 151203 151203 GODOT
 
 ### **Date Range:**
 To search a range of dates, follow the same instructions given for a single day, but replace the second 'yymmdd' 
 with the last date in the desired range.
 Here's an example for THOR5 data from July 1st, 2022 to August 31st, 2022:
 
-    python3 search.py 220701 220831 THOR5
+    tgf-search-cl 220701 220831 THOR5
 
 ### **Program Modes:**
 The program has several 'modes' that give it enhanced functionality. Here's a list of them all and how to use them:
 <br/>
-#### **'custom' Mode:**
-This mode instructs the program to look for data in a custom, user-specified location (this feature is designed mainly 
-for those using the program who are not on Sol, the primary host of the UCSC TGF groups' raw data).
-<br/>
-Before using this mode, the custom file path must first be specified. To do so, follow these steps:
-- Use a text editor or your favorite IDE to open search_module.py and look for the function 'C_raw_data_loc'
-- Once you've found the function, look for the variable called 'path' and enter your custom path inside the single 
-  quotes to the right of the = sign
-- The final result should look something like this (with example path /users/user/desktop):
+#### **'combo' Mode:**
+This mode instructs the program to combine data from all available scintillators when looking for TGFs.
+To use the program in this mode, enter a command the same way as above but add the word 'combo' to the end:
 
-    path = '/users/user/desktop'
-- Remember to save before closing!
-
-Once you've done this, run the program the same as above but add the word 'custom' to the end:
-
-    python3 search.py yymmdd yymmdd detector custom
+    tgf-search-cl yymmdd yymmdd detector custom
 
 #### **'allscints' Mode:**
 This mode tells the program to run the short event search algorithm on all the scintillators 
 (by default the program only searches the large plastic scintillator).
 To run the program in this mode, run the program the same as above but add the word 'plastics' to the end:
 
-    python3 search.py yymmdd yymmdd detector allscints
+    tgf-search-cl yymmdd yymmdd detector allscints
 
 #### **'template' Mode:**
-In order to accurately calibrate the large plastic scintillator, the program needs a template. New templates must be made
-for each new detector location, and this mode allows you to make the template.
+In order to accurately calibrate the large plastic scintillator, the program needs a template. 
+New templates must be made for each new detector location, and this mode allows you to make the template.
 <br/>
 To run the program in this mode, run the program the same as above but add the word 'template' to the end:
 
-    python3 search.py yymmdd yymmdd detector template
+    tgf-search-cl yymmdd yymmdd detector template
 
 To make templates, follow the instructions given by the program to adjust the vertical lines to match the locations of
 the compton shoulders. A picture of what the template should look like is located in the program's GitHub repository:
@@ -166,7 +148,7 @@ It's recommended that the mode 'skcali' is used in conjunction with this.
 </br>
 To run the program in this mode, run the program the same as above but add the word 'aircraft' to the end:
 
-    python3 search.py yymmdd yymmdd detector aircraft
+    tgf-search-cl yymmdd yymmdd detector aircraft
 
 #### **'processed' Mode:**
 In this mode (which is only available for GODOT) the program will search processed data instead of raw data. Note that
@@ -175,14 +157,14 @@ properly.
 </br>
 To run the program in this mode, run the program the same as above but add the word 'processed' to the end:
 
-    python3 search.py yymmdd yymmdd detector processed
+    tgf-search-cl yymmdd yymmdd detector processed
 
 #### **Other Things to Know:**
 It is possible to use as many of these modes in tandem as the user needs 
 <br/>
 (i.e. commands like this are possible):
 
-    python3 search.py yymmdd yymmdd detector custom plastics template
+    tgf-search-cl yymmdd yymmdd detector custom allscints template
 
 ### **Additional (developer) modes:**
 The program also includes several bonus modes that are largely intended for developer use; 
@@ -198,17 +180,3 @@ they include:
 
 - **'pickle' mode** - Serializes and saves the detector object for later use OR imports an 
   already-serialized detector object
-
-### **Changing the export location of program results:**
-In order to change the location where the program exports its results 
-(i.e. short event scatter plots, long event histograms, scintillator spectra, logs)
-follow these steps:
-- Use a text editor or your favorite IDE to open search_module.py and look for the function 'results_loc'
-- Once you've found the function, look for the variable called 'path' and enter your custom path inside the single 
-  quotes to the right of the = sign
-- The final result should look something like this (with example path /users/user/desktop):
-
-    path = '/users/user/desktop'
-- Save and close
-
-The program should now save its results to the specified custom directory.

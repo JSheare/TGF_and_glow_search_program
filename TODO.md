@@ -2,6 +2,7 @@
 - [ ] Write duplicate file eliminator/sorter for general data
 - [ ] Remove pickle support for low memory mode when the program is finished
 - [ ] Rework autosearch and image_collector
+- [ ] Make package importable as a module
 
 ### Completed
 - [x] Fix channel-to-MeV converter function
