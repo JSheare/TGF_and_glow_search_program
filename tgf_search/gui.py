@@ -6,6 +6,7 @@ import subprocess as subprocess
 import os as os
 import signal as signal
 import threading as threading
+import platform as platform
 
 
 # Need this to make sure that the search queue isn't emptied when the user presses the stop button
@@ -126,7 +127,8 @@ def enqueue(gui, search_queue, program_modes):
     # If the search command is valid, constructs the command and adds it to the queue
     if is_valid_search(first_date, second_date, detector):
         script_path = os.path.dirname(os.path.realpath(__file__)) + '\\search.py'
-        command = ['python3', '-u', script_path, first_date, second_date, detector.upper()]
+        executable = 'python' if platform.system() == 'Windows' else 'python3'
+        command = [executable, '-u', script_path, first_date, second_date, detector.upper()]
         for mode in program_modes:
             command.append(mode)
 
