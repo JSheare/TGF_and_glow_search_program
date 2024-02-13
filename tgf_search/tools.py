@@ -1,3 +1,4 @@
+"""Tools for use by the TGF search program and it's modules."""
 import os as os
 import contextlib as contextlib
 import pickle as pickle
