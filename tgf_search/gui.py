@@ -1,3 +1,4 @@
+"""A graphical user interface for running the TGF search program."""
 import tkinter as tk
 from tkinter import filedialog
 import sys as sys
@@ -8,7 +9,7 @@ import threading as threading
 
 
 # Need this to make sure that the search queue isn't emptied when the user presses the stop button
-class lockableQueue:
+class LockableQueue:
     def __init__(self):
         self.queue = []
         self.locked = False
@@ -60,38 +61,41 @@ def tick_untick(var, modes, mode):
 
 
 # Clears any text from the big text box
-def clear_box():
+def clear_box(gui):
+    text_box = gui.nametowidget('text_box')
     text_box['state'] = tk.NORMAL
     text_box.delete('1.0', 'end')
     text_box['state'] = tk.DISABLED
 
 
+# Enables/disables gui elements depending on the action parameter
+def change_elements(gui, action):
+    gui.nametowidget('start_button')['state'] = action
+    gui.nametowidget('enqueue_button')['state'] = action
+    gui.nametowidget('date_one')['state'] = action
+    gui.nametowidget('date_two')['state'] = action
+    gui.nametowidget('detector_entrybox')['state'] = action
+    gui.nametowidget('custom_entrybox')['state'] = action
+    gui.nametowidget('results_entrybox')['state'] = action
+
+    gui.nametowidget('allscints')['state'] = action
+    gui.nametowidget('template')['state'] = action
+    gui.nametowidget('aircraft')['state'] = action
+    gui.nametowidget('combo')['state'] = action
+    gui.nametowidget('skcali')['state'] = action
+    gui.nametowidget('skshort')['state'] = action
+    gui.nametowidget('skglow')['state'] = action
+    gui.nametowidget('pickle')['state'] = action
+
+
 # Disables all checkboxes/buttons
-def disable_elements():
-    global regular_checkbox_list, dev_checkbox_list
-    start_button['state'] = tk.DISABLED
-    enqueue_button['state'] = tk.DISABLED
-    date_one['state'] = tk.DISABLED
-    date_two['state'] = tk.DISABLED
-    detector_entrybox['state'] = tk.DISABLED
-    custom_entrybox['state'] = tk.DISABLED
-    results_entrybox['state'] = tk.DISABLED
-    for box in regular_checkbox_list + dev_checkbox_list:
-        box['state'] = tk.DISABLED
+def disable_elements(gui):
+    change_elements(gui, tk.DISABLED)
 
 
 # Enables all checkboxes/buttons
-def enable_elements():
-    global regular_checkbox_list, dev_checkbox_list
-    start_button['state'] = tk.NORMAL
-    enqueue_button['state'] = tk.NORMAL
-    date_one['state'] = tk.NORMAL
-    date_two['state'] = tk.NORMAL
-    detector_entrybox['state'] = tk.NORMAL
-    custom_entrybox['state'] = tk.NORMAL
-    results_entrybox['state'] = tk.NORMAL
-    for box in regular_checkbox_list + dev_checkbox_list:
-        box['state'] = tk.NORMAL
+def enable_elements(gui):
+    change_elements(gui, tk.NORMAL)
 
 
 # Checks whether a search command is valid
@@ -115,19 +119,21 @@ def is_valid_search(first_date, second_date, detector):
     return True
 
 
-def enqueue():
-    global search_queue, program_modes
-    first_date = date_one.get()
-    second_date = date_two.get()
-    detector = detector_entrybox.get()
+def enqueue(gui, search_queue, program_modes):
+    first_date = gui.nametowidget('date_one').get()
+    second_date = gui.nametowidget('date_two').get()
+    detector = gui.nametowidget('detector_entrybox').get()
     # If the search command is valid, constructs the command and adds it to the queue
     if is_valid_search(first_date, second_date, detector):
-        command = f'python3 -u search.py {first_date} {second_date} {detector.upper()}'.split()
+        script_path = os.path.dirname(os.path.realpath(__file__)) + '\\search.py'
+        command = ['python3', '-u', script_path, first_date, second_date, detector.upper()]
         for mode in program_modes:
             command.append(mode)
 
-        custom_results_dir = results_entrybox.get() if results_entrybox.get() != '' else 'none'
-        custom_import_dir = custom_entrybox.get() if custom_entrybox.get() != '' else 'none'
+        custom_results_dir = gui.nametowidget('results_entrybox').get() if (
+                gui.nametowidget('results_entrybox').get() != '') else 'none'
+        custom_import_dir = gui.nametowidget('custom_entrybox').get() if (
+                gui.nametowidget('custom_entrybox').get() != '') else 'none'
         command.append('GUI')
         command.append(str(custom_results_dir))
         command.append(str(custom_import_dir))
@@ -142,33 +148,30 @@ def enqueue():
 
 
 # Starts the search script when the start button is clicked
-def start():
-    global search_queue, program_modes
-    enqueue()
+def start(gui, pid, search_queue, stdout_queue, program_modes):
+    enqueue(gui, search_queue, program_modes)
     if search_queue:
-        disable_elements()
+        disable_elements(gui)
 
         # Runs the search script in a different thread to prevent the GUI from locking up
-        search_thread = threading.Thread(target=run, args=(0, ))
+        search_thread = threading.Thread(target=run, args=(0, pid, search_queue, stdout_queue))
         search_thread.start()
 
 
 # Stops the search script from running and unlocks the start button/tick boxes when the stop button is clicked
-def stop():
-    global pid, search_queue
+def stop(gui, pid, search_queue):
     # Kills the program
-    if pid is not None:
+    if pid['id'] is not None:
         print('Halting program execution (this might take a second)')
         search_queue.lock()
-        os.kill(pid, signal.SIGTERM)
+        os.kill(pid['id'], signal.SIGTERM)
 
-    pid = None
-    enable_elements()
+    pid['id'] = None
+    enable_elements(gui)
 
 
 # Runs the search script and pipes stdout into the stdout queue
-def run(arg):  # The useless arg is unfortunately necessary or threading will complain
-    global pid, stdout_queue, search_queue
+def run(arg, pid, search_queue, stdout_queue):  # The useless arg is unfortunately necessary or threading complains
     while search_queue and not search_queue.locked:
         command = search_queue.pop()
         # Prints feedback about what date and modes were selected
@@ -184,7 +187,7 @@ def run(arg):  # The useless arg is unfortunately necessary or threading will co
             stdout_queue.append(f'This search will be run with the following modes: {", ".join(command[6:-3])}.')
 
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        pid = process.pid
+        pid['id'] = process.pid
 
         while True:
             output = process.stdout.readline()
@@ -193,7 +196,7 @@ def run(arg):  # The useless arg is unfortunately necessary or threading will co
             if output:
                 stdout_queue.append(output.strip().decode('utf-8'))
 
-        pid = None
+        pid['id'] = None
 
         out, err = process.communicate()
         if err:
@@ -207,52 +210,57 @@ def run(arg):  # The useless arg is unfortunately necessary or threading will co
 
 # Checks to see if there are items in the queue and prints them, updates the search queue counter, and unlocks the start
 # button/tick boxes once the search script has finished executing
-def checker():
-    global gui, stdout_queue, search_queue
+def checker(gui, search_queue, stdout_queue):
     while len(stdout_queue) > 0:
         text = stdout_queue.pop(0)
         print(text)
         if text == 'Search Concluded.':
-            enable_elements()
+            enable_elements(gui)
             search_queue.unlock()
 
-    enqueue_counter['text'] = f'Searches\nEnqueued:\n{len(search_queue)}'
+    gui.nametowidget('enqueue_counter')['text'] = f'Searches\nEnqueued:\n{len(search_queue)}'
 
     milliseconds = 20
-    gui.after(milliseconds, checker)
+    gui.after(milliseconds, checker, gui, search_queue, stdout_queue)
 
 
 # Resets all the text entry boxes and tick boxes, as well as the big text box, when the reset button is clicked.
 # Also clears the search queue
-def reset():
-    global search_queue, program_modes, regular_checkbox_variables, dev_checkbox_variables
-    search_queue = lockableQueue()
-    stop()
+def reset(gui, pid, search_queue, program_modes, variables):
+    while search_queue:  # Emptying the search queue
+        search_queue.pop()
 
+    stop(gui, pid, search_queue)
+
+    text_box = gui.nametowidget('text_box')
     text_box['state'] = tk.NORMAL
     text_box.delete('1.0', 'end')
     text_box['state'] = tk.DISABLED
 
+    date_one = gui.nametowidget('date_one')
+    date_two = gui.nametowidget('date_two')
     date_one.delete(0, 'end')
     date_one.insert(0, 'yymmdd')
     date_two.delete(0, 'end')
     date_two.insert(0, 'yymmdd')
 
-    detector_entrybox.delete(0, 'end')
-    results_entrybox.delete(0, 'end')
-    custom_entrybox.delete(0, 'end')
+    gui.nametowidget('detector_entrybox').delete(0, 'end')
+    gui.nametowidget('results_entrybox').delete(0, 'end')
+    gui.nametowidget('custom_entrybox').delete(0, 'end')
 
+    while program_modes:  # Emptying the modes list
+        program_modes.pop()
+
+    for variable in variables:  # Unchecking the checkboxes
+        variable.set(0)
+
+
+def main():
     program_modes = []
-
-    for box in regular_checkbox_variables + dev_checkbox_variables:
-        box.set(0)
-
-
-if __name__ == '__main__':
-    program_modes = []
-    search_queue = lockableQueue()  # Queue that holds all the enqueued days
+    search_queue = LockableQueue()  # Queue that holds all the enqueued days
     stdout_queue = []  # Queue that holds all the stdout output strings from the search script until they can be printed
-    pid = None  # Program identification number for the search script
+    pid = {'id': None}  # Program identification number for the search script. Needs to be a dict to pass by reference
+    variables = []  # Checkbox on/off variables
 
     # General GUI
     gui = tk.Tk()
@@ -261,7 +269,7 @@ if __name__ == '__main__':
     gui.resizable(False, False)
 
     # Making the text box
-    text_box = tk.Text(gui, height=30, width=100)
+    text_box = tk.Text(gui, height=30, width=100, name='text_box')
     text_box['state'] = tk.DISABLED
     text_box_label = tk.Label(gui, text='Search Output', anchor=tk.CENTER)
 
@@ -272,7 +280,6 @@ if __name__ == '__main__':
         text_box.yview(tk.END)
         text_box['state'] = tk.DISABLED
 
-
     sys.stdout.write = redirector
 
     # Packing the text box and label in
@@ -280,45 +287,45 @@ if __name__ == '__main__':
     text_box_label.pack()
 
     # Start and Stop buttons
-    start_button = tk.Button(gui, height=3, width=10, text='Start',
-                             command=lambda: start(), bg='white')
-    stop_button = tk.Button(gui, height=3, width=10, text='Stop',
-                            command=lambda: stop(), bg='white')
+    start_button = tk.Button(gui, height=3, width=10, text='Start', bg='white', name='start_button',
+                             command=lambda: start(gui, pid, search_queue, stdout_queue, program_modes))
+    stop_button = tk.Button(gui, height=3, width=10, text='Stop', bg='white', name='stop_button',
+                            command=lambda: stop(gui, pid, search_queue))
 
     start_button.place(x=430, y=510)
     stop_button.place(x=570, y=510)
 
     # Input/queue reset button
-    reset_button = tk.Button(gui, height=4, width=15, text='Reset/\nClear Queue',
-                             command=lambda: reset(), bg='white')
+    reset_button = tk.Button(gui, height=4, width=15, text='Reset/\nClear Queue', bg='white', name='reset_button',
+                             command=lambda: reset(gui, pid, search_queue, program_modes, variables))
 
     reset_button.place(x=810, y=510)
 
     # Clear text box button
-    clear_button = tk.Button(gui, height=3, width=8, text='Clear\n Text',
-                             command=lambda: clear_box(), bg='white')
+    clear_button = tk.Button(gui, height=3, width=8, text='Clear\n Text', bg='white', name='clear_button',
+                             command=lambda: clear_box(gui))
 
     clear_button.place(x=950, y=427)
 
     # Enqueue button
-    enqueue_button = tk.Button(gui, height=3, width=8, text='Enqueue',
-                               command=lambda: enqueue(), bg='white')
+    enqueue_button = tk.Button(gui, height=3, width=8, text='Enqueue', bg='white', name='enqueue_button',
+                               command=lambda: enqueue(gui, search_queue, program_modes))
 
     enqueue_button.place(x=65, y=427)
 
     # Enqueue counter
-    enqueue_counter = tk.Label(gui, text='')
+    enqueue_counter = tk.Label(gui, text='', name='enqueue_counter')
 
     enqueue_counter.place(x=65, y=370)
 
     # Making and placing date entry boxes
     date_one_label = tk.Label(gui, text='Date One:')
-    date_one = tk.Entry(gui, width=15, borderwidth=5)
+    date_one = tk.Entry(gui, width=15, borderwidth=5, name='date_one')
     date_one.insert(0, 'yymmdd')
     date_one.bind("<FocusIn>", lambda e: ghost_text_clear(date_one, 'yymmdd'))
 
     date_two_label = tk.Label(gui, text='Date Two: ')
-    date_two = tk.Entry(gui, width=15, borderwidth=5)
+    date_two = tk.Entry(gui, width=15, borderwidth=5, name='date_two')
     date_two.insert(0, 'yymmdd')
     date_two.bind("<FocusIn>", lambda e: ghost_text_clear(date_two, 'yymmdd'))
 
@@ -331,20 +338,24 @@ if __name__ == '__main__':
     regular_checkbox_label = tk.Label(gui, text='Modes:')
 
     ascb = tk.IntVar()
-    allscints_cb = tk.Checkbutton(gui, text='allscints', variable=ascb, onvalue=1, offvalue=0,
+    allscints_cb = tk.Checkbutton(gui, text='allscints', variable=ascb, onvalue=1, offvalue=0, name='allscints',
                                   command=lambda: tick_untick(ascb, program_modes, 'allscints'))
+    variables.append(ascb)
 
     tcb = tk.IntVar()
-    template_cb = tk.Checkbutton(gui, text='template', variable=tcb, onvalue=1, offvalue=0,
+    template_cb = tk.Checkbutton(gui, text='template', variable=tcb, onvalue=1, offvalue=0, name='template',
                                  command=lambda: tick_untick(tcb, program_modes, 'template'))
+    variables.append(tcb)
 
     acb = tk.IntVar()
-    aircraft_cb = tk.Checkbutton(gui, text='aircraft', variable=acb, onvalue=1, offvalue=0,
+    aircraft_cb = tk.Checkbutton(gui, text='aircraft', variable=acb, onvalue=1, offvalue=0, name='aircraft',
                                  command=lambda: tick_untick(acb, program_modes, 'aircraft'))
+    variables.append(acb)
 
     combob = tk.IntVar()
-    combo_cb = tk.Checkbutton(gui, text='combo', variable=combob, onvalue=1, offvalue=0,
+    combo_cb = tk.Checkbutton(gui, text='combo', variable=combob, onvalue=1, offvalue=0, name='combo',
                               command=lambda: tick_untick(combob, program_modes, 'combo'))
+    variables.append(combob)
 
     regular_checkbox_label.place(x=150, y=600)
     allscints_cb.place(x=220, y=600)
@@ -352,27 +363,28 @@ if __name__ == '__main__':
     aircraft_cb.place(x=380, y=600)
     combo_cb.place(x=460, y=600)
 
-    regular_checkbox_list = [allscints_cb, template_cb, aircraft_cb, combo_cb]
-    regular_checkbox_variables = [ascb, tcb, acb, combob]
-
     # Making and placing developer mode checkboxes
     dev_checkbox_label = tk.Label(gui, text='Dev Modes:')
 
     sccb = tk.IntVar()
-    skcali_cb = tk.Checkbutton(gui, text='skcali', variable=sccb, onvalue=1, offvalue=0,
+    skcali_cb = tk.Checkbutton(gui, text='skcali', variable=sccb, onvalue=1, offvalue=0, name='skcali',
                                command=lambda: tick_untick(sccb, program_modes, 'skcali'))
+    variables.append(sccb)
 
     sscb = tk.IntVar()
-    skshort_cb = tk.Checkbutton(gui, text='skshort', variable=sscb, onvalue=1, offvalue=0,
+    skshort_cb = tk.Checkbutton(gui, text='skshort', variable=sscb, onvalue=1, offvalue=0, name='skshort',
                                 command=lambda: tick_untick(sscb, program_modes, 'skshort'))
+    variables.append(sscb)
 
     sgcb = tk.IntVar()
-    skglow_cb = tk.Checkbutton(gui, text='skglow', variable=sgcb, onvalue=1, offvalue=0,
+    skglow_cb = tk.Checkbutton(gui, text='skglow', variable=sgcb, onvalue=1, offvalue=0, name='skglow',
                                command=lambda: tick_untick(sgcb, program_modes, 'skglow'))
+    variables.append(sgcb)
 
     pcb = tk.IntVar()
-    pickle_cb = tk.Checkbutton(gui, text='pickle', variable=pcb, onvalue=1, offvalue=0,
+    pickle_cb = tk.Checkbutton(gui, text='pickle', variable=pcb, onvalue=1, offvalue=0, name='pickle',
                                command=lambda: tick_untick(pcb, program_modes, 'pickle'))
+    variables.append(pcb)
 
     dev_checkbox_label.place(x=150, y=630)
     skcali_cb.place(x=220, y=630)
@@ -380,12 +392,9 @@ if __name__ == '__main__':
     skglow_cb.place(x=380, y=630)
     pickle_cb.place(x=460, y=630)
 
-    dev_checkbox_list = [skcali_cb, skshort_cb, skglow_cb, pickle_cb]
-    dev_checkbox_variables = [sccb, sscb, sgcb, pcb]
-
     # Making and placing detector entry box
     detector_label = tk.Label(gui, text='Detector:')
-    detector_entrybox = tk.Entry(gui, width=10, borderwidth=5)
+    detector_entrybox = tk.Entry(gui, width=10, borderwidth=5, name='detector_entrybox')
     supported_label = tk.Label(gui, text='Supported\n Detectors:\nTHOR(1-6), GODOT,\nSANTIS, CROATIA')
 
     detector_label.place(x=660, y=615)
@@ -394,8 +403,8 @@ if __name__ == '__main__':
 
     # Making and placing custom export location entry box and directory dialogue box button
     results_label = tk.Label(gui, text='Export Location:')
-    results_entrybox = tk.Entry(gui, width=30, borderwidth=5)
-    results_button = tk.Button(gui, width=6, height=2, text='Browse',
+    results_entrybox = tk.Entry(gui, width=30, borderwidth=5, name='results_entrybox')
+    results_button = tk.Button(gui, width=6, height=2, text='Browse', name='results_button',
                                command=lambda: select_dir(results_entrybox), bg='white')
 
     results_label.place(x=575, y=680)
@@ -404,8 +413,8 @@ if __name__ == '__main__':
 
     # Making and placing custom import location entry box and directory dialogue box button
     custom_label = tk.Label(gui, text='Import Location:')
-    custom_entrybox = tk.Entry(gui, width=30, borderwidth=5)
-    custom_button = tk.Button(gui, width=6, height=2, text='Browse',
+    custom_entrybox = tk.Entry(gui, width=30, borderwidth=5, name='custom_entrybox')
+    custom_button = tk.Button(gui, width=6, height=2, text='Browse', name='custom_buttom',
                               command=lambda: select_dir(custom_entrybox), bg='white')
 
     custom_label.place(x=150, y=680)
@@ -413,5 +422,9 @@ if __name__ == '__main__':
     custom_button.place(x=455, y=673)
 
     # Gui async loop
-    checker()
+    checker(gui, search_queue, stdout_queue)
     tk.mainloop()
+
+
+if __name__ == '__main__':
+    main()

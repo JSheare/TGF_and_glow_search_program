@@ -7,7 +7,6 @@ import sys as sys
 search_directory = '/home/jacob/search/'  # This would need to be updated if search.py or its modules are moved
 autosearch_directory = os.path.dirname(os.path.abspath(sys.argv[0])) + '/'
 sys.path.insert(0, search_directory)
-import search_module as sm
 
 
 def search(detector, dates, path):
@@ -99,28 +98,28 @@ def main():
         # Running the main program on each of the detectors
 
         # THOR1
-        checked_dates = search('THOR1', checked_dates, sm.T_raw_data_loc() + '/THOR1/Data')
+        checked_dates = search('THOR1', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR1/Data')
 
         # THOR2
-        checked_dates = search('THOR2', checked_dates, sm.T_raw_data_loc() + '/THOR2/Data')
+        checked_dates = search('THOR2', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR2/Data')
 
         # THOR3
-        checked_dates = search('THOR3', checked_dates, sm.T_raw_data_loc() + '/THOR3/Data')
+        checked_dates = search('THOR3', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR3/Data')
 
         # THOR4
-        checked_dates = search('THOR4', checked_dates, sm.T_raw_data_loc() + '/THOR4/Data')
+        checked_dates = search('THOR4', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR4/Data')
 
         # THOR5
-        checked_dates = search('THOR5', checked_dates, sm.T_raw_data_loc() + '/THOR5/Data')
+        checked_dates = search('THOR5', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR5/Data')
 
         # THOR6
-        checked_dates = search('THOR6', checked_dates, sm.T_raw_data_loc() + '/THOR6/Data')
+        checked_dates = search('THOR6', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR6/Data')
 
         # GODOT
-        checked_dates = search('GODOT', checked_dates, sm.G_raw_data_loc())
+        checked_dates = search('GODOT', checked_dates, '/media/AllDetectorData/Detectors/SANTIS/Data')
 
         # SANTIS
-        checked_dates = search('SANTIS', checked_dates, sm.S_raw_data_loc())
+        checked_dates = search('SANTIS', checked_dates, '/media/AllDetectorData/Detectors/GODOT/Data')
 
         # Deletes the pid file
         os.remove(autosearch_directory + 'pid.txt')
