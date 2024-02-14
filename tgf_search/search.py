@@ -27,15 +27,15 @@ def get_detector(unit, first_sec, modes=None, print_feedback=False):
     if modes is None:
         modes = list()
 
-    if unit == 'GODOT':
-        return Godot(unit, first_sec, modes, print_feedback)
-    elif unit == 'SANTIS':
-        return Santis(unit, first_sec, modes, print_feedback)
-    elif unit == 'CROATIA':
-        return Croatia(unit, first_sec, modes, print_feedback)
-    elif 'THOR' in unit:
+    if unit.upper() == 'GODOT':
+        return Godot(unit.upper(), first_sec, modes, print_feedback)
+    elif unit.upper() == 'SANTIS':
+        return Santis(unit.upper(), first_sec, modes, print_feedback)
+    elif unit.upper() == 'CROATIA':
+        return Croatia(unit.upper(), first_sec, modes, print_feedback)
+    elif 'THOR' in unit.upper():
         if len(unit) >= 5 and unit[4].isnumeric() and int(unit[4]) <= 6:  # only 6 of them right now
-            return Thor(unit, first_sec, modes, print_feedback)
+            return Thor(unit.upper(), first_sec, modes, print_feedback)
         else:
             raise ValueError('ValueError: not a valid detector.')
     else:

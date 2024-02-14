@@ -1,4 +1,4 @@
-"""Modules to be imported when the whole package is imported."""
+"""A package containing tools and scripts for searching raw data from the instruments of the TGF group at UCSC."""
 
 # Everything here should be available at the top level of the package upon importing
 from tgf_search.tools import *
