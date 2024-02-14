@@ -4,8 +4,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import datetime as dt
 
-import tools as tl
-import parameters as params
+import tgf_search.tools as tl
+import tgf_search.parameters as params
 
 
 class ShortEvent:

@@ -11,11 +11,11 @@ import matplotlib.pyplot as plt
 import datetime as dt
 from matplotlib.widgets import Slider
 
-import DataReaderFinal as Dr
-# import DataReaderTimetrack2 as Dr
-import tools as tl
-import parameters as params
-from scintillator import Scintillator
+import tgf_search.DataReaderFinal as Dr
+# import tgf_search.DataReaderTimetrack2 as Dr
+import tgf_search.tools as tl
+import tgf_search.parameters as params
+from tgf_search.detectors.scintillator import Scintillator
 
 
 class Detector:
