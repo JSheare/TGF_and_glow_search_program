@@ -12,14 +12,14 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from scipy.optimize import curve_fit
 
-import tools as tl
-import parameters as params
-from godot import Godot
-from thor import Thor
-from santis import Santis
-from croatia import Croatia
-from shortevent import ShortEvent
-from longevent import LongEvent
+import tgf_search.tools as tl
+import tgf_search.parameters as params
+from tgf_search.detectors.godot import Godot
+from tgf_search.detectors.thor import Thor
+from tgf_search.detectors.santis import Santis
+from tgf_search.detectors.croatia import Croatia
+from tgf_search.events.shortevent import ShortEvent
+from tgf_search.events.longevent import LongEvent
 
 
 # Returns the correct detector object based on the parameters provided
