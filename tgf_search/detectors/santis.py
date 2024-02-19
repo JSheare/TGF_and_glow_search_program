@@ -13,7 +13,7 @@ class Santis(Detector):
         self.default_data_loc = '/media/AllDetectorData/Detectors/SANTIS/Data'
         self.location = self.get_location(self.default_data_loc[:-5])
         self.import_loc = f'{self.default_data_loc}/{self.date_str}'
-        self.regex = self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.date_str}_*'
+        self.file_form = lambda eRC: f'eRC{eRC}*_lm_{self.date_str}_*'
         self.scintillators = {'LP': Scintillator('LP', '2549')}
         self.scint_list = list(self.scintillators.keys())
 

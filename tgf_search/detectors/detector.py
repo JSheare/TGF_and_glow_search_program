@@ -60,7 +60,7 @@ class Detector:
         The directory where the requested data files are located.
     results_loc : str
         The directory where program results will be exported.
-    regex : function
+    file_form : function
         A lambda function that, when given the eRC serial number, returns the regex for a scintillator's files.
     scintillators : dict
         A dictionary containing scintillator objects. These objects keep track of data for each scintillator.
@@ -100,7 +100,7 @@ class Detector:
         self.default_data_loc = ''
         self.import_loc = ''
         self.results_loc = os.getcwd()
-        self.regex = lambda eRC: ''
+        self.file_form = lambda eRC: ''
         self.scintillators = {'NaI': Scintillator('NaI', '0'), 'LP': Scintillator('LP', '0')}
 
         self.scint_list = []
@@ -395,12 +395,12 @@ class Detector:
             eRC = self.get_attribute(scintillator, 'eRC')
             # Here in case the data files in a custom location are grouped into daily folders
             try:
-                complete_filelist = glob.glob(f'{self.import_loc}/{self.regex(eRC)}')
+                complete_filelist = glob.glob(f'{self.import_loc}/{self.file_form(eRC)}')
                 assert len(complete_filelist) > 0, 'Empty filelist'
 
             except AssertionError:
                 complete_filelist = glob.glob(f'{self.import_loc}/{self.date_str}'
-                                              f'/{self.regex(eRC)}')
+                                              f'/{self.file_form(eRC)}')
 
             filelist = tl.filter_files(complete_filelist)
             self.set_attribute(scintillator, 'filelist', filelist)

@@ -209,7 +209,7 @@ def pickle_detector(detector, path_form):
     """
 
     detector.log = None  # serializing open file objects results in errors
-    detector.regex = None  # serializing anonymous functions results in errors too
+    detector.file_form = None  # serializing anonymous functions results in errors too
     with open(path_form, 'wb') as file:
         pickle.dump(detector, file)
 
