@@ -23,19 +23,19 @@ from tgf_search.events.longevent import LongEvent
 
 
 # Returns the correct detector object based on the parameters provided
-def get_detector(unit, first_sec, modes=None, print_feedback=False):
+def get_detector(unit, date_str, modes=None, print_feedback=False):
     if modes is None:
         modes = list()
 
     if unit.upper() == 'GODOT':
-        return Godot(unit.upper(), first_sec, modes, print_feedback)
+        return Godot(unit.upper(), date_str, modes, print_feedback)
     elif unit.upper() == 'SANTIS':
-        return Santis(unit.upper(), first_sec, modes, print_feedback)
+        return Santis(unit.upper(), date_str, modes, print_feedback)
     elif unit.upper() == 'CROATIA':
-        return Croatia(unit.upper(), first_sec, modes, print_feedback)
+        return Croatia(unit.upper(), date_str, modes, print_feedback)
     elif 'THOR' in unit.upper():
         if len(unit) >= 5 and unit[4].isnumeric() and int(unit[4]) <= 6:  # only 6 of them right now
-            return Thor(unit.upper(), first_sec, modes, print_feedback)
+            return Thor(unit.upper(), date_str, modes, print_feedback)
         else:
             raise ValueError(f"'{unit}' is not a valid detector.")
     else:
@@ -589,7 +589,7 @@ def long_event_search(detector, modes, times, existing_hist=None, low_mem=False)
         print('\n', file=detector.log)
         print('Potential glows:', file=detector.log)
 
-        eventpath = f'{detector.results_loc}Results/{detector.unit}/{detector.date_str}/' \
+        eventpath = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/' \
                     f'event files/long events/'
         tl.make_path(eventpath)
         event_number = 1
@@ -662,7 +662,7 @@ def long_event_search(detector, modes, times, existing_hist=None, low_mem=False)
     # Saves the histogram(s):
     tl.print_logger('\n', detector.log)
     tl.print_logger('Saving Histogram...', detector.log)
-    hist_path = f'{detector.results_loc}Results/{detector.unit}/{detector.date_str}/'
+    hist_path = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/'
     tl.make_path(hist_path)
     plt.savefig(f'{hist_path}{detector.date_str}_histogram.png', dpi=500)
     plt.close(figure)
@@ -722,31 +722,24 @@ def main():
         full_day_str = dt.date(year, month, day)  # In format yyyy-mm-dd
         print(f'\n{full_day_str}:')
 
-        # EPOCH time conversions
-        first_sec = (dt.datetime(year, month, day, 0, 0) - dt.datetime(1970, 1, 1)).total_seconds()
-        print(f'The first second of {year}-{month}-{day} is: {int(first_sec)}')
-        print(f'The last second of {year}-{month}-{day} is: {int(first_sec + 86400)}')
-
         # Initializes the detector object
         print('Importing data...')
         try:
-            detector = get_detector(unit, first_sec, mode_info, print_feedback=True)
+            detector = get_detector(unit, date_str, mode_info, print_feedback=True)
         except ValueError:
             print('Not a valid detector.')
             exit()
 
         # Logs relevant data files and events in a .txt File
-        log_path = f'{detector.results_loc}Results/{unit}/{date_str}/'
+        log_path = f'{detector.get_results_loc()}/Results/{unit}/{date_str}/'
         tl.make_path(log_path)
         log = open(f'{log_path}log.txt', 'w')
-        log.write(f'The first second of {year}-{month}-{day} is: {int(first_sec)}\n')
-        log.write(f'The last second of {year}-{month}-{day} is: {int(first_sec + 86400)}\n')
 
         # Normal operating mode
         try:
             # Imports the data
             if modes['pickle']:  # In pickle mode: reads the pickle file, or exports one if it doesn't exist yet
-                path_form = f'{detector.results_loc}Results/{detector.unit}/{detector.date_str}/detector.pickle'
+                path_form = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/detector.pickle'
                 pickle_paths = glob.glob(path_form)
                 if len(pickle_paths) > 0:
                     detector = tl.unpickle_detector(pickle_paths[0], mode_info)
@@ -850,7 +843,7 @@ def main():
                 chunk_list = []
 
                 for chunk_num in range(1, num_chunks + 1):
-                    chunk = get_detector(unit, first_sec, mode_info, print_feedback=True)
+                    chunk = get_detector(unit, date_str, mode_info, print_feedback=True)
                     chunk.log = log
                     chunk_list.append(chunk)
 
@@ -876,7 +869,7 @@ def main():
                 chunk_num = 1
                 chunk_path_list = []
                 # Temporary pickle feature for low memory mode. REMOVE WHEN PROGRAM IS FINISHED
-                pickled_chunk_paths = glob.glob(f'{detector.results_loc}Results/{unit}/{date_str}/chunk*.pickle')
+                pickled_chunk_paths = glob.glob(f'{detector.get_results_loc()}/Results/{unit}/{date_str}/chunk*.pickle')
                 pickled_chunk_paths.sort()
                 missing_data = False
                 if modes['pickle'] and len(pickled_chunk_paths) > 0:
@@ -918,7 +911,8 @@ def main():
                             # Updates passtime
                             passtime_dict = chunk.return_passtime()
 
-                            chunk_path = f'{detector.results_loc}Results/{unit}/{date_str}/chunk{chunk_num}.pickle'
+                            chunk_path = (f'{detector.get_results_loc()}/Results/{unit}/{date_str}/'
+                                          f'chunk{chunk_num}.pickle')
                             chunk_path_list.append(chunk_path)
                             tl.pickle_chunk(chunk, chunk_path)
 

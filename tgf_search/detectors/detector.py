@@ -28,8 +28,8 @@ class Detector:
     ----------
     unit : str
         The name of the detector that the analysis is being requested for.
-    first_sec : float
-        The first second in EPOCH time of the day that data analysis is being requested for.
+    date_str : str
+        The timestamp for the requested day in yymmdd format.
     modes : list
         A list of the requested modes that the program should operate under.
     print_feedback : bool
@@ -39,8 +39,8 @@ class Detector:
     ----------
     log : file
         The .txt file where actions and findings are logged.
-    date_str : str
-        The timestamp for the requested day in yymmdd format.
+    first_sec : float
+        The first second in EPOCH time of the day that data analysis is being requested for.
     full_date_str : str
         The timestamp for the requested in day in yyyy-mm-dd format.
     location : dict
@@ -56,7 +56,7 @@ class Detector:
         A dictionary containing various parameters used in the detector calibration algorithm.
     default_data_loc : str
         The default directory for a detector's raw data.
-    import_path : str
+    import_loc : str
         The directory where the requested data files are located.
     results_loc : str
         The directory where program results will be exported.
@@ -78,15 +78,16 @@ class Detector:
 
     """
 
-    def __init__(self, unit, first_sec, modes, print_feedback=False):
+    def __init__(self, unit, date_str, modes, print_feedback=False):
         # Basic information
         self.unit = unit
-        self.first_sec = first_sec
+        self.date_str = date_str  # In format yymmdd
         self.modes = modes
         self.print_feedback = print_feedback
         self.log = None
-        self.date_str = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%y%m%d')  # In format yymmdd
-        self.full_date_str = dt.datetime.utcfromtimestamp(int(first_sec)).strftime('%Y-%m-%d')  # In format yyyy-mm-dd
+        self.first_sec = tl.get_first_sec(self.date_str)
+        # In format yyyy-mm-dd
+        self.full_date_str = dt.datetime.utcfromtimestamp(int(self.first_sec)).strftime('%Y-%m-%d')
         self.location = None
         self.lp_calibrated = False
         self.default_scintillator = 'LP'  # Don't change this unless you have a really good reason
@@ -97,8 +98,8 @@ class Detector:
                                    'band_ends': [0, 0], 'template_bin_plot_edge': 0}
 
         self.default_data_loc = ''
-        self.import_path = ''
-        self.results_loc = os.getcwd() + '/'
+        self.import_loc = ''
+        self.results_loc = os.getcwd()
         self.regex = lambda eRC: ''
         self.scintillators = {'NaI': Scintillator('NaI', '0'), 'LP': Scintillator('LP', '0')}
 
@@ -108,6 +109,10 @@ class Detector:
         self.processed = False
         self.template = False
         self.gui = False
+
+        # Noting the date in the log
+        if self.log is not None:
+            print(f'{self.full_date_str}:', file=self.log)
 
     # String casting overload
     def __str__(self):
@@ -136,32 +141,35 @@ class Detector:
     def __bool__(self):
         return self.is_data_present(self.default_scintillator)
 
-    def check_processed(self):
-        """Checks to see if processed is one of the user specified modes, and raises an error if the detector isn't
-        Godot."""
-        if 'processed' in self.modes:
-            if self.is_named('GODOT'):
-                self.processed = True
-                self.import_path = f'/media/godot/godot/monthly_processed/{self.date_str[0:4]}'
-            else:
-                raise ValueError('processed data mode is only available for GODOT.')
+    def get_import_loc(self):
+        """Returns the directory where data will be imported from."""
+        return self.import_loc
 
-    def check_gui(self):
-        """Checks to see if the object is being instantiated from the GUI (via the search script usually), and
-        changes the import and export directories if the user specified different ones from the default."""
-        self.gui = True if 'GUI' in self.modes else False
-        if self.gui:
-            if self.modes[-2] != 'none':
-                if self.modes[-2] != '/':
-                    self.results_loc = self.modes[-2] + '/'
-                else:
-                    self.results_loc = self.modes[-2]
+    def set_import_loc(self, loc):
+        """Sets the directory where data will be imported from."""
+        if type(loc) == str:
+            if len(loc) > 0:
+                if loc[-1] == '/':
+                    loc = loc[:-1]
 
-            if self.modes[-1] != 'none':
-                if self.modes[-1] == '/':
-                    self.import_path = self.modes[-1][:-1]
-                else:
-                    self.import_path = self.modes[-1]
+            self.import_loc = loc
+        else:
+            raise TypeError('loc must be a string.')
+
+    def get_results_loc(self):
+        """Returns the directory where all results will be stored."""
+        return self.results_loc
+
+    def set_results_loc(self, loc):
+        """Sets the directory where all results will be stored."""
+        if type(loc) == str:
+            if len(loc) > 0:
+                if loc[-1] == '/':
+                    loc = loc[:-1]
+
+            self.results_loc = loc
+        else:
+            raise TypeError('loc must be a string.')
 
     def get_location(self, deployment_file_loc):
         """Returns a dictionary full of location information for a detector on it's specified date."""
@@ -174,6 +182,29 @@ class Detector:
                 'UTC conversion to local time': '', 'Nearest weather station': '', 'Daylight Savings?': '',
                 'Latitude (N)': '', 'Longitude (E, 0-360)': '', 'Altitude (km)': '',
                 'Notes': ''}
+
+    def check_processed(self):
+        """Checks to see if processed is one of the user specified modes, and raises an error if the detector isn't
+        Godot."""
+        if 'processed' in self.modes:
+            if self.is_named('GODOT'):
+                self.processed = True
+                self.import_loc = f'/media/godot/godot/monthly_processed/{self.date_str[0:4]}'
+            else:
+                raise ValueError('processed data mode is only available for GODOT.')
+
+    def check_gui(self):
+        """Checks to see if the object is being instantiated from the GUI (via the search script usually), and
+        changes the import and export directories if the user specified different ones from the default."""
+        self.gui = True if 'GUI' in self.modes else False
+        if self.gui:
+            if self.modes[-1] != 'none':
+                if self.modes[-1] != '/':
+                    self.set_import_loc(self.modes[-1])
+
+            if self.modes[-2] != 'none':
+                if self.modes[-2] != '/':
+                    self.set_results_loc(self.modes[-2])
 
     def is_named(self, name):
         """Returns True if the detector has the same name as the passed string.
@@ -364,11 +395,11 @@ class Detector:
             eRC = self.get_attribute(scintillator, 'eRC')
             # Here in case the data files in a custom location are grouped into daily folders
             try:
-                complete_filelist = glob.glob(f'{self.import_path}/{self.regex(eRC)}')
+                complete_filelist = glob.glob(f'{self.import_loc}/{self.regex(eRC)}')
                 assert len(complete_filelist) > 0, 'Empty filelist'
 
             except AssertionError:
-                complete_filelist = glob.glob(f'{self.import_path}/{self.date_str}'
+                complete_filelist = glob.glob(f'{self.import_loc}/{self.date_str}'
                                               f'/{self.regex(eRC)}')
 
             filelist = tl.filter_files(complete_filelist)
@@ -381,9 +412,11 @@ class Detector:
                 if len(self.get_attribute(scintillator, 'filelist')) == 0:
                     missing_data_scints.append(scintillator)
 
-            print('\n', file=self.log)
-            print('No/missing necessary data for specified day.', file=self.log)
-            print(f'Data missing in the following: {", ".join(missing_data_scints)}', file=self.log)
+            if self.log is not None:
+                print('\n', file=self.log)
+                print('No/missing necessary data for specified day.', file=self.log)
+                print(f'Data missing in the following: {", ".join(missing_data_scints)}', file=self.log)
+
             if self.print_feedback:
                 print('\n')
                 print('No/missing necessary data for specified day.')
@@ -400,8 +433,10 @@ class Detector:
         for scintillator in self.scintillators:
             eRC = self.get_attribute(scintillator, 'eRC')
             filelist = self.get_attribute(scintillator, 'filelist')
-            print('\n', file=self.log)
-            print(f'For eRC {eRC} ({scintillator}):', file=self.log)
+            if self.log is not None:
+                print('\n', file=self.log)
+                print(f'For eRC {eRC} ({scintillator}):', file=self.log)
+
             if self.print_feedback:
                 print('\n')
                 print(f'For eRC {eRC} ({scintillator}):')
@@ -421,7 +456,9 @@ class Detector:
                 last_second = 0.0
                 files_imported = 0
 
-                print('File|File Behavior|File Time Gap (sec)', file=self.log)
+                if self.log is not None:
+                    print('File|File Behavior|File Time Gap (sec)', file=self.log)
+
                 filecount_switch = True
                 for file in filelist:
                     if not self.gui and self.print_feedback:
@@ -469,7 +506,8 @@ class Detector:
                     last_second = filetimes[-1]
                     files_imported += 1
 
-                    print(f'{file}|{file_behavior}|{file_time_gap}', file=self.log)
+                    if self.log is not None:
+                        print(f'{file}|{file_behavior}|{file_time_gap}', file=self.log)
 
                 if self.print_feedback:
                     print(f'{files_imported}/{len(filelist)} files imported', end='\r')
@@ -497,13 +535,16 @@ class Detector:
                                 filetime_extrema_list]
                 self.set_attribute(scintillator, updated_attributes, updated_info)
 
-                print('\n', file=self.log)
-                print(f'Total Counts: {len(np.concatenate(time_list))}', file=self.log)
-                print(f'Average time gap: {np.sum(file_time_gaps) / len(file_time_gaps)}', file=self.log)
-                print('\n', file=self.log)
+                if self.log is not None:
+                    print('\n', file=self.log)
+                    print(f'Total Counts: {len(np.concatenate(time_list))}', file=self.log)
+                    print(f'Average time gap: {np.sum(file_time_gaps) / len(file_time_gaps)}', file=self.log)
+                    print('\n', file=self.log)
 
             except AssertionError:
-                print('Missing data for the specified day.', file=self.log)
+                if self.log is not None:
+                    print('Missing data for the specified day.', file=self.log)
+
                 if self.print_feedback:
                     print('Missing data for the specified day.', end='\r')
 
@@ -511,7 +552,9 @@ class Detector:
 
             except Exception as ex:
                 if str(ex) == 'Reader Error':
-                    print('Error with data reader.', file=self.log)
+                    if self.log is not None:
+                        print('Error with data reader.', file=self.log)
+
                     if self.print_feedback:
                         print('Error with data reader.', end='\r')
 
@@ -569,7 +612,9 @@ class Detector:
 
         template_bin_plot_edge = self.calibration_params['template_bin_plot_edge']
 
-        print('Entering template mode...', file=self.log)
+        if self.log is not None:
+            print('Entering template mode...', file=self.log)
+
         if self.print_feedback:
             print('Entering template mode...')
             print('\n')
@@ -674,7 +719,9 @@ class Detector:
             flagged_indices = edge_indices + shift_amount
             self.lp_calibrated = True
         except FileNotFoundError:
-            print('No LP template found for this location...', file=self.log)
+            if self.log is not None:
+                print('No LP template found for this location...', file=self.log)
+
             if self.print_feedback:
                 print('No LP template found for this location...')
 
@@ -728,7 +775,7 @@ class Detector:
 
         # Making the energy bins and setting up the calibration files
         energy_bins = np.arange(0.0, bin_range, bin_size)
-        sp_path = f'{self.results_loc}Results/{self.unit}/{self.date_str}/'
+        sp_path = f'{self.results_loc}/Results/{self.unit}/{self.date_str}/'
         tl.make_path(sp_path)
         spectra_conversions = open(f'{sp_path}spectra_conversions.txt', 'w')
         spectra_frame = pd.DataFrame()
@@ -746,7 +793,9 @@ class Detector:
                     self._plot_spectra('LP', energy_bins, energy_hist, flagged_indices, sp_path)
 
             else:
-                print('Cannot calibrate LP (missing data)...', file=self.log)
+                if self.log is not None:
+                    print('Cannot calibrate LP (missing data)...', file=self.log)
+
                 if self.print_feedback:
                     print('Cannot calibrate LP (missing data)...')
 
@@ -758,7 +807,9 @@ class Detector:
                     self._plot_spectra('NaI', energy_bins, energy_hist, flagged_indices, sp_path)
 
             else:
-                print('Cannot calibrate NaI (missing data)...', file=self.log)
+                if self.log is not None:
+                    print('Cannot calibrate NaI (missing data)...', file=self.log)
+
                 if self.print_feedback:
                     print('Cannot calibrate NaI (missing data)...')
 

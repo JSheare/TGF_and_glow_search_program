@@ -159,6 +159,14 @@ def short_to_full_date(date_str):
     return f'{params.CENTURY}{date_str[0:2]}-{date_str[2:4]}-{date_str[4:]}'
 
 
+def get_first_sec(date_str):
+    """Converts the given date string (in yymmdd format) to its first second in EPOCH time."""
+    day = int(date_str[4:])
+    month = int(date_str[2:4])
+    year = int(params.CENTURY + date_str[0:2])
+    return (dt.datetime(year, month, day, 0, 0) - dt.datetime(1970, 1, 1)).total_seconds()
+
+
 def pickle_detector(detector, path_form):
     """Pickles detector objects.
 

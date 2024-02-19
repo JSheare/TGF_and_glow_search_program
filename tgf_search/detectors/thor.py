@@ -4,15 +4,15 @@ from tgf_search.detectors.scintillator import Scintillator
 
 
 class Thor(Detector):
-    def __init__(self, unit, first_sec, modes, print_feedback=False):
-        super().__init__(unit, first_sec, modes, print_feedback)
+    def __init__(self, unit, date_str, modes, print_feedback=False):
+        super().__init__(unit, date_str, modes, print_feedback)
 
         self.long_event_scint_list = ['NaI']
         self.calibration_params = {'bin_range': 65535.0, 'bin_size': 1, 'band_starts': [5600, 10833],
                                    'band_ends': [6300, 12499], 'template_bin_plot_edge': 8000}
         self.default_data_loc = '/media/AllDetectorData/Detectors/THOR'
         self.location = self.get_location(self.default_data_loc)
-        self.import_path = f'{self.default_data_loc}/{self.unit}/Data/{self.date_str}'
+        self.import_loc = f'{self.default_data_loc}/{self.unit}/Data/{self.date_str}'
         self.regex = self.regex = lambda eRC: f'eRC{eRC}*_lm_{self.date_str}_*'
         serial_nums = self._get_eRC()
         self.scintillators = {'NaI': Scintillator('NaI', serial_nums[0]), 'SP': Scintillator('SP', serial_nums[1]),

@@ -241,7 +241,7 @@ class ShortEvent:
 
         """
 
-        eventpath = (f'{detector.results_loc}Results/{detector.unit}/'
+        eventpath = (f'{detector.get_results_loc()}/Results/{detector.unit}/'
                      f'{detector.date_str}/event files/short events/')
         tl.make_path(eventpath)
         event_frame = pd.DataFrame()
@@ -351,7 +351,7 @@ class ShortEvent:
         # Note: with this code, if an event happens in that 200-300 seconds of the next day that are included in the
         # last file, the image will have the wrong date in its name (though the timestamp in the scatter plot title will
         # always be correct)
-        scatterpath = (f'{detector.results_loc}Results/{detector.unit}/'
+        scatterpath = (f'{detector.get_results_loc()}/Results/{detector.unit}/'
                        f'{detector.date_str}/scatterplots/')
         tl.make_path(scatterpath)
         event_num_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event_number)))
