@@ -37,9 +37,9 @@ def get_detector(unit, first_sec, modes=None, print_feedback=False):
         if len(unit) >= 5 and unit[4].isnumeric() and int(unit[4]) <= 6:  # only 6 of them right now
             return Thor(unit.upper(), first_sec, modes, print_feedback)
         else:
-            raise ValueError('ValueError: not a valid detector.')
+            raise ValueError(f"'{unit}' is not a valid detector.")
     else:
-        raise ValueError('ValueError: not a valid detector.')
+        raise ValueError(f"'{unit}' is not a valid detector.")
 
 
 # Checks whether a short event is valid by passing it through several filters
@@ -383,7 +383,7 @@ def calculate_mue(hist_allday):
     for i in range(0, low):
         hist_sum += hist_allday_nz[sorting_order[i]]
 
-    return hist_sum / len(hist_allday_nz)
+    return hist_sum / low
 
 
 # Calculates rolling mue/sigma baseline for the long event search algorithm
@@ -779,7 +779,7 @@ def main():
                     tl.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
 
                     # Calling the calibration algorithm
-                    detector.calibrate()
+                    detector.calibrate(plot_spectra=True)
 
                     tl.print_logger('Done.', detector.log)
 
@@ -824,7 +824,7 @@ def main():
                 for scintillator in detector:
                     master_filelist = detector.get_attribute(scintillator, 'filelist')
                     # Clears leftover data (just to be sure)
-                    detector.update_attribute(scintillator, ['time', 'energy', 'filetime_extrema'],
+                    detector.set_attribute(scintillator, ['time', 'energy', 'filetime_extrema'],
                                               [np.array([]), np.array([]), []])
                     for file in master_filelist:
                         total_file_size += os.path.getsize(file)
@@ -844,7 +844,7 @@ def main():
                     num_chunks += 1
 
                 if not max_not_exceeded:
-                    raise MemoryError('MemoryError: very low available memory on system.')
+                    raise MemoryError('very low available memory on system.')
 
                 # Makes the chunks
                 chunk_list = []
@@ -862,10 +862,10 @@ def main():
                     chunk_num = 1
                     for chunk in chunk_list:
                         if chunk_num == num_chunks:
-                            chunk.update_attribute(scintillator, 'filelist', current_filelist)
+                            chunk.set_attribute(scintillator, 'filelist', current_filelist)
                         else:
                             filelist_chunk = current_filelist[:int(filelist_len / num_chunks)]
-                            chunk.update_attribute(scintillator, 'filelist', filelist_chunk)
+                            chunk.set_attribute(scintillator, 'filelist', filelist_chunk)
                             current_filelist = current_filelist[int(filelist_len / num_chunks):]
 
                         chunk_num += 1
@@ -913,7 +913,7 @@ def main():
                             for scintillator in chunk:
                                 extrema = detector.get_attribute(scintillator, 'filetime_extrema')
                                 extrema += chunk.get_attribute(scintillator, 'filetime_extrema')
-                                detector.update_attribute(scintillator, 'filetime_extrema', extrema)
+                                detector.set_attribute(scintillator, 'filetime_extrema', extrema)
 
                             # Updates passtime
                             passtime_dict = chunk.return_passtime()
@@ -943,7 +943,7 @@ def main():
                             del chunk
 
                         # Calling the calibration algorithm
-                        detector.calibrate(existing_spectra=existing_spectra)
+                        detector.calibrate(existing_spectra=existing_spectra, plot_spectra=True)
 
                         tl.print_logger('Done.', detector.log)
 

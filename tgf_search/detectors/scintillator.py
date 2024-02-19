@@ -57,10 +57,10 @@ class Scintillator:
         if hasattr(self, attribute):
             return getattr(self, attribute)
         else:
-            raise ValueError('ValueError: not a valid attribute.')
+            raise ValueError(f"'{attribute}' is not a valid attribute.")
 
-    def update_attribute(self, attribute, info):
+    def set_attribute(self, attribute, info):
         if hasattr(self, attribute):
             setattr(self, attribute, info)
         else:
-            raise ValueError('ValueError: not a valid attribute.')
+            raise ValueError(f"'{attribute}' is not a valid attribute.")

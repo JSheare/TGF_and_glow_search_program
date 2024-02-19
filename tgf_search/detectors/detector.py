@@ -144,7 +144,7 @@ class Detector:
                 self.processed = True
                 self.import_path = f'/media/godot/godot/monthly_processed/{self.date_str[0:4]}'
             else:
-                raise ValueError('ValueError: processed data mode is only available for GODOT.')
+                raise ValueError('processed data mode is only available for GODOT.')
 
     def check_gui(self):
         """Checks to see if the object is being instantiated from the GUI (via the search script usually), and
@@ -249,9 +249,9 @@ class Detector:
             return medium.get_attribute(attribute)
 
         else:
-            raise ValueError('ValueError: not a valid scintillator.')
+            raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
-    def update_attribute(self, scintillator, attribute, new_info):
+    def set_attribute(self, scintillator, attribute, new_info):
         """Updates the requested attribute for a particular scintillator.
 
         \n
@@ -291,19 +291,19 @@ class Detector:
             medium = self.scintillators[scintillator]
             if type(attribute) is list and type(new_info) is list:
                 if len(attribute) != len(new_info):
-                    raise ValueError('ValueError: attribute and new info must be the same length.')
+                    raise ValueError('attribute and new info lists must be the same length.')
 
                 for i in range(len(attribute)):
-                    medium.update_attribute(attribute[i], new_info[i])
+                    medium.set_attribute(attribute[i], new_info[i])
 
             elif type(attribute) is str:
-                medium.update_attribute(attribute, new_info)
+                medium.set_attribute(attribute, new_info)
 
             else:
-                raise TypeError('TypeError: if attribute is a list, new_info must also be a list.')
+                raise TypeError('if attribute is a list, new_info must also be a list.')
 
         else:
-            raise ValueError('ValueError: not a valid scintillator.')
+            raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
     def calculate_fileset_size(self):
         """Returns the total size (in bytes) of all the currently held files for the day."""
@@ -343,7 +343,7 @@ class Detector:
         """
 
         for scintillator in self:
-            self.update_attribute(scintillator, 'passtime', passtime_dict[scintillator])
+            self.set_attribute(scintillator, 'passtime', passtime_dict[scintillator])
 
     def import_data(self, existing_filelists=False):
         """Imports data from data files into arrays and then updates them into the detector's
@@ -372,7 +372,7 @@ class Detector:
                                               f'/{self.regex(eRC)}')
 
             filelist = tl.filter_files(complete_filelist)
-            self.update_attribute(scintillator, 'filelist', filelist)
+            self.set_attribute(scintillator, 'filelist', filelist)
 
         # Checks to see if the necessary files for a full search are present
         if len(self.get_attribute(self.default_scintillator, 'filelist')) == 0:
@@ -395,7 +395,7 @@ class Detector:
         total_file_size = self.calculate_fileset_size()
         available_memory = psutil.virtual_memory()[1] * params.TOTAL_MEMORY_ALLOWANCE_FRAC
         if (params.OPERATING_MEMORY_ALLOWANCE + total_file_size) > available_memory:
-            raise MemoryError('MemoryError: not enough free memory to hold complete dataset.')
+            raise MemoryError('not enough free memory to hold complete dataset.')
 
         for scintillator in self.scintillators:
             eRC = self.get_attribute(scintillator, 'eRC')
@@ -444,7 +444,7 @@ class Detector:
                                 #                                    self.get_attribute(scintillator, 'passtime'))
                                 data = Dr.fileNameToData(file)
 
-                            # self.update_attribute(scintillator, 'passtime', passtime)
+                            # self.set_attribute(scintillator, 'passtime', passtime)
                             if 'energies' in data.columns:
                                 energy_list.append(data['energies'].to_numpy())
                             else:
@@ -495,7 +495,7 @@ class Detector:
                 updated_attributes = ['time', 'energy', 'wc', 'filetime_extrema']
                 updated_info = [times, np.concatenate(energy_list), np.concatenate(wallclock_list),
                                 filetime_extrema_list]
-                self.update_attribute(scintillator, updated_attributes, updated_info)
+                self.set_attribute(scintillator, updated_attributes, updated_info)
 
                 print('\n', file=self.log)
                 print(f'Total Counts: {len(np.concatenate(time_list))}', file=self.log)
@@ -658,7 +658,7 @@ class Detector:
             print(f'{calibration[1]} V = 2.60 MeV', file=spectra_conversions)
 
         spectra_frame['NaI'] = energy_hist
-        self.update_attribute('NaI', 'calibration', calibration)
+        self.set_attribute('NaI', 'calibration', calibration)
         return flagged_indices
 
     def _calibrate_LP(self, energy_bins, energy_hist, spectra_conversions, spectra_frame):
@@ -685,7 +685,7 @@ class Detector:
             print(f'{calibration[1]} V = 2.381 MeV', file=spectra_conversions)
 
         spectra_frame['LP'] = energy_hist
-        self.update_attribute('LP', 'calibration', calibration)
+        self.set_attribute('LP', 'calibration', calibration)
         return flagged_indices
 
     def _plot_spectra(self, scintillator, energy_bins, energy_hist, flagged_indices, sp_path):
@@ -709,7 +709,7 @@ class Detector:
         plt.savefig(f'{sp_path}{scintillator}_Spectrum.png', dpi=500)
         plt.clf()
 
-    def calibrate(self, existing_spectra=None):
+    def calibrate(self, existing_spectra=None, plot_spectra=False):
         """Makes the energy spectra histograms and calibrates the large plastic and sodium iodide scintillators.
         Calibration energies for each scintillator are saved to their corresponding scintillator objects.
 
@@ -717,6 +717,8 @@ class Detector:
         ------
         existing_spectra : dict
             Optional. A dictionary whose entries correspond to energy spectra histograms for each scintillator.
+        plot_spectra : bool
+            Optional. Specifies whether to make and export spectra histograms.
 
         """
 
@@ -740,7 +742,9 @@ class Detector:
 
                 # Calibrates the LP scintillator and plots the calibration
                 flagged_indices = self._calibrate_LP(energy_bins, energy_hist, spectra_conversions, spectra_frame)
-                self._plot_spectra('LP', energy_bins, energy_hist, flagged_indices, sp_path)
+                if plot_spectra:
+                    self._plot_spectra('LP', energy_bins, energy_hist, flagged_indices, sp_path)
+
             else:
                 print('Cannot calibrate LP (missing data)...', file=self.log)
                 if self.print_feedback:
@@ -750,7 +754,9 @@ class Detector:
             if self.is_data_present('NaI') or (existing_spectra and len(existing_spectra['NaI']) != 0):
                 energy_hist = self._generate_hist(energy_bins, 'NaI', existing_spectra)
                 flagged_indices = self._calibrate_NaI(energy_bins, energy_hist, spectra_conversions, spectra_frame)
-                self._plot_spectra('NaI', energy_bins, energy_hist, flagged_indices, sp_path)
+                if plot_spectra:
+                    self._plot_spectra('NaI', energy_bins, energy_hist, flagged_indices, sp_path)
+
             else:
                 print('Cannot calibrate NaI (missing data)...', file=self.log)
                 if self.print_feedback:
@@ -760,4 +766,4 @@ class Detector:
             spectra_conversions.close()
 
         else:
-            raise ValueError("ValueError: data necessary for calibration is either missing or hasn't been imported.")
+            raise ValueError("data necessary for calibration is either missing or hasn't been imported.")

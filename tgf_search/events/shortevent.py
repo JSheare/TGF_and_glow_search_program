@@ -287,7 +287,7 @@ class ShortEvent:
 
         # Dot colors. Note that if an instrument with more than just NaI, SP, MP, and LP is ever added, this
         # will result in key errors
-        colors = {'NaI': 'tab:orange', 'SP': 'tab:red', 'MP': 'tab:green', 'LP': 'tab:blue'}
+        colors = {'NaI': 'b', 'SP': 'm', 'MP': 'g', 'LP': 'darkgoldenrod'}
 
         # Truncated time and energy arrays to speed up scatter plot making
         fraction_of_day = 1 / 64
@@ -324,7 +324,7 @@ class ShortEvent:
             else:
                 ax.set_xlim(xmin=event_times[0] - padding, xmax=event_times[-1] + padding)
 
-            dot_size = 3 if ts == timescales[0] else 1  # makes larger dots for top plot
+            dot_size = 5 if ts == timescales[0] else 3  # makes larger dots for top plot
             ax.set_yscale('log')
             ax.set_ylim([0.5, 1e5])
             for scintillator in times_dict:

@@ -1,4 +1,4 @@
-"""Tools for use by the TGF search program and it's modules."""
+"""Tools for use by the TGF search program and its modules."""
 import os as os
 import contextlib as contextlib
 import pickle as pickle
@@ -621,14 +621,14 @@ def separate_data(times, energies, count_scints, start, stop):
     return time_dict, energy_dict
 
 
-def channel_to_mev(energy_array, channel, scintillator):
+def channel_to_mev(energy_array, channels, scintillator):
     """Uses compton edges/photo peaks obtained from scintillator calibration to convert energy channels into MeV
 
     Parameters
     ----------
     energy_array : np.array
         The array containing all the energies for either the large plastic or sodium iodide scintillator.
-    channel : np.array
+    channels : np.array
         An array containing the energy channels corresponding to the compton edges/photo peaks.
     scintillator : str
         The label corresponding to the scintillator whose energies are being converted.
@@ -646,8 +646,8 @@ def channel_to_mev(energy_array, channel, scintillator):
         K40 = 1.242  # Compton edge photon energy for Potassium 40 (MeV)
         T = 2.381  # Compton edge photon energy for Thorium (MeV)
 
-    channel1 = channel[0]
-    channel2 = channel[1]
+    channel1 = channels[0]
+    channel2 = channels[1]
     a = (K40 - T)/(channel1-channel2)
     b = T - a*channel2
     energy_array = a*energy_array + b
