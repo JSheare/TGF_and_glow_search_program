@@ -1,7 +1,6 @@
 ### To-do list:
 - [ ] Write duplicate file eliminator/sorter for general data
 - [ ] Remove pickle support for low memory mode when the program is finished
-- [ ] Rework autosearch and image_collector
 
 ### Completed
 - [x] Fix channel-to-MeV converter function
@@ -24,3 +23,4 @@
 - [x] Profile the program for bottlenecks
 - [x] Optimize aircraft mode glow search sliding window code
 - [x] Make package importable as a module
+- [x] Rework autosearch and image_collector

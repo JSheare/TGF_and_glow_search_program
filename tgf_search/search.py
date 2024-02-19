@@ -669,12 +669,13 @@ def long_event_search(detector, modes, times, existing_hist=None, low_mem=False)
 
 
 def main():
-    # Establish date range from argv 1 and 2
-    first_date = str(sys.argv[1])
-    second_date = str(sys.argv[2])
-
-    # Establish detector unit from argv 3
-    unit = str(sys.argv[3])
+    try:
+        first_date = str(sys.argv[1])
+        second_date = str(sys.argv[2])
+        unit = str(sys.argv[3])
+    except IndexError:
+        print('Please provide a first date, a second date, and a unit name.')
+        exit()
 
     try:
         mode_info = sys.argv[4:]
@@ -704,18 +705,9 @@ def main():
         print('Not a valid date range.')
         exit()
 
-    requested_dates = [first_date]
-    if first_date != second_date:
-        date_str = first_date
-        while True:
-            date_str = tl.roll_date_forward(date_str)
-            requested_dates.append(date_str)
-            if date_str == second_date:
-                break
-
-    for date in requested_dates:
+    requested_dates = tl.make_date_list(first_date, second_date)
+    for date_str in requested_dates:
         low_memory_mode = False
-        date_str = str(date)  # In format yymmdd
         day = int(date_str[4:])
         month = int(date_str[2:4])
         year = int('20' + date_str[0:2])

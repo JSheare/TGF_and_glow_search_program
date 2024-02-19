@@ -1,17 +1,17 @@
+"""A script that automatically runs searches on unsearched data."""
 import os as os
 import subprocess as subprocess
 import json as json
 import glob as glob
 import psutil as psutil
-import sys as sys
-search_directory = '/home/jacob/search/'  # This would need to be updated if search.py or its modules are moved
-autosearch_directory = os.path.dirname(os.path.abspath(sys.argv[0])) + '/'
-sys.path.insert(0, search_directory)
+import platform as platform
+
+import tgf_search.tools as tl
 
 
-def search(detector, dates, path):
+def search(detector, dates, data_path, results_path, autosearch_path):
     queue = []
-    days = glob.glob(f'{path}/*')
+    days = glob.glob(f'{data_path}/*')
     days.sort()
     already_checked = dates[detector]
     for day in days:
@@ -23,28 +23,30 @@ def search(detector, dates, path):
     # Check the most recent stuff first
     queue = queue[::-1]
 
+    # Note: script_path will probably need to be changed if the file structure of the package is ever modified
+    script_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + '\\search.py'
+    executable = 'python' if platform.system() == 'Windows' else 'python3'
     for day in queue:
-        # Note: these strings will have to be updated if search.py is moved to another directory
         if detector == 'THOR1':
             # Control flow for THOR1 NOAA flights
             if 220930 <= int(day) <= 230208:
-                command = ['python3', 'search.py', day, day, 'THOR1', 'aircraft', 'skcali']
+                command = [executable, script_path, day, day, 'THOR1', 'aircraft', 'skcali']
             else:
-                command = ['python3', 'search.py', day, day, 'THOR1']
+                command = [executable, script_path, day, day, 'THOR1']
 
         elif detector == 'SANTIS':
             # Control flow for SANTIS instrument becoming the CROATIA instrument
             if int(day) > 211202:
-                command = ['python3', 'search.py', day, day, 'CROATIA']
+                command = [executable, script_path, day, day, 'CROATIA']
             else:
-                command = ['python3', 'search.py', day, day, 'SANTIS']
+                command = [executable, script_path, day, day, 'SANTIS']
 
         else:
-            command = ['python3', 'search.py', day, day, f'{detector}']
+            command = [executable, script_path, day, day, f'{detector}']
 
         # Runs search.py for the day
         old_pwd = os.getcwd()
-        os.chdir(search_directory)
+        os.chdir(results_path)
         result = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         # Uncomment this and comment the above line to get search.py console output (for console debugging)
         # result = subprocess.Popen(command)
@@ -52,10 +54,8 @@ def search(detector, dates, path):
 
         if result.wait() != 0:
             # Writes any errors that search.py runs into to text files so that they can be examined/fixed later
-            if not os.path.exists(autosearch_directory + 'Error Logs'):
-                os.makedirs(autosearch_directory + 'Error Logs')
-
-            with open(autosearch_directory + f'Error Logs/{detector}_{day}_Error.txt', 'w') as error_file:
+            tl.make_path(autosearch_path + 'Error Logs')
+            with open(autosearch_path + f'Error Logs/{detector}_{day}_Error.txt', 'w') as error_file:
                 output, error = result.communicate()
                 error_file.write(str(error.strip().decode('utf-8')))
 
@@ -64,16 +64,20 @@ def search(detector, dates, path):
             dates[detector].append(day)
 
             # Dumps the updated list of checked dates to a json file for use the next day
-            with open(autosearch_directory + 'checked_dates.json', 'w') as date_file:
+            with open(autosearch_path + 'checked_dates.json', 'w') as date_file:
                 json.dump(dates, date_file)
 
     return dates
 
 
 def main():
+    results_path = '/home/jacob/search'
+    autosearch_path = results_path + '/Autosearch/'
+    tl.make_path(autosearch_path)
+
     # Checks to see if the program is already running (maybe the dataset it's checking is quite large or long)
     try:
-        with open(autosearch_directory + 'pid.txt', 'r') as existing_pid_file:
+        with open(autosearch_path + 'pid.txt', 'r') as existing_pid_file:
             pid = int(existing_pid_file.readline())
             if psutil.pid_exists(pid):
                 exit()
@@ -82,11 +86,11 @@ def main():
 
     # Runs the program normally if it isn't running already
     except FileNotFoundError:
-        with open(autosearch_directory + 'pid.txt', 'w') as pid_file:
+        with open(autosearch_path + 'pid.txt', 'w') as pid_file:
             pid_file.write(str(os.getpid()))
 
         try:
-            date_file = open(autosearch_directory + 'checked_dates.json')
+            date_file = open(autosearch_path + 'checked_dates.json')
             checked_dates = json.load(date_file)
             date_file.close()
         # If the list ever gets deleted by accident or something
@@ -98,31 +102,39 @@ def main():
         # Running the main program on each of the detectors
 
         # THOR1
-        checked_dates = search('THOR1', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR1/Data')
+        checked_dates = search('THOR1', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR1/Data',
+                               results_path, autosearch_path)
 
         # THOR2
-        checked_dates = search('THOR2', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR2/Data')
+        checked_dates = search('THOR2', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR2/Data',
+                               results_path, autosearch_path)
 
         # THOR3
-        checked_dates = search('THOR3', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR3/Data')
+        checked_dates = search('THOR3', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR3/Data',
+                               results_path, autosearch_path)
 
         # THOR4
-        checked_dates = search('THOR4', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR4/Data')
+        checked_dates = search('THOR4', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR4/Data',
+                               results_path, autosearch_path)
 
         # THOR5
-        checked_dates = search('THOR5', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR5/Data')
+        checked_dates = search('THOR5', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR5/Data',
+                               results_path, autosearch_path)
 
         # THOR6
-        checked_dates = search('THOR6', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR6/Data')
+        checked_dates = search('THOR6', checked_dates, '/media/AllDetectorData/Detectors/THOR' + '/THOR6/Data',
+                               results_path, autosearch_path)
 
         # GODOT
-        checked_dates = search('GODOT', checked_dates, '/media/AllDetectorData/Detectors/SANTIS/Data')
+        checked_dates = search('GODOT', checked_dates, '/media/AllDetectorData/Detectors/SANTIS/Data',
+                               results_path, autosearch_path)
 
         # SANTIS
-        checked_dates = search('SANTIS', checked_dates, '/media/AllDetectorData/Detectors/GODOT/Data')
+        checked_dates = search('SANTIS', checked_dates, '/media/AllDetectorData/Detectors/GODOT/Data',
+                               results_path, autosearch_path)
 
         # Deletes the pid file
-        os.remove(autosearch_directory + 'pid.txt')
+        os.remove(autosearch_path + 'pid.txt')
 
 
 if __name__ == '__main__':

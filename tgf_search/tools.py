@@ -149,6 +149,35 @@ def roll_date_backward(date_str):
     return date_str
 
 
+def make_date_list(first_date, second_date):
+    """Makes a list of dates from first_date to second_date (inclusive).
+
+    Parameters
+    ----------
+    first_date : str
+        The first date in the range.
+    second_date : str
+        The second date in the range.
+
+    Returns
+    -------
+    list
+        A list of dates on the specified range.
+
+    """
+
+    requested_dates = [first_date]
+    if first_date != second_date:
+        date_str = first_date
+        while True:
+            date_str = roll_date_forward(date_str)
+            requested_dates.append(date_str)
+            if date_str == second_date:
+                break
+
+    return requested_dates
+
+
 def full_date_to_short(full_date_str):
     """Converts a date string of the form yyyy-mm-dd to the form yymmdd."""
     return full_date_str[2:].replace('-', '')
