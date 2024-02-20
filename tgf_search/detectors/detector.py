@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 import datetime as dt
 from matplotlib.widgets import Slider
 
-import tgf_search.DataReaderFinal as Dr
-# import tgf_search.DataReaderTimetrack2 as Dr
+import tgf_search.utilities.DataReaderFinal as Dr
+# import tgf_search.utilities.DataReaderTimetrack2 as Dr
 import tgf_search.tools as tl
 import tgf_search.parameters as params
 from tgf_search.detectors.scintillator import Scintillator
@@ -80,7 +80,7 @@ class Detector:
 
     def __init__(self, unit, date_str, modes, print_feedback=False):
         # Basic information
-        self.unit = unit
+        self.unit = unit.upper()
         self.date_str = date_str  # In format yymmdd
         self.modes = modes
         self.print_feedback = print_feedback
@@ -173,7 +173,7 @@ class Detector:
 
     def get_location(self, deployment_file_loc):
         """Returns a dictionary full of location information for a detector on it's specified date."""
-        for file in glob.glob(f'{deployment_file_loc}/{self.unit.lower()}_*_*.json'):
+        for file in glob.glob(f'{deployment_file_loc}/{self.unit}_*_*.json'):
             if int(file[6:12]) <= int(self.date_str) <= int(file[13:19]):
                 with open(file, 'r') as deployment:
                     return json.load(deployment)

@@ -28,14 +28,14 @@ def get_detector(unit, date_str, modes=None, print_feedback=False):
         modes = list()
 
     if unit.upper() == 'GODOT':
-        return Godot(unit.upper(), date_str, modes, print_feedback)
+        return Godot(unit, date_str, modes, print_feedback)
     elif unit.upper() == 'SANTIS':
-        return Santis(unit.upper(), date_str, modes, print_feedback)
+        return Santis(unit, date_str, modes, print_feedback)
     elif unit.upper() == 'CROATIA':
-        return Croatia(unit.upper(), date_str, modes, print_feedback)
+        return Croatia(unit, date_str, modes, print_feedback)
     elif 'THOR' in unit.upper():
         if len(unit) >= 5 and unit[4].isnumeric() and int(unit[4]) <= 6:  # only 6 of them right now
-            return Thor(unit.upper(), date_str, modes, print_feedback)
+            return Thor(unit, date_str, modes, print_feedback)
         else:
             raise ValueError(f"'{unit}' is not a valid detector.")
     else:
