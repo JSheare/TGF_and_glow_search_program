@@ -1,6 +1,5 @@
 """A script that searches for TGFs and glows."""
 import sys
-import warnings
 import datetime as dt
 import glob as glob
 import os as os
@@ -1000,6 +999,4 @@ def main():
 
 
 if __name__ == '__main__':
-    # Disables all warnings in the console because they're mostly just annoying
-    warnings.filterwarnings('ignore')
     main()

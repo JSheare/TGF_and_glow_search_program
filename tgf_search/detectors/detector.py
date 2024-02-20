@@ -9,6 +9,7 @@ import json as json
 import scipy.signal as signal
 import matplotlib.pyplot as plt
 import datetime as dt
+import warnings
 from matplotlib.widgets import Slider
 
 import tgf_search.utilities.DataReaderFinal as Dr
@@ -476,10 +477,14 @@ class Detector:
                             time_list.append(t)
                             filetimes = t
                         else:
-                            with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):  # disables prints from dr
-                                # data, passtime = Dr.fileNameToData(file,
-                                #                                    self.get_attribute(scintillator, 'passtime'))
-                                data = Dr.fileNameToData(file)
+                            # The first with disables prints from the data reader; The second with suppresses annoying
+                            # numpy warnings
+                            with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
+                                with warnings.catch_warnings():
+                                    warnings.simplefilter('ignore', category=RuntimeWarning)
+                                    # data, passtime = Dr.fileNameToData(file,
+                                    #                                    self.get_attribute(scintillator, 'passtime'))
+                                    data = Dr.fileNameToData(file)
 
                             # self.set_attribute(scintillator, 'passtime', passtime)
                             if 'energies' in data.columns:
