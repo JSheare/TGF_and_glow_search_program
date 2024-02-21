@@ -1,6 +1,6 @@
 """Child class of Detector customized to handle data from THOR."""
-from tgf_search.detectors.detector import Detector
-from tgf_search.detectors.scintillator import Scintillator
+from tgfsearch.detectors.detector import Detector
+from tgfsearch.detectors.scintillator import Scintillator
 
 
 class Thor(Detector):

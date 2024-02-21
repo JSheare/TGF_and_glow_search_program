@@ -6,7 +6,7 @@ import glob as glob
 import psutil as psutil
 import platform as platform
 
-import tgf_search.tools as tl
+import tgfsearch.tools as tl
 
 
 def search(unit, checked_dates, data_path, results_path, auto_search_path):

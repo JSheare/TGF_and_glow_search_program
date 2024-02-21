@@ -1,9 +1,9 @@
-"""Child class of Detector customized to handle data from the Santis instrument."""
-from tgf_search.detectors.detector import Detector
-from tgf_search.detectors.scintillator import Scintillator
+"""Child class of Detector customized to handle data from the Croatia instrument."""
+from tgfsearch.detectors.detector import Detector
+from tgfsearch.detectors.scintillator import Scintillator
 
 
-class Santis(Detector):
+class Croatia(Detector):
     def __init__(self, unit, date_str, modes, print_feedback=False):
         super().__init__(unit, date_str, modes, print_feedback)
 
@@ -14,7 +14,7 @@ class Santis(Detector):
         self.location = self.get_location(self.default_data_loc[:-5])
         self.import_loc = f'{self.default_data_loc}/{self.date_str}'
         self.file_form = lambda eRC: f'eRC{eRC}*_lm_{self.date_str}_*'
-        self.scintillators = {'LP': Scintillator('LP', '2549')}
+        self.scintillators = {'MP': Scintillator('MP', '4193'), 'LP': Scintillator('LP', '2549')}
         self.scint_list = list(self.scintillators.keys())
 
         self.check_processed()

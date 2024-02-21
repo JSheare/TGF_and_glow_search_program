@@ -4,7 +4,7 @@ import os
 import shutil
 import sys
 
-import tgf_search.tools as tl
+import tgfsearch.tools as tl
 
 
 def main():
