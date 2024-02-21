@@ -16,7 +16,7 @@
 # **Instructions for Use:**
 To install the program, run the following pip command in the command line:
 
-    pip install tgf_search@git+https://github.com/JSheare/TGF_and_glow_search_program
+    pip install tgfsearch@git+https://github.com/JSheare/TGF_and_glow_search_program
 
 ## **Using the GUI (Preferred):**
 In the command line, enter the following command:
