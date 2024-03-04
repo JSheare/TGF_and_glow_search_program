@@ -20,7 +20,7 @@ class Thor(Detector):
         self.scint_list = list(self.scintillators.keys())
 
         self.check_processed()
-        self.check_gui()
+        self.check_custom()
 
     def _get_eRC(self):
         """Returns a list of all THOR eRC serial numbers for the instantiated THOR unit."""

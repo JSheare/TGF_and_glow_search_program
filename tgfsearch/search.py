@@ -246,9 +246,9 @@ def short_event_search(detector, modes, prev_event_numbers=None, low_mem=False):
                           file=detector.log)
                     break
 
-                if not detector.gui:
+                if not modes['gui']:
                     print(f'{plots_made}/{max_plots}', end='\r')
-                elif detector.gui and filecount_switch:
+                elif modes['gui'] and filecount_switch:
                     print(f'Making {max_plots} plots...')
                     filecount_switch = False
 
@@ -291,7 +291,7 @@ def short_event_search(detector, modes, prev_event_numbers=None, low_mem=False):
 
                 plots_made += 1
 
-            if not detector.gui:
+            if not modes['gui']:
                 print(f'{plots_made}/{max_plots}\n', end='\r')
 
             event_numbers.update({scintillator: plots_made + plots_already_made})
@@ -595,9 +595,9 @@ def long_event_search(detector, modes, times, existing_hist=None, low_mem=False)
         files_made = 0
         filecount_switch = True
         for i in range(len(potential_glows)):
-            if not detector.gui:
+            if not modes['gui']:
                 print(f'{files_made}/{len(potential_glows)}', end='\r')
-            elif detector.gui and filecount_switch:
+            elif modes['gui'] and filecount_switch:
                 print(f'Making {len(potential_glows)} event files...')
                 filecount_switch = False
 
@@ -640,7 +640,7 @@ def long_event_search(detector, modes, times, existing_hist=None, low_mem=False)
             event_number += 1
             files_made += 1
 
-        if not detector.gui:
+        if not modes['gui']:
             print(f'{files_made}/{len(potential_glows)}\n', end='\r')
 
         tl.print_logger('Done.', detector.log)
@@ -699,6 +699,12 @@ def main():
     # Combo mode (all scintillator data is combined into one set of arrays and examined by the short event search algo)
     modes['combo'] = True if 'combo' in mode_info else False
 
+    # GUI mode (running script from gui)
+    modes['gui'] = True if 'gui' in mode_info else False
+
+    # Template mode (make LP template)
+    modes['template'] = True if 'template' in mode_info else False
+
     # Makes a list of all the dates on the requested range
     if int(second_date) < int(first_date):
         print('Not a valid date range.')
@@ -737,12 +743,12 @@ def main():
                     detector.log = log
                 else:
                     detector.log = log
-                    detector.import_data()
+                    detector.import_data(ignore_missing=False)
                     tl.pickle_detector(detector, path_form)
                     detector.log = log
             else:
                 detector.log = log
-                detector.import_data()
+                detector.import_data(ignore_missing=False)
 
             # raise MemoryError  # for low memory mode testing
 
@@ -763,7 +769,7 @@ def main():
                     tl.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
 
                     # Calling the calibration algorithm
-                    detector.calibrate(plot_spectra=True)
+                    detector.calibrate(plot_spectra=True, make_template=modes['template'])
 
                     tl.print_logger('Done.', detector.log)
 
@@ -875,7 +881,7 @@ def main():
                         chunk.update_passtime(passtime_dict)
 
                         tl.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
-                        chunk.import_data(existing_filelists=True)
+                        chunk.import_data(existing_filelists=True, ignore_missing=False)
 
                         # Checking that data is present in the necessary scintillators
 
@@ -928,7 +934,8 @@ def main():
                             del chunk
 
                         # Calling the calibration algorithm
-                        detector.calibrate(existing_spectra=existing_spectra, plot_spectra=True)
+                        detector.calibrate(existing_spectra=existing_spectra, plot_spectra=True,
+                                           make_template=modes['template'])
 
                         tl.print_logger('Done.', detector.log)
 

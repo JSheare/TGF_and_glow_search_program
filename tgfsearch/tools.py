@@ -239,9 +239,8 @@ def unpickle_detector(pickle_path, modes=None):
 
         # Modes might not necessarily be the same in the serialized object
         detector.modes = modes
-        detector.template = True if 'template' in modes else False
         detector.check_processed()
-        detector.check_gui()
+        detector.check_custom()
         return detector
 
 

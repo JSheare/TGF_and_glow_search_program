@@ -70,12 +70,6 @@ class Detector:
     processed : bool
         A flag for whether the program should operate in "processed" mode or not. Under this mode, the program will use
         the built-in file path for GODOT processed data on Sol.
-    template : bool
-        A flag for whether the program should operate in "template" mode or not. This mode allows the user to generate
-        and tweak templates that the program uses to calibrate the large plastic scintillator. These must be made for
-        each new detector location.
-    gui : bool
-        A flag for whether the object is being instantiated from the GUI (usually via the search script).
 
     """
 
@@ -93,7 +87,7 @@ class Detector:
         self.lp_calibrated = False
         self.default_scintillator = 'LP'  # Don't change this unless you have a really good reason
 
-        # Specific detector information
+        # Detector-specific information
         self.long_event_scint_list = []
         self.calibration_params = {'bin_range': 0, 'bin_size': 0, 'band_starts': [0, 0],
                                    'band_ends': [0, 0], 'template_bin_plot_edge': 0}
@@ -103,13 +97,9 @@ class Detector:
         self.results_loc = os.getcwd()
         self.file_form = lambda eRC: ''
         self.scintillators = {'NaI': Scintillator('NaI', '0'), 'LP': Scintillator('LP', '0')}
-
         self.scint_list = []
 
-        # Modes
         self.processed = False
-        self.template = False
-        self.gui = False
 
         # Noting the date in the log
         if self.log is not None:
@@ -188,17 +178,16 @@ class Detector:
         """Checks to see if processed is one of the user specified modes, and raises an error if the detector isn't
         Godot."""
         if 'processed' in self.modes:
+            self.processed = True
             if self.is_named('GODOT'):
-                self.processed = True
                 self.import_loc = f'/media/godot/godot/monthly_processed/{self.date_str[0:4]}'
             else:
                 raise ValueError('processed data mode is only available for GODOT.')
 
-    def check_gui(self):
-        """Checks to see if the object is being instantiated from the GUI (via the search script usually), and
-        changes the import and export directories if the user specified different ones from the default."""
-        self.gui = True if 'GUI' in self.modes else False
-        if self.gui:
+    def check_custom(self):
+        """Checks to see if the object is being instantiated with custom import/export directories via modes and
+        changes the import and export directories if the user specified different ones from the defaults."""
+        if 'custom' in self.modes:
             if self.modes[-1] != 'none':
                 if self.modes[-1] != '/':
                     self.set_import_loc(self.modes[-1])
@@ -360,7 +349,7 @@ class Detector:
         passtime_dict = {}
         for scintillator in self:
             passtime = self.get_attribute(scintillator, 'passtime')
-            passtime_dict.update({scintillator: passtime})
+            passtime_dict[scintillator] = passtime
 
         return passtime_dict
 
@@ -377,7 +366,7 @@ class Detector:
         for scintillator in self:
             self.set_attribute(scintillator, 'passtime', passtime_dict[scintillator])
 
-    def import_data(self, existing_filelists=False):
+    def import_data(self, existing_filelists=False, ignore_missing=True):
         """Imports data from data files into arrays and then updates them into the detector's
         scintillator objects.
 
@@ -386,8 +375,12 @@ class Detector:
         existing_filelists : bool
             Optional. If True, the function will use the file lists already stored in the detector's scintillator
             objects.
+        ignore_missing : bool
+            Optional. If True, the function will not raise an error if data is missing in the default scintillator.
 
         """
+
+        gui = True if 'gui' in self.modes else False
 
         for scintillator in self.scintillators:
             if existing_filelists:
@@ -407,7 +400,7 @@ class Detector:
             self.set_attribute(scintillator, 'filelist', filelist)
 
         # Checks to see if the necessary files for a full search are present
-        if len(self.get_attribute(self.default_scintillator, 'filelist')) == 0:
+        if not ignore_missing and len(self.get_attribute(self.default_scintillator, 'filelist')) == 0:
             missing_data_scints = []
             for scintillator in self.scintillators:
                 if len(self.get_attribute(scintillator, 'filelist')) == 0:
@@ -423,7 +416,7 @@ class Detector:
                 print('No/missing necessary data for specified day.')
                 print('\n')
 
-            raise FileNotFoundError
+            raise FileNotFoundError(f'missing data in default scintillator ({self.default_scintillator}).')
 
         # Determines whether there is enough free memory to load the entire dataset
         total_file_size = self.calculate_fileset_size()
@@ -462,9 +455,9 @@ class Detector:
 
                 filecount_switch = True
                 for file in filelist:
-                    if not self.gui and self.print_feedback:
+                    if not gui and self.print_feedback:
                         print(f'{files_imported}/{len(filelist)} files imported', end='\r')
-                    elif self.gui and filecount_switch and self.print_feedback:
+                    elif gui and filecount_switch and self.print_feedback:
                         print(f'Importing {len(filelist)} files...')
                         filecount_switch = False
 
@@ -502,7 +495,7 @@ class Detector:
                             file_behavior = 'Disagreement'
                             pass
                         else:  # Mostly here so that if the reader ever runs into other errors I'll know about them
-                            raise Exception('Reader Error')
+                            raise Exception('reader error')
 
                     # Determines the time gaps between adjacent files
                     first_second = filetimes[0]
@@ -761,7 +754,7 @@ class Detector:
         plt.savefig(f'{sp_path}{scintillator}_Spectrum.png', dpi=500)
         plt.clf()
 
-    def calibrate(self, existing_spectra=None, plot_spectra=False):
+    def calibrate(self, existing_spectra=None, plot_spectra=False, make_template=False):
         """Makes the energy spectra histograms and calibrates the large plastic and sodium iodide scintillators.
         Calibration energies for each scintillator are saved to their corresponding scintillator objects.
 
@@ -771,6 +764,8 @@ class Detector:
             Optional. A dictionary whose entries correspond to energy spectra histograms for each scintillator.
         plot_spectra : bool
             Optional. Specifies whether to make and export spectra histograms.
+        make_template : bool
+            Optional. Specifies whether to run the LP template maker.
 
         """
 
@@ -789,7 +784,7 @@ class Detector:
             if self.is_data_present('LP') or (existing_spectra and len(existing_spectra['LP']) != 0):
                 energy_hist = self._generate_hist(energy_bins, 'LP', existing_spectra)  # Putting this up here
                 # so that we don't have to do it again just for template mode
-                if self.template:
+                if make_template:
                     self._make_template(energy_bins, energy_hist)
 
                 # Calibrates the LP scintillator and plots the calibration
@@ -818,7 +813,9 @@ class Detector:
                 if self.print_feedback:
                     print('Cannot calibrate NaI (missing data)...')
 
-            spectra_frame.to_json(f'{sp_path}{self.date_str}_spectra.json')
+            if plot_spectra:
+                spectra_frame.to_json(f'{sp_path}{self.date_str}_spectra.json')
+
             spectra_conversions.close()
 
         else:

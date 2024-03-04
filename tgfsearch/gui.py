@@ -128,7 +128,7 @@ def enqueue(gui, search_queue, program_modes):
     if is_valid_search(first_date, second_date, detector):
         script_path = os.path.dirname(os.path.realpath(__file__)) + '\\search.py'
         executable = 'python' if platform.system() == 'Windows' else 'python3'
-        command = [executable, '-u', script_path, first_date, second_date, detector.upper()]
+        command = [executable, '-u', script_path, first_date, second_date, detector.upper(), 'gui']
         for mode in program_modes:
             command.append(mode)
 
@@ -136,7 +136,7 @@ def enqueue(gui, search_queue, program_modes):
                 gui.nametowidget('results_entrybox').get() != '') else 'none'
         custom_import_dir = gui.nametowidget('custom_entrybox').get() if (
                 gui.nametowidget('custom_entrybox').get() != '') else 'none'
-        command.append('GUI')
+        command.append('custom')
         command.append(str(custom_results_dir))
         command.append(str(custom_import_dir))
         if command not in search_queue and not search_queue.locked:
@@ -185,8 +185,8 @@ def run(arg, pid, search_queue, stdout_queue):  # The useless arg is unfortunate
                             f'{(" - " + second_date_sep) if first_date != second_date else ""}'
                             f' on {command[5]}.')
 
-        if len(command) > 9:
-            stdout_queue.append(f'This search will be run with the following modes: {", ".join(command[6:-3])}.')
+        if len(command) > 10:
+            stdout_queue.append(f'This search will be run with the following modes: {", ".join(command[7:-3])}.')
 
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         pid['id'] = process.pid

@@ -18,4 +18,4 @@ class Godot(Detector):
         self.scint_list = list(self.scintillators.keys())
 
         self.check_processed()
-        self.check_gui()
+        self.check_custom()
