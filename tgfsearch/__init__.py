@@ -9,3 +9,4 @@ from tgfsearch.detectors.croatia import Croatia
 from tgfsearch.events.shortevent import ShortEvent
 from tgfsearch.events.longevent import LongEvent
 from tgfsearch.search import get_detector
+# from tgfsearch.utilities.DataReaderTimetrack2 import fileNameToData

@@ -1,11 +1,13 @@
 """A script that automatically runs searches on unsearched data."""
 import os as os
+import sys as sys
 import subprocess as subprocess
 import json as json
 import glob as glob
 import psutil as psutil
 import platform as platform
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 import tgfsearch.tools as tl
 
 

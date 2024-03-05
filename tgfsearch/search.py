@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from scipy.optimize import curve_fit
 
+# Adds parent directory to sys.path. Necessary to make the imports below work when running this file as a script
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 import tgfsearch.tools as tl
 import tgfsearch.parameters as params
 from tgfsearch.detectors.godot import Godot

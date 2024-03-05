@@ -781,37 +781,39 @@ class Detector:
         spectra_frame = pd.DataFrame()
         spectra_frame['energy bins'] = energy_bins[:-1]
         if self or existing_spectra:
-            if self.is_data_present('LP') or (existing_spectra and len(existing_spectra['LP']) != 0):
-                energy_hist = self._generate_hist(energy_bins, 'LP', existing_spectra)  # Putting this up here
-                # so that we don't have to do it again just for template mode
-                if make_template:
-                    self._make_template(energy_bins, energy_hist)
+            if 'LP' in self.scintillators:
+                if self.is_data_present('LP') or (existing_spectra and len(existing_spectra['LP']) != 0):
+                    energy_hist = self._generate_hist(energy_bins, 'LP', existing_spectra)  # Putting this up here
+                    # so that we don't have to do it again just for template mode
+                    if make_template:
+                        self._make_template(energy_bins, energy_hist)
 
-                # Calibrates the LP scintillator and plots the calibration
-                flagged_indices = self._calibrate_LP(energy_bins, energy_hist, spectra_conversions, spectra_frame)
-                if plot_spectra:
-                    self._plot_spectra('LP', energy_bins, energy_hist, flagged_indices, sp_path)
+                    # Calibrates the LP scintillator (if possible) and plots the calibration
+                    flagged_indices = self._calibrate_LP(energy_bins, energy_hist, spectra_conversions, spectra_frame)
+                    if plot_spectra:
+                        self._plot_spectra('LP', energy_bins, energy_hist, flagged_indices, sp_path)
 
-            else:
-                if self.log is not None:
-                    print('Cannot calibrate LP (missing data)...', file=self.log)
+                else:
+                    if self.log is not None:
+                        print('Cannot calibrate LP (missing data)...', file=self.log)
 
-                if self.print_feedback:
-                    print('Cannot calibrate LP (missing data)...')
+                    if self.print_feedback:
+                        print('Cannot calibrate LP (missing data)...')
 
             # Calibrates the NaI scintillator (if possible) and plots the calibration
-            if self.is_data_present('NaI') or (existing_spectra and len(existing_spectra['NaI']) != 0):
-                energy_hist = self._generate_hist(energy_bins, 'NaI', existing_spectra)
-                flagged_indices = self._calibrate_NaI(energy_bins, energy_hist, spectra_conversions, spectra_frame)
-                if plot_spectra:
-                    self._plot_spectra('NaI', energy_bins, energy_hist, flagged_indices, sp_path)
+            if 'NaI' in self.scintillators:
+                if self.is_data_present('NaI') or (existing_spectra and len(existing_spectra['NaI']) != 0):
+                    energy_hist = self._generate_hist(energy_bins, 'NaI', existing_spectra)
+                    flagged_indices = self._calibrate_NaI(energy_bins, energy_hist, spectra_conversions, spectra_frame)
+                    if plot_spectra:
+                        self._plot_spectra('NaI', energy_bins, energy_hist, flagged_indices, sp_path)
 
-            else:
-                if self.log is not None:
-                    print('Cannot calibrate NaI (missing data)...', file=self.log)
+                else:
+                    if self.log is not None:
+                        print('Cannot calibrate NaI (missing data)...', file=self.log)
 
-                if self.print_feedback:
-                    print('Cannot calibrate NaI (missing data)...')
+                    if self.print_feedback:
+                        print('Cannot calibrate NaI (missing data)...')
 
             if plot_spectra:
                 spectra_frame.to_json(f'{sp_path}{self.date_str}_spectra.json')
