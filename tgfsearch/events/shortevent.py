@@ -314,15 +314,11 @@ class ShortEvent:
         ax_list = [ax1, ax2, ax3]
         assert len(ax_list) == len(timescales)
 
+        best_time = event_times[np.argmin(np.abs(event_times - np.roll(event_times, 1)))]
         for i in range(len(ax_list)):
             ts = timescales[i]
             ax = ax_list[i]
-            padding = (ts - event_length) / 2
-            if event_length >= ts:
-                best_time = event_times[np.argmin(np.abs(event_times - np.roll(event_times, 1)))]
-                ax.set_xlim(xmin=best_time - (ts / 2), xmax=best_time + (ts / 2))
-            else:
-                ax.set_xlim(xmin=event_times[0] - padding, xmax=event_times[-1] + padding)
+            ax.set_xlim(xmin=best_time - (ts / 2), xmax=best_time + (ts / 2))
 
             dot_size = 5 if ts == timescales[0] else 3  # makes larger dots for top plot
             ax.set_yscale('log')
