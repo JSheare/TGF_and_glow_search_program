@@ -12,8 +12,8 @@ import datetime as dt
 import warnings
 from matplotlib.widgets import Slider
 
-import tgfsearch.utilities.DataReaderFinal as Dr
-# import tgfsearch.utilities.DataReaderTimetrack2 as Dr
+# import tgfsearch.utilities.DataReaderFinal as Dr
+import tgfsearch.utilities.DataReaderTimetrack2 as Dr
 import tgfsearch.tools as tl
 import tgfsearch.parameters as params
 from tgfsearch.detectors.scintillator import Scintillator
@@ -473,11 +473,11 @@ class Detector:
                             with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
                                 with warnings.catch_warnings():
                                     warnings.simplefilter('ignore', category=RuntimeWarning)
-                                    # data, passtime = Dr.fileNameToData(file,
-                                    #                                    self.get_attribute(scintillator, 'passtime'))
-                                    data = Dr.fileNameToData(file)
+                                    data, passtime = Dr.fileNameToData(file,
+                                                                       self.get_attribute(scintillator, 'passtime'))
+                                    # data = Dr.fileNameToData(file)
 
-                            # self.set_attribute(scintillator, 'passtime', passtime)
+                            self.set_attribute(scintillator, 'passtime', passtime)
                             if 'energies' in data.columns:
                                 data.rename(columns={'energies': 'energy'}, inplace=True)
 
