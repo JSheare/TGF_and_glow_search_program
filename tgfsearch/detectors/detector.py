@@ -101,10 +101,6 @@ class Detector:
 
         self.processed = False
 
-        # Noting the date in the log
-        if self.log is not None:
-            print(f'{self.full_date_str}:', file=self.log)
-
     # String casting overload
     def __str__(self):
         return f'Detector({self.unit}, {self.first_sec}, {self.modes})'
@@ -158,7 +154,7 @@ class Detector:
                 if loc[-1] == '/':
                     loc = loc[:-1]
 
-            self.results_loc = loc
+            self.results_loc = loc.replace('/')
         else:
             raise TypeError('loc must be a string.')
 
@@ -231,7 +227,7 @@ class Detector:
         """Retrieves the requested attribute for a particular scintillator
 
         \n
-        Attribute summary:
+        Attributes (non-exhaustive):
             eRC: the scintillator's serial number.
 
             filelist: the list of files for the day.
@@ -239,6 +235,8 @@ class Detector:
             filetime_extrema: a list of lists. Each sublist contains the first and last second present in every file.
 
             calibration: a list of two energies (in Volts) used to calibrate the scintillator.
+
+            frame: a pandas DataFrame containing all data for the day.
 
             time: a numpy array of each count's time (in seconds since start of day).
 
@@ -276,7 +274,7 @@ class Detector:
         """Updates the requested attribute for a particular scintillator.
 
         \n
-        Attribute summary:
+        Attributes (non-exhaustive):
             eRC: the scintillator's serial number.
 
             filelist: the list of files for the day.
@@ -284,6 +282,8 @@ class Detector:
             filetime_extrema: a list of lists. Each sublist contains the first and last second present in every file.
 
             calibration: a list of two energies (in Volts) used to calibrate the scintillator.
+
+            frame: a pandas DataFrame containing all data for the day.
 
             time: a numpy array of each count's time (in seconds since start of day).
 
@@ -382,19 +382,23 @@ class Detector:
 
         gui = True if 'gui' in self.modes else False
 
+        # Noting the date in the log
+        if self.log is not None:
+            print(f'{self.full_date_str}:', file=self.log)
+
         for scintillator in self.scintillators:
             if existing_filelists:
                 break
 
             eRC = self.get_attribute(scintillator, 'eRC')
-            # Here in case the data files in a custom location are grouped into daily folders
+            # Here in case the data files are grouped into daily folders
             try:
-                complete_filelist = glob.glob(f'{self.import_loc}/{self.file_form(eRC)}')
+                complete_filelist = glob.glob(f'{self.import_loc}\\{self.file_form(eRC)}'.replace('/', '\\'))
                 assert len(complete_filelist) > 0, 'Empty filelist'
 
             except AssertionError:
-                complete_filelist = glob.glob(f'{self.import_loc}/{self.date_str}'
-                                              f'/{self.file_form(eRC)}')
+                complete_filelist = glob.glob(f'{self.import_loc}\\{self.date_str}'
+                                              f'\\{self.file_form(eRC)}'.replace('/', '\\'))
 
             filelist = tl.filter_files(complete_filelist)
             self.set_attribute(scintillator, 'filelist', filelist)
@@ -416,7 +420,7 @@ class Detector:
                 print('No/missing necessary data for specified day.')
                 print('\n')
 
-            raise FileNotFoundError(f'missing data in default scintillator ({self.default_scintillator}).')
+            raise FileNotFoundError(f'missing data files for default scintillator ({self.default_scintillator}).')
 
         # Determines whether there is enough free memory to load the entire dataset
         total_file_size = self.calculate_fileset_size()
@@ -436,23 +440,19 @@ class Detector:
                 print(f'For eRC {eRC} ({scintillator}):')
 
             try:
-                # Tests to make sure that filelist isn't empty
-                assert len(filelist) > 0, 'No files for this scintillator today'
+                if len(filelist) < 1:
+                    raise FileNotFoundError('no files found for this scintillator today.')
 
-                # Starts actually importing the data
-                energy_list = []
-                time_list = []
-                wallclock_list = []
-                filetime_extrema_list = []
-
-                filetimes = np.array([])
-                file_time_gaps = np.array([])
-                last_second = 0.0
+                file_frames = []
+                filetime_extrema = []
+                file_time_gaps = []
+                prev_second = 0
                 files_imported = 0
 
                 if self.log is not None:
                     print('File|File Behavior|File Time Gap (sec)', file=self.log)
 
+                # Importing the data
                 filecount_switch = True
                 for file in filelist:
                     if not gui and self.print_feedback:
@@ -462,14 +462,12 @@ class Detector:
                         filecount_switch = False
 
                     # Try-except block to log files where GPS and wallclock disagree significantly
-                    file_behavior = 'Normal'
-                    try:
-                        if self.processed:
-                            e, t = np.loadtxt(file, skiprows=1, usecols=(0, 2), unpack=True)
-                            energy_list.append(e)
-                            time_list.append(t)
-                            filetimes = t
-                        else:
+                    if self.processed:
+                        energy, time = np.loadtxt(file, skiprows=1, usecols=(0, 2), unpack=True)
+                        data = pd.DataFrame.from_dict({'time': time, 'energy': energy})
+                        file_frames.append(data)
+                    else:
+                        try:
                             # The first with disables prints from the data reader; The second with suppresses annoying
                             # numpy warnings
                             with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
@@ -481,65 +479,66 @@ class Detector:
 
                             # self.set_attribute(scintillator, 'passtime', passtime)
                             if 'energies' in data.columns:
-                                energy_list.append(data['energies'].to_numpy())
-                            else:
-                                energy_list.append(data['energy'].to_numpy())
+                                data.rename(columns={'energies': 'energy'}, inplace=True)
 
-                            time_list.append(data['SecondsOfDay'].to_numpy())
-                            wallclock_list.append(data['wc'].to_numpy())
-                            filetimes = data['SecondsOfDay'].to_numpy()
-                            filetime_extrema_list.append([filetimes[0], filetimes[-1]])
+                            data.rename(columns={'SecondsOfDay': 'time'}, inplace=True)
 
-                    except Exception as ex:
-                        if str(ex) == 'wallclock and GPS clocks in significant disagreement':
-                            file_behavior = 'Disagreement'
-                            pass
-                        else:  # Mostly here so that if the reader ever runs into other errors I'll know about them
-                            raise Exception('reader error')
+                        except Exception as ex:
+                            # Files with wallclock/GPS disagreement are skipped
+                            if str(ex) == 'wallclock and GPS clocks in significant disagreement':
+                                print(f'{file}|Disagreement|0.0', file=self.log)
+                                continue
+                            else:  # Mostly here so that if the reader ever runs into other errors I'll know about them
+                                raise Exception('reader error')
+
+                    first_second = data['time'].iloc[0]
+                    last_second = data['time'].iloc[-1]
 
                     # Determines the time gaps between adjacent files
-                    first_second = filetimes[0]
-                    file_time_gap = first_second - last_second if files_imported > 0 else 0
-                    file_time_gaps = np.append(file_time_gaps, file_time_gap)
-                    last_second = filetimes[-1]
+                    file_time_gap = first_second - prev_second if files_imported > 0 else 0.0
+                    file_time_gaps.append(file_time_gap)
+                    prev_second = last_second
                     files_imported += 1
 
                     if self.log is not None:
-                        print(f'{file}|{file_behavior}|{file_time_gap}', file=self.log)
+                        print(f'{file}|Normal|{file_time_gap}', file=self.log)
+
+                    filetime_extrema.append([first_second, last_second])
+                    file_frames.append(data)
 
                 if self.print_feedback:
                     print(f'{files_imported}/{len(filelist)} files imported', end='\r')
 
-                # Makes the final arrays and exports them
-                times = np.concatenate(time_list)
-                # Corrects for the fact that the first 200-300 seconds of the next day are included in the last file
-                day_change_array = np.array(np.where(np.diff(times) < -80000))
-                if day_change_array.size > 0:
-                    change_index = int(day_change_array[0]) + 1
-                    times = np.append(times[0:change_index], times[change_index:] + 86400.0)
+                if len(file_frames) > 0:
+                    # Makes the final dataframe and stores it
+                    all_data = pd.concat(file_frames, axis=0)
 
-                # Does it for the file time extrema too
-                for k in range(int(len(filetime_extrema_list) / 8)):  # Last eighth of the files
-                    last_file_extrema = filetime_extrema_list[-(k + 1)]
-                    for j in range(2):
-                        extrema = last_file_extrema[j]
-                        if extrema < 500:  # Extrema belonging to the next day will always be < 500
-                            last_file_extrema[j] = extrema + 86400
+                    # Correcting for the fact that the first 200-300 seconds of the next day are usually included
+                    # in the last file
+                    times = all_data['time'].to_numpy()
+                    day_change = np.array(np.where(np.diff(times) < -80000))
+                    if day_change.size > 0:
+                        change_index = int(day_change[0]) + 1
+                        for i in range(change_index, len(times)):
+                            times[i] += params.SEC_PER_DAY
 
-                    filetime_extrema_list[-(k + 1)] = last_file_extrema
+                        all_data['time'] = times
 
-                updated_attributes = ['time', 'energy', 'wc', 'filetime_extrema']
-                updated_info = [times, np.concatenate(energy_list), np.concatenate(wallclock_list),
-                                filetime_extrema_list]
-                self.set_attribute(scintillator, updated_attributes, updated_info)
+                    # Doing it for the file time extrema too
+                    for k in range(1, int(len(filetime_extrema) / 8)):  # Last eighth of the files
+                        for j in range(2):
+                            if filetime_extrema[-k][j] < 500:  # Extrema belonging to the next day will always be < 500
+                                filetime_extrema[-k][j] += params.SEC_PER_DAY
 
-                if self.log is not None:
-                    print('\n', file=self.log)
-                    print(f'Total Counts: {len(np.concatenate(time_list))}', file=self.log)
-                    print(f'Average time gap: {np.sum(file_time_gaps) / len(file_time_gaps)}', file=self.log)
-                    print('\n', file=self.log)
+                    self.set_attribute(scintillator, ['frame', 'filetime_extrema'], [all_data, filetime_extrema])
 
-            except AssertionError:
+                    if self.log is not None:
+                        print('\n', file=self.log)
+                        print(f'Total Counts: {len(all_data["time"])}', file=self.log)
+                        print(f'Average time gap: {sum(file_time_gaps) / len(file_time_gaps)}', file=self.log)
+                        print('\n', file=self.log)
+
+            except FileNotFoundError:
                 if self.log is not None:
                     print('Missing data for the specified day.', file=self.log)
 
@@ -768,6 +767,9 @@ class Detector:
             Optional. Specifies whether to run the LP template maker.
 
         """
+
+        if 'template' in self.modes:
+            make_template = True
 
         # Fetching a few calibration parameters
         bin_range = self.calibration_params['bin_range']
