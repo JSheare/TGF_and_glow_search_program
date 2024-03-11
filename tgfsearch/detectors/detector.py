@@ -46,8 +46,6 @@ class Detector:
         The timestamp for the requested in day in yyyy-mm-dd format.
     location : dict
         Location information for the detector on the requested day.
-    lp_calibrated : bool
-        A flag for whether the large plastic scintillator has been calibrated.
     default_scintillator : str
         A string representing the default scintillator. Data from this scintillator must be present for the program
         to run.
@@ -84,7 +82,6 @@ class Detector:
         # In format yyyy-mm-dd
         self.full_date_str = dt.datetime.utcfromtimestamp(int(self.first_sec)).strftime('%Y-%m-%d')
         self.location = None
-        self.lp_calibrated = False
         self.default_scintillator = 'LP'  # Don't change this unless you have a really good reason
 
         # Detector-specific information
@@ -714,7 +711,6 @@ class Detector:
 
             edge_indices = template['indices'].to_numpy()[0:2]
             flagged_indices = edge_indices + shift_amount
-            self.lp_calibrated = True
         except FileNotFoundError:
             if self.log is not None:
                 print('No LP template found for this location...', file=self.log)

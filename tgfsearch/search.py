@@ -156,6 +156,9 @@ def short_event_search(detector, modes, prev_event_numbers=None, low_mem=False):
             wallclock = detector.get_attribute(scintillator, 'wc')
             count_scints = None
 
+        if detector.processed:
+            times = times - detector.first_sec
+
         stats = {
             'total_potential_events': 0,
             'total_threshold_reached': 0,
@@ -322,17 +325,21 @@ def long_event_cutoff(detector, modes, chunk=None):
             long_event_scintillators = [operating_obj.default_scintillator]
             break
 
-    for scintillator in long_event_scintillators:
-        existing_calibration = True if len(
-            detector.get_attribute(scintillator, 'calibration')) == 2 else False
-        if scintillator == operating_obj.long_event_scint_list[0]:
+    all_calibrated = True
+    for i in range(len(long_event_scintillators)):
+        scintillator = long_event_scintillators[i]
+        calibration = detector.get_attribute(scintillator, 'calibration')
+        existing_calibration = True if len(calibration) == 2 else False
+        if not existing_calibration:
+            all_calibrated = False
+
+        if i == 0:
             times = operating_obj.get_attribute(scintillator, 'time')
             if modes['skcali'] or not existing_calibration:
                 energies = operating_obj.get_attribute(scintillator, 'energy')
             else:
                 energies = tl.channel_to_mev(operating_obj.get_attribute(scintillator, 'energy'),
-                                             detector.get_attribute(scintillator, 'calibration'),
-                                             scintillator)
+                                             calibration, scintillator)
         else:
             times = np.append(times, operating_obj.get_attribute(scintillator, 'time'))
             if modes['skcali'] or not existing_calibration:
@@ -340,11 +347,10 @@ def long_event_cutoff(detector, modes, chunk=None):
             else:
                 energies = np.append(energies,
                                      tl.channel_to_mev(operating_obj.get_attribute(scintillator, 'energy'),
-                                                       detector.get_attribute(scintillator, 'calibration'),
-                                                       scintillator))
+                                                       calibration, scintillator))
 
     # Removes entries that are below a certain cutoff energy
-    if (not detector.lp_calibrated and 'LP' in long_event_scintillators) or modes['skcali']:
+    if not all_calibrated or modes['skcali']:
         print('Missing calibration(s), beware radon washout!',
               file=detector.log)
     else:
