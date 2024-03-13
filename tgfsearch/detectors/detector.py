@@ -600,36 +600,40 @@ class Detector:
     def _make_template(self, energy_bins, energy_hist):
         """Makes a template that can be used in the LP calibration algorithm's cross-correlation."""
         if self.location['Location'] == 'no location listed':
+            if self.log is not None:
+                print('No location specified. Cannot make template...', file=self.log)
+
+            if self.print_feedback:
+                print('No location specified. Cannot make template...')
+
             return
 
         bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1 (no idea why)
-
         template_bin_plot_edge = self.calibration_params['template_bin_plot_edge']
+
+        template_bins = energy_bins[0:template_bin_plot_edge]
+        template_hist = energy_hist[0:template_bin_plot_edge]
 
         if self.log is not None:
             print('Entering template mode...', file=self.log)
 
         if self.print_feedback:
             print('Entering template mode...')
-            print('\n')
             print('Use the sliders to adjust the line positions. The K40 line comes first.')
 
-        def line_locs(e1, e2):
-            return energy_bins[np.array([e1, e2]).astype(int)]
+        # Setting up the plot
+        # This plot is laggy right now because every time the sliders are updated it redraws the entire hist.
+        # I haven't found a way to make it stop doing that yet
+        fig, ax = plt.subplots()
+        fig.canvas.manager.set_window_title('Template Maker')
+        ax.set_xlabel('Energy Channel')
+        ax.set_ylabel('Counts/bin')
+        ax.set_yscale('log')
+        fig.subplots_adjust(bottom=0.30)
 
         # Initial vertical line positions
         edge1 = 0
         edge2 = 0
-
-        fig, ax = plt.subplots()
-        ax.set_xlabel('Energy Channel')
-        ax.set_ylabel('Counts/bin')
-        ax.set_yscale('log')
-        ax.bar(energy_bins[0:template_bin_plot_edge], energy_hist[0:template_bin_plot_edge], color='r',
-               width=self.calibration_params['bin_size'] / 2, zorder=1)
-        lines = ax.vlines(line_locs(edge1, edge2), 0, np.amax(energy_hist), zorder=2, alpha=0.75)
-
-        fig.subplots_adjust(bottom=0.30)
 
         # Slider for the Potassium 40 line
         ax1 = fig.add_axes([0.25, 0.15, 0.65, 0.03])
@@ -637,7 +641,7 @@ class Detector:
             ax=ax1,
             label='K40',
             valmin=0,
-            valmax=len(energy_bins[0:template_bin_plot_edge]) - 1,
+            valmax=template_bin_plot_edge - 1,
             valinit=edge1,
             valstep=1,
         )
@@ -648,36 +652,56 @@ class Detector:
             ax=ax2,
             label='T',
             valmin=0,
-            valmax=len(energy_bins[0:template_bin_plot_edge]) - 1,
+            valmax=template_bin_plot_edge - 1,
             valinit=edge2,
             valstep=1,
         )
 
-        def update(val):
-            nonlocal lines
-            lines.remove()
-            lines = ax.vlines(line_locs(edge1_slider.val, edge2_slider.val), 0, np.amax(energy_hist),
-                              zorder=2, alpha=0.75)
-            fig.canvas.draw_idle()
+        # Initial plotting
+        ax.bar(template_bins, template_hist, color='r', width=self.calibration_params['bin_size'] / 2, zorder=1)
+        background = fig.canvas.copy_from_bbox(fig.bbox)
+        line1 = ax.axvline(edge1, 0, 1, zorder=2, alpha=0.75)
+        line2 = ax.axvline(edge2, 0, 1, zorder=2, alpha=0.75)
+
+        ax.draw_artist(line1)
+        ax.draw_artist(line2)
+        background = fig.canvas.copy_from_bbox(fig.bbox)
+        fig.canvas.blit(fig.bbox)
+
+        # Updates lines when sliders are adjusted
+        def update(event):
+            fig.canvas.restore_region(background)
+            line1.set_xdata(edge1_slider.val)
+            line2.set_xdata(edge2_slider.val)
+            ax.draw_artist(line1)
+            ax.draw_artist(line2)
+            fig.canvas.blit(fig.bbox)
+            fig.canvas.flush_events()
 
         edge1_slider.on_changed(update)
         edge2_slider.on_changed(update)
 
         plt.show()
 
-        flagged_indices = np.array([edge1_slider.val, edge2_slider.val])
-
+        # Exporting the template as a csv file
+        indices = np.zeros(bin_plot_edge)
+        indices[0] = edge1_slider.val
+        indices[1] = edge2_slider.val
         template = pd.DataFrame(data={'energy_hist': energy_hist, 'bins': energy_bins[0:bin_plot_edge],
-                                      'indices': np.append(flagged_indices,
-                                                           np.zeros(len(energy_hist[0:bin_plot_edge]) - 2))})
-        tl.make_path('Templates')
-        template.to_csv(f'Templates/{self.unit}_{self.location["Location"]}_template.csv', index=False)
+                                      'indices': indices})
+        template_path = f'{self.results_loc}/Templates'
+        tl.make_path(template_path)
+        template.to_csv(f'{template_path}/{self.unit}_{self.location["Location"]}_template.csv', index=False)
+
         if self.print_feedback:
-            print('Template made')
+            print('Template made.')
+
+        if self.log is not None:
+            print('Template made.', file=self.log)
 
     def _calibrate_NaI(self, energy_bins, energy_hist, spectra_conversions, spectra_frame):
         """Calibration algorithm for the sodium iodide scintillators."""
-        flagged_indices = np.array([])
+        flagged_indices = []
         # Takes the sum of each bin with its two closest neighboring bins on either side
         sums = energy_hist
         for i in range(2):
@@ -688,9 +712,9 @@ class Detector:
         band_ends = self.calibration_params['band_ends']
         for i in range(len(band_starts)):
             band_max = np.argmax(sums[band_starts[i]:band_ends[i]]) + int(band_starts[i])
-            flagged_indices = np.append(flagged_indices, band_max)
+            flagged_indices.append(band_max)
 
-        calibration = energy_bins[flagged_indices.astype(int)]
+        calibration = [energy_bins[s] for s in flagged_indices]
         if len(calibration) >= 2:
             print('For NaI:', file=spectra_conversions)
             print(f'{calibration[0]} V = 1.46 MeV', file=spectra_conversions)
@@ -702,15 +726,14 @@ class Detector:
 
     def _calibrate_LP(self, energy_bins, energy_hist, spectra_conversions, spectra_frame):
         """Calibration algorithm for the large plastic scintillators."""
-        flagged_indices = np.array([])
+        flagged_indices = []
         try:
             template = pd.read_csv(f'Templates/{self.unit}_{self.location["Location"]}_template.csv')
             correlation = signal.correlate(template['energy_hist'].to_numpy(), energy_hist, 'full')
-            best_correlation_index = np.argmax(correlation)
-            shift_amount = (-len(template) + 1) + best_correlation_index
+            shift_amount = (-len(template) + 1) + np.argmax(correlation)
 
-            edge_indices = template['indices'].to_numpy()[0:2]
-            flagged_indices = edge_indices + shift_amount
+            flagged_indices = [int(template['indices'].iloc[0] + shift_amount),
+                               int(template['indices'].iloc[1] + shift_amount)]
         except FileNotFoundError:
             if self.log is not None:
                 print('No LP template found for this location...', file=self.log)
@@ -718,7 +741,7 @@ class Detector:
             if self.print_feedback:
                 print('No LP template found for this location...')
 
-        calibration = energy_bins[flagged_indices.astype(int)]
+        calibration = [energy_bins[s] for s in flagged_indices]
         if len(calibration) >= 2:
             print('For LP:', file=spectra_conversions)
             print(f'{calibration[0]} V = 1.242 MeV', file=spectra_conversions)
@@ -742,11 +765,11 @@ class Detector:
                 width=bin_size / 2, zorder=1)
 
         # Plots the energy bins corresponding to the desired energies as vertical lines
-        if flagged_indices.size > 0:
-            plt.vlines(energy_bins[flagged_indices.astype(int)], 0, np.amax(energy_hist), zorder=2, alpha=0.75)
+        if len(flagged_indices) > 0:
+            plt.vlines([energy_bins[s] for s in flagged_indices], 0, np.amax(energy_hist), zorder=2, alpha=0.75)
 
         # Saves the figure
-        plt.savefig(f'{sp_path}{scintillator}_Spectrum.png', dpi=500)
+        plt.savefig(f'{sp_path}/{scintillator}_Spectrum.png', dpi=500)
         plt.clf()
 
     def calibrate(self, existing_spectra=None, plot_spectra=False, make_template=False):
@@ -773,9 +796,9 @@ class Detector:
 
         # Making the energy bins and setting up the calibration files
         energy_bins = np.arange(0.0, bin_range, bin_size)
-        sp_path = f'{self.results_loc}/Results/{self.unit}/{self.date_str}/'
+        sp_path = f'{self.results_loc}/Results/{self.unit}/{self.date_str}'
         tl.make_path(sp_path)
-        spectra_conversions = open(f'{sp_path}spectra_conversions.txt', 'w')
+        spectra_conversions = open(f'{sp_path}/spectra_conversions.txt', 'w')
         spectra_frame = pd.DataFrame()
         spectra_frame['energy bins'] = energy_bins[:-1]
         if self or existing_spectra:
@@ -814,7 +837,7 @@ class Detector:
                         print('Cannot calibrate NaI (missing data)...')
 
             if plot_spectra:
-                spectra_frame.to_json(f'{sp_path}{self.date_str}_spectra.json')
+                spectra_frame.to_json(f'{sp_path}/{self.date_str}_spectra.json')
 
             spectra_conversions.close()
 

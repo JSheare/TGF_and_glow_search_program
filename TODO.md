@@ -2,6 +2,7 @@
 - [ ] Write duplicate file eliminator/sorter for general data
 - [ ] Remove pickle support for low memory mode when the program is finished
 - [ ] Add support for weather scraper files
+- [ ] Make template maker less laggy
 
 ### Completed
 - [x] Fix channel-to-MeV converter function
