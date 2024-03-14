@@ -26,7 +26,7 @@ class Communicator(threading.Event):
 
 
 # A class for conveniently writing stdout to a multiprocessing connection object
-class PipeTee:
+class PipeStdout:
     def __init__(self, pipe):
         self.pipe = pipe
         self.stdout = sys.stdout
@@ -181,7 +181,7 @@ def stop(event):
 
 # Here to redirect stdout and stderr from the search program
 def program_wrapper(write, first_date, second_date, unit, mode_info):
-    PipeTee(write)
+    PipeStdout(write)
     try:
         program(first_date, second_date, unit, mode_info)
     except Exception as ex:
