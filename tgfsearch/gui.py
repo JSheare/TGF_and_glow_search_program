@@ -186,7 +186,7 @@ def program_wrapper(write, first_date, second_date, unit, mode_info):
         program(first_date, second_date, unit, mode_info)
     except Exception as ex:
         print('Search program terminated with the following error or warning:\n')
-        # Removing the top layer of the traceback, which is just this function
+        # Removing the top layer of the traceback (which is just this function) and printing the remainder
         count = len(traceback.extract_tb(ex.__traceback__)) - 1
         print(traceback.format_exc(limit=-count))
 
