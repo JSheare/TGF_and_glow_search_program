@@ -7,12 +7,16 @@ import psutil as psutil
 import gc as gc
 import heapq
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from scipy.optimize import curve_fit
 
 # Adds parent directory to sys.path. Necessary to make the imports below work when running this file as a script
-sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
 import tgfsearch.tools as tl
 import tgfsearch.parameters as params
 from tgfsearch.detectors.godot import Godot
@@ -24,19 +28,19 @@ from tgfsearch.events.longevent import LongEvent
 
 
 # Returns the correct detector object based on the parameters provided
-def get_detector(unit, date_str, modes=None, print_feedback=False):
-    if modes is None:
-        modes = list()
+def get_detector(unit, date_str, mode_info=None, print_feedback=False):
+    if mode_info is None:
+        mode_info = list()
 
     if unit.upper() == 'GODOT':
-        return Godot(unit, date_str, modes, print_feedback)
+        return Godot(unit, date_str, mode_info, print_feedback)
     elif unit.upper() == 'SANTIS':
-        return Santis(unit, date_str, modes, print_feedback)
+        return Santis(unit, date_str, mode_info, print_feedback)
     elif unit.upper() == 'CROATIA':
-        return Croatia(unit, date_str, modes, print_feedback)
+        return Croatia(unit, date_str, mode_info, print_feedback)
     elif 'THOR' in unit.upper():
         if len(unit) >= 5 and unit[4].isnumeric() and int(unit[4]) <= 6:  # only 6 of them right now
-            return Thor(unit, date_str, modes, print_feedback)
+            return Thor(unit, date_str, mode_info, print_feedback)
         else:
             raise ValueError(f"'{unit}' is not a valid detector.")
     else:
@@ -675,6 +679,7 @@ def long_event_search(detector, modes, times, existing_hist=None, low_mem=False)
     plt.close(figure)
 
 
+# Gets necessary info from command line args and then runs the program
 def main():
     try:
         first_date = str(sys.argv[1])
@@ -684,11 +689,25 @@ def main():
         print('Please provide a first date, a second date, and a unit name.')
         exit()
 
+    # Makes sure inputs are valid
+    if not first_date.isdigit() or not second_date.isdigit() \
+            or len(first_date) != 6 or len(second_date) != 6:
+        print('Invalid date(s).')
+        exit()
+    elif int(second_date) < int(first_date):
+        print('Not a valid date range.')
+        exit()
+
     try:
         mode_info = sys.argv[4:]
     except IndexError:
         mode_info = []
 
+    program(first_date, second_date, unit, mode_info)
+
+
+# Main program function
+def program(first_date, second_date, unit, mode_info):
     modes = dict()
     # Modes for skipping over certain algorithms (mostly to speed up testing)
     modes['skcali'] = True if 'skcali' in mode_info else False  # Skip detector calibration
@@ -714,18 +733,12 @@ def main():
     modes['template'] = True if 'template' in mode_info else False
 
     # Makes a list of all the dates on the requested range
-    if int(second_date) < int(first_date):
-        print('Not a valid date range.')
-        exit()
-
     requested_dates = tl.make_date_list(first_date, second_date)
+
+    # Looping through the dates
     for date_str in requested_dates:
         low_memory_mode = False
-        day = int(date_str[4:])
-        month = int(date_str[2:4])
-        year = int('20' + date_str[0:2])
-        full_day_str = dt.date(year, month, day)  # In format yyyy-mm-dd
-        print(f'\n{full_day_str}:')
+        print(f'\n{tl.short_to_full_date(date_str)}:')
 
         # Initializes the detector object
         print('Importing data...')
@@ -822,8 +835,7 @@ def main():
                 for scintillator in detector:
                     master_filelist = detector.get_attribute(scintillator, 'filelist')
                     # Clears leftover data (just to be sure)
-                    detector.set_attribute(scintillator, ['time', 'energy', 'filetime_extrema'],
-                                              [np.array([]), np.array([]), []])
+                    detector.set_attribute(scintillator, ['frame', 'filetime_extrema'], [pd.DataFrame(), []])
                     for file in master_filelist:
                         total_file_size += os.path.getsize(file)
 

@@ -31,8 +31,8 @@ class Detector:
         The name of the detector that the analysis is being requested for.
     date_str : str
         The timestamp for the requested day in yymmdd format.
-    modes : list
-        A list of the requested modes that the program should operate under.
+    mode_info : list
+        A list of information about the requested modes the object should operate under.
     print_feedback : bool
         A flag specifying whether the object should print feedback to stdout or not.
 
@@ -71,11 +71,11 @@ class Detector:
 
     """
 
-    def __init__(self, unit, date_str, modes, print_feedback=False):
+    def __init__(self, unit, date_str, mode_info, print_feedback=False):
         # Basic information
         self.unit = unit.upper()
         self.date_str = date_str  # In format yymmdd
-        self.modes = modes
+        self.mode_info = mode_info
         self.print_feedback = print_feedback
         self.log = None
         self.first_sec = tl.get_first_sec(self.date_str)
@@ -88,7 +88,6 @@ class Detector:
         self.long_event_scint_list = []
         self.calibration_params = {'bin_range': 0, 'bin_size': 0, 'band_starts': [0, 0],
                                    'band_ends': [0, 0], 'template_bin_plot_edge': 0}
-
         self.default_data_loc = ''
         self.import_loc = ''
         self.results_loc = os.getcwd()
@@ -100,7 +99,7 @@ class Detector:
 
     # String casting overload
     def __str__(self):
-        return f'Detector({self.unit}, {self.first_sec}, {self.modes})'
+        return f'Detector({self.unit}, {self.first_sec}, {self.mode_info})'
 
     # Debugging string dunder
     def __repr__(self):
@@ -151,7 +150,7 @@ class Detector:
                 if loc[-1] == '/':
                     loc = loc[:-1]
 
-            self.results_loc = loc.replace('/')
+            self.results_loc = loc
         else:
             raise TypeError('loc must be a string.')
 
@@ -170,7 +169,7 @@ class Detector:
     def check_processed(self):
         """Checks to see if processed is one of the user specified modes, and raises an error if the detector isn't
         Godot."""
-        if 'processed' in self.modes:
+        if 'processed' in self.mode_info:
             self.processed = True
             if self.is_named('GODOT'):
                 self.import_loc = f'/media/godot/godot/monthly_processed/{self.date_str[0:4]}'
@@ -180,14 +179,14 @@ class Detector:
     def check_custom(self):
         """Checks to see if the object is being instantiated with custom import/export directories via modes and
         changes the import and export directories if the user specified different ones from the defaults."""
-        if 'custom' in self.modes:
-            if self.modes[-1] != 'none':
-                if self.modes[-1] != '/':
-                    self.set_import_loc(self.modes[-1])
+        if 'custom' in self.mode_info:
+            if self.mode_info[-1] != 'none':
+                if self.mode_info[-1] != '/':
+                    self.set_import_loc(self.mode_info[-1])
 
-            if self.modes[-2] != 'none':
-                if self.modes[-2] != '/':
-                    self.set_results_loc(self.modes[-2])
+            if self.mode_info[-2] != 'none':
+                if self.mode_info[-2] != '/':
+                    self.set_results_loc(self.mode_info[-2])
 
     def is_named(self, name):
         """Returns True if the detector has the same name as the passed string.
@@ -377,7 +376,7 @@ class Detector:
 
         """
 
-        gui = True if 'gui' in self.modes else False
+        gui = True if 'gui' in self.mode_info else False
 
         # Noting the date in the log
         if self.log is not None:
@@ -787,7 +786,7 @@ class Detector:
 
         """
 
-        if 'template' in self.modes:
+        if 'template' in self.mode_info:
             make_template = True
 
         # Fetching a few calibration parameters

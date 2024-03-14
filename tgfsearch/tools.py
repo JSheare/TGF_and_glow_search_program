@@ -214,15 +214,15 @@ def pickle_detector(detector, path_form):
         pickle.dump(detector, file)
 
 
-def unpickle_detector(pickle_path, modes=None):
+def unpickle_detector(pickle_path, mode_info=None):
     """Unpickles detector objects.
 
     Parameters
     ----------
     pickle_path : str
         The path to the pickle file that the detector is stored in.
-    modes : list
-        Optional. A list of modes that the detector should operate under.
+    mode_info : list
+        Optional. A list of information about the requested modes the object should operate under.
 
     Returns
     -------
@@ -231,14 +231,14 @@ def unpickle_detector(pickle_path, modes=None):
 
     """
 
-    if modes is None:
-        modes = list()
+    if mode_info is None:
+        mode_info = list()
 
     with open(pickle_path, 'rb') as file:
         detector = pickle.load(file)
 
         # Modes might not necessarily be the same in the serialized object
-        detector.modes = modes
+        detector.mode_info = mode_info
         detector.check_processed()
         detector.check_custom()
         return detector

@@ -1,42 +1,45 @@
 """A graphical user interface for running the TGF search program."""
 import tkinter as tk
-from tkinter import filedialog
 import sys as sys
-import subprocess as subprocess
 import os as os
-import signal as signal
 import threading as threading
-import platform as platform
+import multiprocessing as multiprocessing
+import traceback
+from queue import Queue
+from tkinter import filedialog
+
+# Adds parent directory to sys.path. Necessary to make the imports below work when running this file as a script
+parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
+import tgfsearch.tools as tl
+from tgfsearch.search import program
 
 
-# Need this to make sure that the search queue isn't emptied when the user presses the stop button
-class LockableQueue:
+# A slightly modified version of the Event class from threading.
+# Used to communicate with the thread that the search program is managed on
+class Communicator(threading.Event):
     def __init__(self):
-        self.queue = []
-        self.locked = False
+        super().__init__()
+        self.running = False
 
-    def __bool__(self):
-        return len(self.queue) > 0
 
-    def __contains__(self, item):
-        return item in self.queue
+# A class for conveniently writing stdout to a multiprocessing connection object
+class PipeTee:
+    def __init__(self, pipe):
+        self.pipe = pipe
+        self.stdout = sys.stdout
+        sys.stdout = self
 
-    def __len__(self):
-        return len(self.queue)
+    def write(self, data):
+        self.pipe.send(data)
 
-    def push(self, item):
-        if not self.locked:
-            self.queue.insert(0, item)
+    def flush(self):
+        self.stdout.flush()
 
-    def pop(self):
-        if not self.locked:
-            return self.queue.pop()
-
-    def lock(self):
-        self.locked = True
-
-    def unlock(self):
-        self.locked = False
+    def __del__(self):
+        sys.stdout = self.stdout
 
 
 # Creates a directory selection dialogue box and then puts the selected directory in the specified text entry box
@@ -47,7 +50,7 @@ def select_dir(entry_box):
 
 
 # Clears the sample text from the date entry boxes when they are clicked
-def ghost_text_clear(entrybox, ghost_text):
+def clear_ghost_text(entrybox, ghost_text):
     current_text = entrybox.get()
     if current_text == ghost_text:
         entrybox.delete(0, 'end')
@@ -120,15 +123,28 @@ def is_valid_search(first_date, second_date, detector):
     return True
 
 
+# Checks whether a queue contains the specified item
+def queue_contains(item, queue):
+    queue_len = queue.qsize()
+    in_queue = False
+    for i in range(queue_len):
+        temp_item = queue.get_nowait()
+        if not in_queue:
+            if temp_item == item:
+                in_queue = True
+
+        queue.put_nowait(temp_item)
+
+    return in_queue
+
+
 def enqueue(gui, search_queue, program_modes):
     first_date = gui.nametowidget('date_one').get()
     second_date = gui.nametowidget('date_two').get()
     detector = gui.nametowidget('detector_entrybox').get()
     # If the search command is valid, constructs the command and adds it to the queue
     if is_valid_search(first_date, second_date, detector):
-        script_path = os.path.dirname(os.path.realpath(__file__)) + '\\search.py'
-        executable = 'python' if platform.system() == 'Windows' else 'python3'
-        command = [executable, '-u', script_path, first_date, second_date, detector.upper(), 'gui']
+        command = [first_date, second_date, detector.upper(), 'gui']
         for mode in program_modes:
             command.append(mode)
 
@@ -139,100 +155,97 @@ def enqueue(gui, search_queue, program_modes):
         command.append('custom')
         command.append(str(custom_results_dir))
         command.append(str(custom_import_dir))
-        if command not in search_queue and not search_queue.locked:
-            first_date_sep = f'{first_date[0:2]}/{first_date[2:4]}/{first_date[4:]}'
-            second_date_sep = f'{second_date[0:2]}/{second_date[2:4]}/{second_date[4:]}'
+        if not queue_contains(command, search_queue):
             modes = (' ' + str(program_modes).replace("'", '')) if len(program_modes) > 0 else ''
-            print(f'Enqueueing {first_date_sep}'
-                  f'{" - " + second_date_sep if first_date != second_date else ""}'
+            print(f'Enqueueing {tl.short_to_full_date(first_date)}'
+                  f'{" - " + tl.short_to_full_date(second_date) if first_date != second_date else ""}'
                   f' on {detector.upper()}{modes}.')
-            search_queue.push(command)
+            search_queue.put_nowait(command)
 
 
-# Starts the search script when the start button is clicked
-def start(gui, pid, search_queue, stdout_queue, program_modes):
+# Starts the search program when the start button is clicked
+def start(gui, event, search_queue, program_modes):
     enqueue(gui, search_queue, program_modes)
-    if search_queue:
-        disable_elements(gui)
-
-        # Runs the search script in a different thread to prevent the GUI from locking up
-        search_thread = threading.Thread(target=run, args=(0, pid, search_queue, stdout_queue))
+    if not search_queue.empty():
+        # Runs the search manager in a different thread to prevent the GUI from locking up
+        search_thread = threading.Thread(target=run, args=(0, gui, event, search_queue))
         search_thread.start()
 
 
-# Stops the search script from running and unlocks the start button/tick boxes when the stop button is clicked
-def stop(gui, pid, search_queue):
-    # Kills the program
-    if pid['id'] is not None:
-        print('Halting program execution (this might take a second)')
-        search_queue.lock()
-        os.kill(pid['id'], signal.SIGTERM)
+# Stops the search script when the stop button is clicked
+def stop(event):
+    if event.running:
+        print('Halting program execution...')
+        event.set()
 
-    pid['id'] = None
+
+# Here to redirect stdout and stderr from the search program
+def program_wrapper(write, first_date, second_date, unit, mode_info):
+    PipeTee(write)
+    try:
+        program(first_date, second_date, unit, mode_info)
+    except Exception as ex:
+        print('Search program terminated with the following error or warning:\n')
+        # Removing the top layer of the traceback, which is just this function
+        count = len(traceback.extract_tb(ex.__traceback__)) - 1
+        print(traceback.format_exc(limit=-count))
+
+
+# Runs and manages the search program in another process
+def run(arg, gui, event, search_queue):  # The useless arg is unfortunately necessary or threading complains
+    if not search_queue.empty():
+        disable_elements(gui)
+        event.running = True
+
+    while not search_queue.empty():
+        info = search_queue.get_nowait()
+        first_date = info[0]
+        second_date = info[1]
+        unit = info[2]
+        mode_info = info[3:]
+
+        # Prints feedback about what date and modes were selected
+        first_date_sep = f'{first_date[0:2]}/{first_date[2:4]}/{first_date[4:]}'
+        second_date_sep = f'{second_date[0:2]}/{second_date[2:4]}/{second_date[4:]}'
+        print(f'Running search for {first_date_sep}{(" - " + second_date_sep) if first_date != second_date else ""} '
+              f'on {unit}.')
+        if len(mode_info) > 4:  # one for gui, one for custom, the last two for custom import/export locations
+            print(f'This search will be run with the following modes: {", ".join(mode_info[1:-3])}.')
+
+        # Runs the search program in a separate process and manages it
+        read, write = multiprocessing.Pipe()
+        process = multiprocessing.Process(target=program_wrapper,
+                                          args=(write, first_date, second_date, unit, mode_info))
+        process.start()
+        while process.is_alive() and not event.is_set():
+            # Prints the processes' piped stdout (which in turn gets printed to the text box in the gui)
+            if read.poll():
+                print(read.recv(), end='')
+
+        if process.is_alive():  # This will be executed if the user presses the stop button
+            process.terminate()
+            break
+
+    event.clear()
+    event.running = False
+    print('Search Concluded.')
     enable_elements(gui)
 
 
-# Runs the search script and pipes stdout into the stdout queue
-def run(arg, pid, search_queue, stdout_queue):  # The useless arg is unfortunately necessary or threading complains
-    while search_queue and not search_queue.locked:
-        command = search_queue.pop()
-        # Prints feedback about what date and modes were selected
-        first_date = command[3]
-        second_date = command[4]
-        first_date_sep = f'{first_date[0:2]}/{first_date[2:4]}/{first_date[4:]}'
-        second_date_sep = f'{second_date[0:2]}/{second_date[2:4]}/{second_date[4:]}'
-        stdout_queue.append(f'Running search for {first_date_sep}'
-                            f'{(" - " + second_date_sep) if first_date != second_date else ""}'
-                            f' on {command[5]}.')
-
-        if len(command) > 10:
-            stdout_queue.append(f'This search will be run with the following modes: {", ".join(command[7:-3])}.')
-
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        pid['id'] = process.pid
-
-        while True:
-            output = process.stdout.readline()
-            if process.poll() is not None:
-                break
-            if output:
-                stdout_queue.append(output.strip().decode('utf-8'))
-
-        pid['id'] = None
-
-        out, err = process.communicate()
-        if err:
-            stdout_queue.append('\n')
-            stdout_queue.append('Search script terminated with the following error or warning:')
-            stdout_queue.append(err.strip().decode('utf-8'))
-            stdout_queue.append('\n')
-
-    stdout_queue.append('Search Concluded.')
-
-
-# Checks to see if there are items in the queue and prints them, updates the search queue counter, and unlocks the start
-# button/tick boxes once the search script has finished executing
-def checker(gui, search_queue, stdout_queue):
-    while len(stdout_queue) > 0:
-        text = stdout_queue.pop(0)
-        print(text)
-        if text == 'Search Concluded.':
-            enable_elements(gui)
-            search_queue.unlock()
-
-    gui.nametowidget('enqueue_counter')['text'] = f'Searches\nEnqueued:\n{len(search_queue)}'
-
+# Updates the search queue counter
+def update_counter(gui, search_queue):
+    gui.nametowidget('enqueue_counter')['text'] = f'Searches\nEnqueued:\n{search_queue.qsize()}'
     milliseconds = 20
-    gui.after(milliseconds, checker, gui, search_queue, stdout_queue)
+    gui.after(milliseconds, update_counter, gui, search_queue)
 
 
 # Resets all the text entry boxes and tick boxes, as well as the big text box, when the reset button is clicked.
-# Also clears the search queue
-def reset(gui, pid, search_queue, program_modes, variables):
-    while search_queue:  # Emptying the search queue
-        search_queue.pop()
+# Also empties the search queue
+def reset(gui, event, search_queue, program_modes, variables):
+    while not search_queue.empty():  # Emptying the search queue
+        search_queue.get_nowait()
 
-    stop(gui, pid, search_queue)
+    stop(event)
 
     text_box = gui.nametowidget('text_box')
     text_box['state'] = tk.NORMAL
@@ -259,10 +272,9 @@ def reset(gui, pid, search_queue, program_modes, variables):
 
 def main():
     program_modes = []
-    search_queue = LockableQueue()  # Queue that holds all the enqueued days
-    stdout_queue = []  # Queue that holds all the stdout output strings from the search script until they can be printed
-    pid = {'id': None}  # Program identification number for the search script. Needs to be a dict to pass by reference
+    search_queue = Queue()  # Threadsafe queue that holds all the enqueued days
     variables = []  # Checkbox on/off variables
+    event = Communicator()
 
     # General GUI
     gui = tk.Tk()
@@ -290,16 +302,16 @@ def main():
 
     # Start and Stop buttons
     start_button = tk.Button(gui, height=3, width=10, text='Start', bg='white', name='start_button',
-                             command=lambda: start(gui, pid, search_queue, stdout_queue, program_modes))
+                             command=lambda: start(gui, event, search_queue, program_modes))
     stop_button = tk.Button(gui, height=3, width=10, text='Stop', bg='white', name='stop_button',
-                            command=lambda: stop(gui, pid, search_queue))
+                            command=lambda: stop(event))
 
     start_button.place(x=430, y=510)
     stop_button.place(x=570, y=510)
 
     # Input/queue reset button
     reset_button = tk.Button(gui, height=4, width=15, text='Reset/\nClear Queue', bg='white', name='reset_button',
-                             command=lambda: reset(gui, pid, search_queue, program_modes, variables))
+                             command=lambda: reset(gui, event, search_queue, program_modes, variables))
 
     reset_button.place(x=810, y=510)
 
@@ -324,12 +336,12 @@ def main():
     date_one_label = tk.Label(gui, text='Date One:')
     date_one = tk.Entry(gui, width=15, borderwidth=5, name='date_one')
     date_one.insert(0, 'yymmdd')
-    date_one.bind("<FocusIn>", lambda e: ghost_text_clear(date_one, 'yymmdd'))
+    date_one.bind("<FocusIn>", lambda e: clear_ghost_text(date_one, 'yymmdd'))
 
     date_two_label = tk.Label(gui, text='Date Two: ')
     date_two = tk.Entry(gui, width=15, borderwidth=5, name='date_two')
     date_two.insert(0, 'yymmdd')
-    date_two.bind("<FocusIn>", lambda e: ghost_text_clear(date_two, 'yymmdd'))
+    date_two.bind("<FocusIn>", lambda e: clear_ghost_text(date_two, 'yymmdd'))
 
     date_one_label.place(x=150, y=510)
     date_one.place(x=220, y=510)
@@ -424,7 +436,7 @@ def main():
     custom_button.place(x=455, y=673)
 
     # Gui async loop
-    checker(gui, search_queue, stdout_queue)
+    update_counter(gui, search_queue)
     tk.mainloop()
 
 

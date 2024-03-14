@@ -7,8 +7,13 @@ import glob as glob
 import psutil as psutil
 import platform as platform
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
+# Adds grandparent directory to sys.path. Necessary to make the imports below work when running this file as a script
+grandparent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+if grandparent_dir not in sys.path:
+    sys.path.append(grandparent_dir)
+
 import tgfsearch.tools as tl
+from tgfsearch.search import program
 
 
 def search(unit, checked_dates, data_path, results_path, auto_search_path):
