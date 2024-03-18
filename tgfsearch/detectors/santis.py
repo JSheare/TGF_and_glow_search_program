@@ -10,7 +10,7 @@ class Santis(Detector):
         self.long_event_scint_list = ['LP']
         self.calibration_params = {'bin_range': 15008.0, 'bin_size': 16, 'band_starts': [38, 94],
                                    'band_ends': [75, 125], 'template_bin_plot_edge': 400}
-        self.default_data_loc = '/media/AllDetectorData/Detectors/SANTIS/Data'
+        self.default_data_loc = '/media/tgfdata/Detectors/SANTIS/Data'
         self.location = self.get_location(self.default_data_loc[:-5])
         self.import_loc = f'{self.default_data_loc}/{self.date_str}'
         self.file_form = lambda eRC: f'eRC{eRC}*_lm_{self.date_str}_*'
