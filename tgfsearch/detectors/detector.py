@@ -389,12 +389,12 @@ class Detector:
             eRC = self.get_attribute(scintillator, 'eRC')
             # Here in case the data files are grouped into daily folders
             try:
-                complete_filelist = glob.glob(f'{self.import_loc}\\{self.file_form(eRC)}'.replace('/', '\\'))
+                complete_filelist = glob.glob(f'{self.import_loc}\\{self.file_form(eRC)}'.replace('\\', '/'))
                 assert len(complete_filelist) > 0, 'Empty filelist'
 
             except AssertionError:
                 complete_filelist = glob.glob(f'{self.import_loc}\\{self.date_str}'
-                                              f'\\{self.file_form(eRC)}'.replace('/', '\\'))
+                                              f'\\{self.file_form(eRC)}'.replace('\\', '/'))
 
             filelist = tl.filter_files(complete_filelist)
             self.set_attribute(scintillator, 'filelist', filelist)
