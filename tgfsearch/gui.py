@@ -4,7 +4,8 @@ import sys as sys
 import os as os
 import threading as threading
 import multiprocessing as multiprocessing
-import traceback
+import traceback as traceback
+import platform as platform
 from queue import Queue
 from tkinter import filedialog
 
@@ -276,10 +277,13 @@ def main():
     variables = []  # Checkbox on/off variables
     event = Communicator()
 
+    os_windows = True if platform.system() == 'Windows' else False
+    correct_coord = lambda coord1, coord2: coord1 if os_windows else coord2
+
     # General GUI
     gui = tk.Tk()
     gui.title("TGF Search")
-    gui.geometry("1080x720")
+    gui.geometry('1080x720' if os_windows else '1080x760')
     gui.resizable(False, False)
 
     # Making the text box
@@ -306,31 +310,31 @@ def main():
     stop_button = tk.Button(gui, height=3, width=10, text='Stop', bg='white', name='stop_button',
                             command=lambda: stop(event))
 
-    start_button.place(x=430, y=510)
-    stop_button.place(x=570, y=510)
+    start_button.place(x=correct_coord(430, 417), y=correct_coord(510, 540))
+    stop_button.place(x=correct_coord(570, 557), y=correct_coord(510, 540))
 
     # Input/queue reset button
     reset_button = tk.Button(gui, height=4, width=15, text='Reset/\nClear Queue', bg='white', name='reset_button',
                              command=lambda: reset(gui, event, search_queue, program_modes, variables))
 
-    reset_button.place(x=810, y=510)
+    reset_button.place(x=correct_coord(810, 796), y=correct_coord(510, 540))
 
     # Clear text box button
     clear_button = tk.Button(gui, height=3, width=8, text='Clear\n Text', bg='white', name='clear_button',
                              command=lambda: clear_box(gui))
 
-    clear_button.place(x=950, y=427)
+    clear_button.place(x=correct_coord(950, 950), y=correct_coord(427, 450))
 
     # Enqueue button
     enqueue_button = tk.Button(gui, height=3, width=8, text='Enqueue', bg='white', name='enqueue_button',
                                command=lambda: enqueue(gui, search_queue, program_modes))
 
-    enqueue_button.place(x=65, y=427)
+    enqueue_button.place(x=correct_coord(65, 38), y=correct_coord(427, 450))
 
     # Enqueue counter
     enqueue_counter = tk.Label(gui, text='', name='enqueue_counter')
 
-    enqueue_counter.place(x=65, y=370)
+    enqueue_counter.place(x=correct_coord(65, 50), y=correct_coord(370, 390))
 
     # Making and placing date entry boxes
     date_one_label = tk.Label(gui, text='Date One:')
@@ -343,10 +347,10 @@ def main():
     date_two.insert(0, 'yymmdd')
     date_two.bind("<FocusIn>", lambda e: clear_ghost_text(date_two, 'yymmdd'))
 
-    date_one_label.place(x=150, y=510)
-    date_one.place(x=220, y=510)
-    date_two_label.place(x=150, y=550)
-    date_two.place(x=220, y=550)
+    date_one_label.place(x=correct_coord(150, 137), y=correct_coord(510, 540))
+    date_one.place(x=correct_coord(220, 207), y=correct_coord(510, 540))
+    date_two_label.place(x=correct_coord(150, 137), y=correct_coord(550, 580))
+    date_two.place(x=correct_coord(220, 207), y=correct_coord(550, 580))
 
     # Making and placing regular mode checkboxes
     regular_checkbox_label = tk.Label(gui, text='Modes:')
@@ -371,11 +375,11 @@ def main():
                               command=lambda: tick_untick(combob, program_modes, 'combo'))
     variables.append(combob)
 
-    regular_checkbox_label.place(x=150, y=600)
-    allscints_cb.place(x=220, y=600)
-    template_cb.place(x=300, y=600)
-    aircraft_cb.place(x=380, y=600)
-    combo_cb.place(x=460, y=600)
+    regular_checkbox_label.place(x=correct_coord(150, 137), y=correct_coord(600, 630))
+    allscints_cb.place(x=correct_coord(220, 217), y=correct_coord(600, 630))
+    template_cb.place(x=correct_coord(300, 307), y=correct_coord(600, 630))
+    aircraft_cb.place(x=correct_coord(380, 397), y=correct_coord(600, 630))
+    combo_cb.place(x=correct_coord(460, 487), y=correct_coord(600, 630))
 
     # Making and placing developer mode checkboxes
     dev_checkbox_label = tk.Label(gui, text='Dev Modes:')
@@ -400,20 +404,20 @@ def main():
                                command=lambda: tick_untick(pcb, program_modes, 'pickle'))
     variables.append(pcb)
 
-    dev_checkbox_label.place(x=150, y=630)
-    skcali_cb.place(x=220, y=630)
-    skshort_cb.place(x=300, y=630)
-    skglow_cb.place(x=380, y=630)
-    pickle_cb.place(x=460, y=630)
+    dev_checkbox_label.place(x=correct_coord(150, 137), y=correct_coord(630, 660))
+    skcali_cb.place(x=correct_coord(220, 217), y=correct_coord(630, 660))
+    skshort_cb.place(x=correct_coord(300, 307), y=correct_coord(630, 660))
+    skglow_cb.place(x=correct_coord(380, 397), y=correct_coord(630, 660))
+    pickle_cb.place(x=correct_coord(460, 487), y=correct_coord(630, 660))
 
     # Making and placing detector entry box
     detector_label = tk.Label(gui, text='Detector:')
     detector_entrybox = tk.Entry(gui, width=10, borderwidth=5, name='detector_entrybox')
     supported_label = tk.Label(gui, text='Supported\n Detectors:\nTHOR(1-6), GODOT,\nSANTIS, CROATIA')
 
-    detector_label.place(x=660, y=615)
-    detector_entrybox.place(x=720, y=615)
-    supported_label.place(x=800, y=595)
+    detector_label.place(x=correct_coord(660, 642), y=correct_coord(615, 645))
+    detector_entrybox.place(x=correct_coord(720, 707), y=correct_coord(615, 645))
+    supported_label.place(x=correct_coord(800, 810), y=correct_coord(595, 625))
 
     # Making and placing custom export location entry box and directory dialogue box button
     results_label = tk.Label(gui, text='Export Location:')
@@ -421,9 +425,9 @@ def main():
     results_button = tk.Button(gui, width=6, height=2, text='Browse', name='results_button',
                                command=lambda: select_dir(results_entrybox), bg='white')
 
-    results_label.place(x=575, y=680)
-    results_entrybox.place(x=675, y=680)
-    results_button.place(x=880, y=673)
+    results_label.place(x=correct_coord(575, 552), y=correct_coord(680, 713))
+    results_entrybox.place(x=correct_coord(675, 662), y=correct_coord(680, 710))
+    results_button.place(x=correct_coord(880, 875), y=correct_coord(673, 703))
 
     # Making and placing custom import location entry box and directory dialogue box button
     custom_label = tk.Label(gui, text='Import Location:')
@@ -431,9 +435,9 @@ def main():
     custom_button = tk.Button(gui, width=6, height=2, text='Browse', name='custom_buttom',
                               command=lambda: select_dir(custom_entrybox), bg='white')
 
-    custom_label.place(x=150, y=680)
-    custom_entrybox.place(x=250, y=680)
-    custom_button.place(x=455, y=673)
+    custom_label.place(x=correct_coord(150, 132), y=correct_coord(680, 713))
+    custom_entrybox.place(x=correct_coord(250, 242), y=correct_coord(680, 710))
+    custom_button.place(x=correct_coord(455, 455), y=correct_coord(673, 703))
 
     # Gui async loop
     update_counter(gui, search_queue)
