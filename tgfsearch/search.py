@@ -775,13 +775,13 @@ def program(first_date, second_date, unit, mode_info):
 
             # Checks to see if there is actually data for the day
             if not detector:
-                print('\n\n')
+                print('\n')
                 print('\n', file=detector.log)
                 tl.print_logger('No/Missing data for specified day.\n', detector.log)
                 print('\n')
             # Otherwise runs normally
             else:
-                print('\n\n')
+                print('\n')
                 print('Done.')
 
                 # Calibrates each scintillator
@@ -908,7 +908,7 @@ def program(first_date, second_date, unit, mode_info):
                         # Aborts the program for the day if necessary scintillator data is missing in any of the chunks
                         if not chunk:
                             missing_data = True
-                            print('\n\n')
+                            print('\n')
                             print('\n', file=detector.log)
                             tl.print_logger('No/Missing data for specified day.', detector.log)
                             print('\n')
@@ -918,7 +918,7 @@ def program(first_date, second_date, unit, mode_info):
                             break
                         # Otherwise runs normally
                         else:
-                            print('\n\n')
+                            print('\n')
                             # Makes a full list of filetime extrema for long event search
                             for scintillator in chunk:
                                 extrema = detector.get_attribute(scintillator, 'filetime_extrema')
@@ -973,7 +973,7 @@ def program(first_date, second_date, unit, mode_info):
                         for chunk_path in chunk_path_list:
                             chunk = tl.unpickle_chunk(chunk_path)
                             chunk.log = log
-                            tl.print_logger(f'Chunk {chunk_num}:', detector.log)
+                            tl.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
                             print('\n')
 
                             # Calling the short event search algorithm

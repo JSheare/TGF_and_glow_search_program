@@ -503,7 +503,7 @@ class Detector:
                     file_frames.append(data)
 
                 if self.print_feedback:
-                    print(f'{files_imported}/{len(filelist)} files imported', end='\r')
+                    print(f'{files_imported}/{len(filelist)} files imported\n', end='\r')
 
                 if len(file_frames) > 0:
                     # Makes the final dataframe and stores it
