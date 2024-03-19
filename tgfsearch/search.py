@@ -752,71 +752,63 @@ def program(first_date, second_date, unit, mode_info):
         log_path = f'{detector.get_results_loc()}/Results/{unit}/{date_str}/'
         tl.make_path(log_path)
         log = open(f'{log_path}log.txt', 'w')
+        print(f'{tl.short_to_full_date(date_str)}:', file=log)
 
         # Normal operating mode
         try:
             # Imports the data
             if modes['pickle']:  # In pickle mode: reads the pickle file, or exports one if it doesn't exist yet
-                path_form = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/detector.pickle'
-                pickle_paths = glob.glob(path_form)
+                pickle_paths = glob.glob(f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}'
+                                         f'/detector.pickle')
                 if len(pickle_paths) > 0:
                     detector = tl.unpickle_detector(pickle_paths[0], mode_info)
                     detector.log = log
                 else:
                     detector.log = log
                     detector.import_data(ignore_missing=False)
-                    tl.pickle_detector(detector, path_form)
-                    detector.log = log
+                    tl.pickle_detector(detector, 'detector')
             else:
                 detector.log = log
                 detector.import_data(ignore_missing=False)
 
             # raise MemoryError  # for low memory mode testing
 
-            # Checks to see if there is actually data for the day
-            if not detector:
+            print('\n')
+            print('Done.')
+
+            # Calibrates each scintillator
+            if not modes['skcali']:
                 print('\n')
-                print('\n', file=detector.log)
-                tl.print_logger('No/Missing data for specified day.\n', detector.log)
-                print('\n')
-            # Otherwise runs normally
-            else:
-                print('\n')
-                print('Done.')
+                tl.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
 
-                # Calibrates each scintillator
-                if not modes['skcali']:
-                    print('\n')
-                    tl.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
+                # Calling the calibration algorithm
+                detector.calibrate(plot_spectra=True, make_template=modes['template'])
 
-                    # Calling the calibration algorithm
-                    detector.calibrate(plot_spectra=True, make_template=modes['template'])
+                tl.print_logger('Done.', detector.log)
 
-                    tl.print_logger('Done.', detector.log)
+            # Short event search
+            if not modes['skshort']:
+                tl.print_logger('\n', detector.log)
+                tl.print_logger('Starting search for short events...', detector.log)
+                tl.print_logger('\n', detector.log)
 
-                # Short event search
-                if not modes['skshort']:
-                    tl.print_logger('\n', detector.log)
-                    tl.print_logger('Starting search for short events...', detector.log)
-                    tl.print_logger('\n', detector.log)
+                # Calling the short event search algorithm
+                short_event_search(detector, modes)
 
-                    # Calling the short event search algorithm
-                    short_event_search(detector, modes)
+                tl.print_logger('Done.', detector.log)
+                tl.print_logger('\n', detector.log)
 
-                    tl.print_logger('Done.', detector.log)
-                    tl.print_logger('\n', detector.log)
+            # Long event search
+            if not modes['skglow']:
+                tl.print_logger('Starting search for glows...', detector.log)
+                # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
+                le_times = long_event_cutoff(detector, modes)
 
-                # Long event search
-                if not modes['skglow']:
-                    tl.print_logger('Starting search for glows...', detector.log)
-                    # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
-                    le_times = long_event_cutoff(detector, modes)
+                # Calling the long event search algorithm
+                long_event_search(detector, modes, le_times)
 
-                    # Calling the long event search algorithm
-                    long_event_search(detector, modes, le_times)
-
-                    tl.print_logger('Done.', detector.log)
-                    tl.print_logger('\n', detector.log)
+                tl.print_logger('Done.', detector.log)
+                tl.print_logger('\n', detector.log)
 
         except MemoryError:
             low_memory_mode = True
@@ -928,10 +920,8 @@ def program(first_date, second_date, unit, mode_info):
                             # Updates passtime
                             passtime_dict = chunk.return_passtime()
 
-                            chunk_path = (f'{detector.get_results_loc()}/Results/{unit}/{date_str}/'
-                                          f'chunk{chunk_num}.pickle')
-                            chunk_path_list.append(chunk_path)
-                            tl.pickle_chunk(chunk, chunk_path)
+                            # Pickle chunk and add its path to the list
+                            chunk_path_list.append(tl.pickle_chunk(chunk, f'chunk{chunk_num}'))
 
                             # Eliminates the chunk from active memory
                             del chunk

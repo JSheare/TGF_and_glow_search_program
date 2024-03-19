@@ -378,10 +378,6 @@ class Detector:
 
         gui = True if 'gui' in self.mode_info else False
 
-        # Noting the date in the log
-        if self.log is not None:
-            print(f'{self.full_date_str}:', file=self.log)
-
         for scintillator in self.scintillators:
             if existing_filelists:
                 break

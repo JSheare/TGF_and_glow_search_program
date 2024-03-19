@@ -196,22 +196,40 @@ def get_first_sec(date_str):
     return (dt.datetime(year, month, day, 0, 0) - dt.datetime(1970, 1, 1)).total_seconds()
 
 
-def pickle_detector(detector, path_form):
+def pickle_detector(detector, file_name, path=None):
     """Pickles detector objects.
 
     Parameters
     ----------
     detector : Detector object
         The detector to be pickled.
-    path_form : str
-        The name of the pickle file (including the directory path where it should be saved).
+    file_name : str
+        The name of the pickle file.
+    path : str
+        Optional. The directory where the pickle file will be saved. If not provided, the file will be saved
+            to the detector's daily results directory.
+
+    Returns
+    -------
+    str
+        The path to the pickle file (including its name).
 
     """
 
+    if path is None:
+        path = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}'
+
+    make_path(path)
+
+    log = detector.log
     detector.log = None  # serializing open file objects results in errors
     detector.file_form = None  # serializing anonymous functions results in errors too
-    with open(path_form, 'wb') as file:
+    export_path = f'{path}/{file_name}.pickle'
+    with open(export_path, 'wb') as file:
         pickle.dump(detector, file)
+
+    detector.log = log
+    return export_path
 
 
 def unpickle_detector(pickle_path, mode_info=None):
@@ -220,7 +238,7 @@ def unpickle_detector(pickle_path, mode_info=None):
     Parameters
     ----------
     pickle_path : str
-        The path to the pickle file that the detector is stored in.
+        The path (including file name) to the pickle file that the detector is stored in.
     mode_info : list
         Optional. A list of information about the requested modes the object should operate under.
 
@@ -244,9 +262,9 @@ def unpickle_detector(pickle_path, mode_info=None):
         return detector
 
 
-def pickle_chunk(chunk, filename):
+def pickle_chunk(chunk, file_name):
     """Pickles daily chunks for the program's low memory mode."""
-    pickle_detector(chunk, filename)
+    return pickle_detector(chunk, file_name)
 
 
 def unpickle_chunk(chunk_path):
