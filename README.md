@@ -159,6 +159,17 @@ To run the program in this mode, run the program the same as above but add the w
 
     tgf-search-cl yymmdd yymmdd detector processed
 
+#### **'custom' Mode:**
+This mode can be used to specify custom data import and result export locations. To use it, enter a command
+of the following form:
+
+    tgf-search-cl yymmdd yymmdd detector custom import_directory export_directory
+
+Note: if you don't wish to specify one of the directories, simply use the word 'none' instead. Here's an example
+where we omit a custom import directory:
+
+    tgf-search-cl yymmdd yymmdd detector custom none export_directory
+
 #### **Other Things to Know:**
 It is possible to use as many of these modes in tandem as the user needs 
 <br/>

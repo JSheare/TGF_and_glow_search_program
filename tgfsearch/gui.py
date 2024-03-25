@@ -154,8 +154,8 @@ def enqueue(gui, search_queue, program_modes):
         custom_import_dir = gui.nametowidget('custom_entrybox').get() if (
                 gui.nametowidget('custom_entrybox').get() != '') else 'none'
         command.append('custom')
-        command.append(str(custom_results_dir))
         command.append(str(custom_import_dir))
+        command.append(str(custom_results_dir))
         if not queue_contains(command, search_queue):
             modes = (' ' + str(program_modes).replace("'", '')) if len(program_modes) > 0 else ''
             print(f'Enqueueing {tl.short_to_full_date(first_date)}'

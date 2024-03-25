@@ -167,7 +167,7 @@ class Detector:
                 'Notes': ''}
 
     def check_processed(self):
-        """Checks to see if processed is one of the user specified modes, and raises an error if the detector isn't
+        """Checks to see if processed is one of the user-specified modes, and raises an error if the detector isn't
         Godot."""
         if 'processed' in self.mode_info:
             self.processed = True
@@ -177,16 +177,20 @@ class Detector:
                 raise ValueError('processed data mode is only available for GODOT.')
 
     def check_custom(self):
-        """Checks to see if the object is being instantiated with custom import/export directories via modes and
+        """Checks to see if the object is being instantiated with custom import/export directories via mode_info and
         changes the import and export directories if the user specified different ones from the defaults."""
         if 'custom' in self.mode_info:
-            if self.mode_info[-1] != 'none':
-                if self.mode_info[-1] != '/':
-                    self.set_import_loc(self.mode_info[-1])
+            index = self.mode_info.index('custom')
+            if index + 2 < len(self.mode_info):
+                import_index = index + 1
+                if self.mode_info[import_index] != 'none':
+                    if self.mode_info[import_index] != '/':
+                        self.set_import_loc(self.mode_info[import_index])
 
-            if self.mode_info[-2] != 'none':
-                if self.mode_info[-2] != '/':
-                    self.set_results_loc(self.mode_info[-2])
+                export_index = index + 2
+                if self.mode_info[export_index] != 'none':
+                    if self.mode_info[export_index] != '/':
+                        self.set_results_loc(self.mode_info[export_index])
 
     def is_named(self, name):
         """Returns True if the detector has the same name as the passed string.
@@ -201,6 +205,7 @@ class Detector:
         bool
             True if the name matches the name of the detector, False otherwise.
         """
+
         return True if name.upper() == self.unit else False
 
     def is_data_present(self, scintillator):
