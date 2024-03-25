@@ -3,6 +3,7 @@
 - [ ] Remove pickle support for low memory mode when the program is finished
 - [ ] Add support for weather scraper files
 - [ ] Make template maker less laggy
+- [ ] Add section on custom import/export locs to command line search instructions
 
 ### Completed
 - [x] Fix channel-to-MeV converter function

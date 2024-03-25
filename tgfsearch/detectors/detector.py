@@ -697,6 +697,7 @@ class Detector:
     def _calibrate_NaI(self, energy_bins, energy_hist, spectra_conversions, spectra_frame):
         """Calibration algorithm for the sodium iodide scintillators."""
         flagged_indices = []
+
         # Takes the sum of each bin with its two closest neighboring bins on either side
         sums = energy_hist
         for i in range(2):
@@ -709,14 +710,19 @@ class Detector:
             band_max = np.argmax(sums[band_starts[i]:band_ends[i]]) + int(band_starts[i])
             flagged_indices.append(band_max)
 
-        calibration = [energy_bins[s] for s in flagged_indices]
-        if len(calibration) >= 2:
-            print('For NaI:', file=spectra_conversions)
-            print(f'{calibration[0]} V = 1.46 MeV', file=spectra_conversions)
-            print(f'{calibration[1]} V = 2.60 MeV', file=spectra_conversions)
-
         spectra_frame['NaI'] = energy_hist
-        self.set_attribute('NaI', 'calibration', calibration)
+        # 1.46 is the Photo-peak energy for Potassium 40 (MeV)
+        # 2.60 is the Photo-peak energy for Thorium (MeV)
+        calibration_energies = [1.46, 2.60]
+        calibration_bins = [energy_bins[s] for s in flagged_indices]
+        if len(calibration_bins) == 2:
+            print('For NaI:', file=spectra_conversions)
+            for i in range(2):
+                print(f'{calibration_bins[i]} V = {calibration_energies[i]} MeV', file=spectra_conversions)
+
+            self.set_attribute('NaI', 'calibration_energies', calibration_energies)
+            self.set_attribute('NaI', 'calibration_bins', calibration_bins)
+
         return flagged_indices
 
     def _calibrate_LP(self, energy_bins, energy_hist, spectra_conversions, spectra_frame):
@@ -736,14 +742,19 @@ class Detector:
             if self.print_feedback:
                 print('No LP template found for this location...')
 
-        calibration = [energy_bins[s] for s in flagged_indices]
-        if len(calibration) >= 2:
-            print('For LP:', file=spectra_conversions)
-            print(f'{calibration[0]} V = 1.242 MeV', file=spectra_conversions)
-            print(f'{calibration[1]} V = 2.381 MeV', file=spectra_conversions)
-
         spectra_frame['LP'] = energy_hist
-        self.set_attribute('LP', 'calibration', calibration)
+        # 1.242 is the Compton edge energy for Potassium 40 (MeV)
+        # 2.381 is the Compton edge energy for Thorium (MeV)
+        calibration_energies = [1.242, 2.381]
+        calibration_bins = [energy_bins[s] for s in flagged_indices]
+        if len(calibration_bins) == 2:
+            print('For LP:', file=spectra_conversions)
+            for i in range(2):
+                print(f'{calibration_bins[i]} V = {calibration_energies[i]} MeV', file=spectra_conversions)
+
+            self.set_attribute('NaI', 'calibration_energies', calibration_energies)
+            self.set_attribute('NaI', 'calibration_bins', calibration_bins)
+
         return flagged_indices
 
     def _plot_spectra(self, scintillator, energy_bins, energy_hist, flagged_indices, sp_path):

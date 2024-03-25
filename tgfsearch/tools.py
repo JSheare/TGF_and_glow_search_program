@@ -675,17 +675,17 @@ def separate_data(times, energies, count_scints, start, stop):
     return time_dict, energy_dict
 
 
-def channel_to_mev(energy_array, channels, scintillator):
+def channel_to_mev(energy_array, channels, energies):
     """Uses compton edges/photo peaks obtained from scintillator calibration to convert energy channels into MeV
 
     Parameters
     ----------
     energy_array : np.array
         The array containing all the energies for either the large plastic or sodium iodide scintillator.
-    channels : np.array
-        An array containing the energy channels corresponding to the compton edges/photo peaks.
-    scintillator : str
-        The label corresponding to the scintillator whose energies are being converted.
+    channels : list
+        A list containing the energy channels corresponding to the Compton edges/photo peaks.
+    energies : list
+        A list containing the energies of the Compton edges/photo peaks.
 
     Returns
     -------
@@ -693,16 +693,8 @@ def channel_to_mev(energy_array, channels, scintillator):
         An array full of float values. These are the energies in MeV.
 
     """
-    if scintillator == 'NaI':
-        K40 = 1.46  # Photo-peak photon energy for Potassium 40 (MeV)
-        T = 2.60  # Photo-peak photon energy for Thorium (MeV)
-    else:  # i.e. plastic scintillators
-        K40 = 1.242  # Compton edge photon energy for Potassium 40 (MeV)
-        T = 2.381  # Compton edge photon energy for Thorium (MeV)
 
-    channel1 = channels[0]
-    channel2 = channels[1]
-    a = (K40 - T)/(channel1-channel2)
-    b = T - a*channel2
+    a = (energies[0] - energies[1])/(channels[0] - channels[1])
+    b = energies[1] - a * channels[1]
     energy_array = a*energy_array + b
     return energy_array

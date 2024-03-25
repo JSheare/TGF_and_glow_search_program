@@ -332,8 +332,9 @@ def long_event_cutoff(detector, modes, chunk=None):
     all_calibrated = True
     for i in range(len(long_event_scintillators)):
         scintillator = long_event_scintillators[i]
-        calibration = detector.get_attribute(scintillator, 'calibration')
-        existing_calibration = True if len(calibration) == 2 else False
+        calibration_bins = detector.get_attribute(scintillator, 'calibration_bins')
+        calibration_energies = detector.get_attribute(scintillator, 'calibration_energies')
+        existing_calibration = True if len(calibration_bins) == 2 else False
         if not existing_calibration:
             all_calibrated = False
 
@@ -343,7 +344,7 @@ def long_event_cutoff(detector, modes, chunk=None):
                 energies = operating_obj.get_attribute(scintillator, 'energy')
             else:
                 energies = tl.channel_to_mev(operating_obj.get_attribute(scintillator, 'energy'),
-                                             calibration, scintillator)
+                                             calibration_bins, calibration_energies)
         else:
             times = np.append(times, operating_obj.get_attribute(scintillator, 'time'))
             if modes['skcali'] or not existing_calibration:
@@ -351,7 +352,7 @@ def long_event_cutoff(detector, modes, chunk=None):
             else:
                 energies = np.append(energies,
                                      tl.channel_to_mev(operating_obj.get_attribute(scintillator, 'energy'),
-                                                       calibration, scintillator))
+                                                       calibration_bins, calibration_energies))
 
     # Removes entries that are below a certain cutoff energy
     if not all_calibrated or modes['skcali']:

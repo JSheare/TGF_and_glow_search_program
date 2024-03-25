@@ -17,8 +17,10 @@ class Scintillator:
     ----------
     frame : pd.DataFrame
         A pandas dataframe containing all the scintillator's data.
-    calibration : list
-        A list containing calibration info. The energy bins corresponding to compton shoulders/photo peaks
+    calibration_bins : list
+        A list containing the energy bins corresponding to Compton edges/photo peaks used for calibration.
+    calibration_energies : list
+        A list containing the energies of Compton edges/photo peaks used for calibration.
     filelist : list
         A list of scintillator files for a particular day.
     filetime_extrema : list
@@ -32,7 +34,8 @@ class Scintillator:
         self.name = name
         self.eRC = eRC
         self.frame = pd.DataFrame()
-        self.calibration = []
+        self.calibration_energies = []
+        self.calibration_bins = []
         self.filelist = []
         self.filetime_extrema = []
         self.passtime = {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0, 'ppsunix': -1.0, 'lastwc': 0,

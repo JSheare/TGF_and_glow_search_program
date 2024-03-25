@@ -83,7 +83,7 @@ they include:
 
 
 - **'pickle' mode** - Serializes and saves the detector object for later use OR imports an 
-  already-serialized detector object
+  already-serialized detector object.
 
 ### **Enqueuing Multiple Searches:**
 If desired, several searches can be enqueued and then executed sequentially.
@@ -120,7 +120,7 @@ The program has several 'modes' that give it enhanced functionality. Here's a li
 This mode instructs the program to combine data from all available scintillators when looking for TGFs.
 To use the program in this mode, enter a command the same way as above but add the word 'combo' to the end:
 
-    tgf-search-cl yymmdd yymmdd detector custom
+    tgf-search-cl yymmdd yymmdd detector combo
 
 #### **'allscints' Mode:**
 This mode tells the program to run the short event search algorithm on all the scintillators 
