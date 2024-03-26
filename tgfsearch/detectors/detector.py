@@ -643,7 +643,7 @@ class Detector:
             valmin=0,
             valmax=template_bin_plot_edge - 1,
             valinit=edge1,
-            valstep=1,
+            valstep=1
         )
 
         # Slider for the Thorium line
@@ -654,29 +654,18 @@ class Detector:
             valmin=0,
             valmax=template_bin_plot_edge - 1,
             valinit=edge2,
-            valstep=1,
+            valstep=1
         )
 
         # Initial plotting
         ax.bar(template_bins, template_hist, color='r', width=self.calibration_params['bin_size'] / 2, zorder=1)
-        background = fig.canvas.copy_from_bbox(fig.bbox)
         line1 = ax.axvline(edge1, 0, 1, zorder=2, alpha=0.75)
         line2 = ax.axvline(edge2, 0, 1, zorder=2, alpha=0.75)
 
-        ax.draw_artist(line1)
-        ax.draw_artist(line2)
-        background = fig.canvas.copy_from_bbox(fig.bbox)
-        fig.canvas.blit(fig.bbox)
-
         # Updates lines when sliders are adjusted
         def update(event):
-            fig.canvas.restore_region(background)
             line1.set_xdata(edge1_slider.val)
             line2.set_xdata(edge2_slider.val)
-            ax.draw_artist(line1)
-            ax.draw_artist(line2)
-            fig.canvas.blit(fig.bbox)
-            fig.canvas.flush_events()
 
         edge1_slider.on_changed(update)
         edge2_slider.on_changed(update)
@@ -720,13 +709,12 @@ class Detector:
         # 2.60 is the Photo-peak energy for Thorium (MeV)
         calibration_energies = [1.46, 2.60]
         calibration_bins = [energy_bins[s] for s in flagged_indices]
-        if len(calibration_bins) == 2:
-            print('For NaI:', file=spectra_conversions)
-            for i in range(2):
-                print(f'{calibration_bins[i]} V = {calibration_energies[i]} MeV', file=spectra_conversions)
+        print('For NaI:', file=spectra_conversions)
+        for i in range(2):
+            print(f'{calibration_bins[i]} V = {calibration_energies[i]} MeV', file=spectra_conversions)
 
-            self.set_attribute('NaI', 'calibration_energies', calibration_energies)
-            self.set_attribute('NaI', 'calibration_bins', calibration_bins)
+        self.set_attribute('NaI', 'calibration_energies', calibration_energies)
+        self.set_attribute('NaI', 'calibration_bins', calibration_bins)
 
         return flagged_indices
 
