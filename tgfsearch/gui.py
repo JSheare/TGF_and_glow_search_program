@@ -229,7 +229,7 @@ def run(arg, gui, event, search_queue):  # The useless arg is unfortunately nece
 
     event.clear()
     event.running = False
-    print('Search Concluded.')
+    print('Search Concluded.\n')
     enable_elements(gui)
 
 
