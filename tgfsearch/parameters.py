@@ -1,4 +1,4 @@
-"""Parameters for use by the TGF search program and it's modules."""
+"""Parameters for use by the TGF search program and its modules."""
 
 """General Parameters"""
 SEC_PER_DAY = 86400  # Number of seconds in a day
@@ -9,6 +9,14 @@ OPERATING_MEMORY_ALLOWANCE = 100e6  # Maximum amount of memory that the program 
 # not including data
 TOTAL_MEMORY_ALLOWANCE_FRAC = 0.25  # Fraction of available memory on the system that the program can use
 MAX_CHUNKS = 16  # The maximum number of chunks allowed in low memory mode
+
+K40_EDGE_ENERGY = 1.242  # The Compton edge energy for Potassium 40 (MeV)
+T_EDGE_ENERGY = 2.381  # The Compton edge energy for Thorium (MeV)
+K40_PHOTOPEAK_ENERGY = 1.46  # The Photo-peak energy for Potassium 40 (MeV)
+T_PHOTOPEAK_ENERGY = 2.60  # The Photo-peak energy for Thorium (MeV)
+T_K40_RATIO = 1.781  # The ratio of the decay energies of Thorium and Potassium 40. Used for NaI calibration.
+NAI_CALI_RATIO_TOLERANCE = 0.001  # Used in NaI calibration. The max tolerance for the ratio between two peaks' energies
+# to be considered "the same" as the desired ratio.
 
 
 """Short Event Search Parameters"""

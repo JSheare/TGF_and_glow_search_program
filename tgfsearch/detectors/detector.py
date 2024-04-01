@@ -691,30 +691,45 @@ class Detector:
     def _calibrate_NaI(self, energy_bins, energy_hist, spectra_conversions, spectra_frame):
         """Calibration algorithm for the sodium iodide scintillators."""
         flagged_indices = []
+        calibration_energies = []
+        calibration_bins = []
 
-        # Takes the sum of each bin with its two closest neighboring bins on either side
-        sums = energy_hist
-        for i in range(2):
-            sums += (np.roll(energy_hist, i + 1) + np.roll(energy_hist, i - 1))
+        features, _ = signal.find_peaks(energy_hist, prominence=400)
 
-        # Looks for the location of the maximum sum within the two bands where the peaks are likely to be
-        band_starts = self.calibration_params['band_starts']
-        band_ends = self.calibration_params['band_ends']
-        for i in range(len(band_starts)):
-            band_max = np.argmax(sums[band_starts[i]:band_ends[i]]) + int(band_starts[i])
-            flagged_indices.append(band_max)
+        # Checking all possible peak combos for a valid ratio
+        found = False
+        for right in range(len(features) - 1, -1, -1):
+            if features[right] > len(energy_bins) / 2:  # Only checking peaks in the lower half of the spectrum
+                continue
+
+            for left in range(right - 1, -1, -1):
+                combo_ratio = energy_bins[features[right]] / energy_bins[features[left]]
+                if abs(combo_ratio - params.T_K40_RATIO) <= params.NAI_CALI_RATIO_TOLERANCE:  # Valid ratio
+                    flagged_indices = [features[left], features[right]]
+                    calibration_energies = [params.K40_PHOTOPEAK_ENERGY, params.T_PHOTOPEAK_ENERGY]
+                    calibration_bins = [energy_bins[features[left]], energy_bins[features[right]]]
+                    found = True
+                    break
+                elif combo_ratio > params.T_K40_RATIO:  # We're not going to find a valid ratio past this point
+                    break
+
+            if found:
+                break
 
         spectra_frame['NaI'] = energy_hist
-        # 1.46 is the Photo-peak energy for Potassium 40 (MeV)
-        # 2.60 is the Photo-peak energy for Thorium (MeV)
-        calibration_energies = [1.46, 2.60]
-        calibration_bins = [energy_bins[s] for s in flagged_indices]
-        print('For NaI:', file=spectra_conversions)
-        for i in range(2):
-            print(f'{calibration_bins[i]} V = {calibration_energies[i]} MeV', file=spectra_conversions)
+        if len(calibration_bins) == 2:
+            print('For NaI:', file=spectra_conversions)
+            for i in range(2):
+                print(f'{calibration_bins[i]} V = {calibration_energies[i]} MeV', file=spectra_conversions)
 
-        self.set_attribute('NaI', 'calibration_energies', calibration_energies)
-        self.set_attribute('NaI', 'calibration_bins', calibration_bins)
+            self.set_attribute('NaI', 'calibration_energies', calibration_energies)
+            self.set_attribute('NaI', 'calibration_bins', calibration_bins)
+        else:
+            if self.log is not None:
+                print('Cannot calibrate NaI (missing peaks)...', file=self.log)
+
+            if self.print_feedback:
+                print('Cannot calibrate NaI (missing peaks)...')
 
         return flagged_indices
 
@@ -730,15 +745,13 @@ class Detector:
                                int(template['indices'].iloc[1] + shift_amount)]
         except FileNotFoundError:
             if self.log is not None:
-                print('No LP template found for this location...', file=self.log)
+                print('Cannot calibrate LP (no template for this location)...', file=self.log)
 
             if self.print_feedback:
-                print('No LP template found for this location...')
+                print('Cannot calibrate LP (no template for this location)...')
 
         spectra_frame['LP'] = energy_hist
-        # 1.242 is the Compton edge energy for Potassium 40 (MeV)
-        # 2.381 is the Compton edge energy for Thorium (MeV)
-        calibration_energies = [1.242, 2.381]
+        calibration_energies = [params.K40_EDGE_ENERGY, params.T_EDGE_ENERGY]
         calibration_bins = [energy_bins[s] for s in flagged_indices]
         if len(calibration_bins) == 2:
             print('For LP:', file=spectra_conversions)
