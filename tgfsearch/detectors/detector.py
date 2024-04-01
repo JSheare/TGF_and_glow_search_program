@@ -86,8 +86,7 @@ class Detector:
 
         # Detector-specific information
         self.long_event_scint_list = []
-        self.calibration_params = {'bin_range': 0, 'bin_size': 0, 'band_starts': [0, 0],
-                                   'band_ends': [0, 0], 'template_bin_plot_edge': 0}
+        self.calibration_params = {'bin_range': 0, 'bin_size': 0, 'template_bin_plot_edge': 0}
         self.default_data_loc = ''
         self.import_loc = ''
         self.results_loc = os.getcwd()

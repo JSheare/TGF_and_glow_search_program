@@ -8,8 +8,7 @@ class Thor(Detector):
         super().__init__(unit, date_str, modes, print_feedback)
 
         self.long_event_scint_list = ['NaI']
-        self.calibration_params = {'bin_range': 65535.0, 'bin_size': 1, 'band_starts': [5600, 10833],
-                                   'band_ends': [6300, 12499], 'template_bin_plot_edge': 8000}
+        self.calibration_params = {'bin_range': 65535.0, 'bin_size': 1, 'template_bin_plot_edge': 8000}
         self.default_data_loc = '/media/tgfdata/Detectors/THOR'
         self.location = self.get_location(self.default_data_loc)
         self.import_loc = f'{self.default_data_loc}/{self.unit}/Data/{self.date_str}'
