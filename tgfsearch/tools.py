@@ -201,7 +201,7 @@ def pickle_detector(detector, file_name, path=None):
 
     Parameters
     ----------
-    detector : Detector object
+    detector : Detector
         The detector to be pickled.
     file_name : str
         The name of the pickle file.
@@ -276,32 +276,45 @@ def unpickle_chunk(chunk_path):
 
 
 def filter_files(complete_filelist):
-    """Returns an ordered list of files with duplicate/incompatible files filtered out."""
+    """Returns an ordered list of files with duplicate/invalid files filtered out."""
     unique_files = set()
-    files = []
+    file_names = []
     extensions = []
     for file in complete_filelist:
-        # Filters out trace mode files and .txtp files (whatever those are)
-        if file[-3:] == 'xtr' or file[-4:] == 'txtp' or file[-5:] == 'xtrpp':
-            continue
-        # Filters out duplicates
+        dot_index = len(file) - 4 if file[-3:] == '.gz' else len(file) - 1
+        while file[dot_index] != '.' and dot_index >= 0:
+            dot_index -= 1
+
+        full_extension = file[dot_index:]
+        if full_extension in ['.txt', '.txt.gz', '.xtr', '.xtr.gz', '.csv']:  # valid files
+            file_name = file[:dot_index]
         else:
-            if file[-7:] == '.txt.gz':
-                file = file[:-7]
-                extension = '.txt.gz'
-            elif file[-4:] == '.txt':
-                file = file[:-4]
-                extension = '.txt'
-            else:
-                file = file[:-4]
-                extension = '.csv'
+            continue
 
-            if file not in unique_files:
-                unique_files.add(file)
-                files.append(file)
-                extensions.append(extension)
+        if file_name not in unique_files:
+            unique_files.add(file_name)
+            file_names.append(file_name)
+            extensions.append(full_extension)
 
-    return [files[s] + extensions[s] for s in np.argsort(files)]  # Puts the files back in order
+    return [file_names[s] + extensions[s] for s in np.argsort(file_names)]  # Puts the files back in order
+
+
+def separate_files(filelist):
+    """Returns a pair of ordered lists: one with list mode files, the other with trace files."""
+    lm_filelist = []
+    trace_filelist = []
+    for file in filelist:
+        dot_index = len(file) - 4 if file[-3:] == '.gz' else len(file) - 1
+        while file[dot_index] != '.' and dot_index >= 0:
+            dot_index -= 1
+
+        full_extension = file[dot_index:]
+        if full_extension in ['.txt', '.txt.gz', '.csv']:
+            lm_filelist.append(file)
+        else:
+            trace_filelist.append(file)
+
+    return lm_filelist, trace_filelist
 
 
 def convert_to_local(detector, event_time):
@@ -309,7 +322,7 @@ def convert_to_local(detector, event_time):
 
     Parameters
     ----------
-    detector : sc.Detector
+    detector : Detector
         The detector object where the date is stored
     event_time : float
         The time of the day when the event occurred in seconds since the beginning of the day.
@@ -608,10 +621,11 @@ def combine_data(detector):
     wallclock = []
     count_scints = []
     for scintillator in detector:
-        times.append(detector.get_attribute(scintillator, 'time'))
-        energies.append(detector.get_attribute(scintillator, 'energy'))
-        wallclock.append(detector.get_attribute(scintillator, 'wc'))
-        count_scints.append([scintillator] * len(times[-1]))
+        if detector.data_present_in(scintillator):
+            times.append(detector.get_attribute(scintillator, 'time'))
+            energies.append(detector.get_attribute(scintillator, 'energy'))
+            wallclock.append(detector.get_attribute(scintillator, 'wc'))
+            count_scints.append([scintillator] * len(times[-1]))
 
     times = np.concatenate(times)
     energies = np.concatenate(energies)

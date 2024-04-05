@@ -279,12 +279,12 @@ def short_event_search(detector, modes, prev_event_numbers=None, low_mem=False):
                     for j in range(event.start, event.stop):
                         if count_scints[j] not in filelist_dict:
                             filelist_dict[count_scints[j]] = detector.get_attribute(
-                                count_scints[j], 'filelist')
+                                count_scints[j], 'lm_filelist')
                             filetime_extrema_dict[count_scints[j]] = detector.get_attribute(
-                                count_scints[j], 'filetime_extrema')
+                                count_scints[j], 'lm_filetime_extrema')
                 else:
-                    filelist_dict = {scintillator: detector.get_attribute(scintillator, 'filelist')}
-                    filetime_extrema_dict = {scintillator: detector.get_attribute(scintillator, 'filetime_extrema')}
+                    filelist_dict = {scintillator: detector.get_attribute(scintillator, 'lm_filelist')}
+                    filetime_extrema_dict = {scintillator: detector.get_attribute(scintillator, 'lm_filetime_extrema')}
 
                 (event_file_dict,
                  filelist_dict,
@@ -325,7 +325,7 @@ def long_event_cutoff(detector, modes, chunk=None):
     # Checks to see that data is present in all preferred scintillators. Otherwise, uses the default scintillator.
     long_event_scintillators = operating_obj.long_event_scint_list
     for scintillator in operating_obj.long_event_scint_list:
-        if not operating_obj.is_data_present(scintillator):
+        if not operating_obj.data_present_in(scintillator):
             long_event_scintillators = [operating_obj.default_scintillator]
             break
 
@@ -629,21 +629,21 @@ def long_event_search(detector, modes, times, existing_hist=None, low_mem=False)
 
             long_event_scintillators = detector.long_event_scint_list
             for scintillator in detector.long_event_scint_list:
-                if not detector.is_data_present(scintillator):
+                if not detector.data_present_in(scintillator):
                     long_event_scintillators = [detector.default_scintillator]
                     break
 
             for scintillator in long_event_scintillators:
                 print(f'{scintillator}:', file=event_file)
-                filelist = detector.get_attribute(scintillator, 'filelist')
-                filetime_extrema = detector.get_attribute(scintillator, 'filetime_extrema')
+                lm_filelist = detector.get_attribute(scintillator, 'lm_filelist')
+                lm_filetime_extrema = detector.get_attribute(scintillator, 'lm_filetime_extrema')
                 files_added = 0
-                for j in range(len(filetime_extrema)):
-                    first_time = filetime_extrema[j][0]
-                    last_time = filetime_extrema[j][1]
+                for j in range(len(lm_filetime_extrema)):
+                    first_time = lm_filetime_extrema[j][0]
+                    last_time = lm_filetime_extrema[j][1]
                     if first_time <= glow.start_sec <= last_time or \
                             first_time <= glow.stop_sec <= last_time:
-                        print(filelist[j], file=event_file)
+                        print(lm_filelist[j], file=event_file)
                         files_added += 1
                     else:
                         if files_added > 0:
@@ -678,6 +678,25 @@ def long_event_search(detector, modes, times, existing_hist=None, low_mem=False)
     tl.make_path(hist_path)
     plt.savefig(f'{hist_path}{detector.date_str}_histogram.png', dpi=500)
     plt.close(figure)
+
+
+# A little generator for dividing lists into even-ish parts (used in low memory mode)
+def divide_list(lst, num_parts):
+    index = int(len(lst) / num_parts)
+    part = 1
+    if index == 0:
+        yield lst
+        lst = []
+        part += 1
+
+    while part <= num_parts:
+        if part < num_parts:
+            yield lst[:index]
+            lst = lst[index:]
+        else:
+            yield lst
+
+        part += 1
 
 
 # Gets necessary info from command line args and then runs the program
@@ -774,6 +793,13 @@ def program(first_date, second_date, unit, mode_info):
 
             # raise MemoryError  # for low memory mode testing
 
+            # Checks to see that necessary list mode data is present
+            if not detector.data_present_in(detector.default_scintillator):
+                print('\n')
+                tl.print_logger('No/missing necessary data for specified day.', detector.log)
+                print('\n')
+                raise FileNotFoundError('data missing for one or more scintillators.')
+
             print('\n')
             print('Done.')
 
@@ -824,13 +850,11 @@ def program(first_date, second_date, unit, mode_info):
                 tl.print_logger('Not enough memory. Entering low memory mode...', detector.log)
                 tl.print_logger('\n', detector.log)
                 # Measures the total combined size of all the data files
-                total_file_size = 0
+                total_file_size = detector.calculate_fileset_size()
                 for scintillator in detector:
-                    master_filelist = detector.get_attribute(scintillator, 'filelist')
                     # Clears leftover data (just to be sure)
-                    detector.set_attribute(scintillator, ['frame', 'filetime_extrema'], [pd.DataFrame(), []])
-                    for file in master_filelist:
-                        total_file_size += os.path.getsize(file)
+                    detector.set_attribute(scintillator, ['lm_frame', 'lm_filetime_extrema', 'traces'],
+                                           [pd.DataFrame(), [], {}])
 
                 gc.collect()
 
@@ -860,18 +884,13 @@ def program(first_date, second_date, unit, mode_info):
                 chunk_scint_list = chunk_list[0].scint_list
 
                 for scintillator in detector:
-                    current_filelist = detector.get_attribute(scintillator, 'filelist')
-                    filelist_len = len(current_filelist)
-                    chunk_num = 1
+                    lm_filelist_chunks = divide_list(detector.get_attribute(scintillator, 'lm_filelist'),
+                                                     num_chunks)
+                    trace_filelist_chunks = divide_list(detector.get_attribute(scintillator, 'trace_filelist'),
+                                                        num_chunks)
                     for chunk in chunk_list:
-                        if chunk_num == num_chunks:
-                            chunk.set_attribute(scintillator, 'filelist', current_filelist)
-                        else:
-                            filelist_chunk = current_filelist[:int(filelist_len / num_chunks)]
-                            chunk.set_attribute(scintillator, 'filelist', filelist_chunk)
-                            current_filelist = current_filelist[int(filelist_len / num_chunks):]
-
-                        chunk_num += 1
+                        chunk.set_attribute(scintillator, 'lm_filelist', next(lm_filelist_chunks))
+                        chunk.set_attribute(scintillator, 'trace_filelist', next(trace_filelist_chunks))
 
                 # Imports data to each chunk and then pickles the chunks (and checks that data is actually present)
                 print('Importing data...')
@@ -881,7 +900,6 @@ def program(first_date, second_date, unit, mode_info):
                 # Temporary pickle feature for low memory mode. REMOVE WHEN PROGRAM IS FINISHED
                 pickled_chunk_paths = glob.glob(f'{detector.get_results_loc()}/Results/{unit}/{date_str}/chunk*.pickle')
                 pickled_chunk_paths.sort()
-                missing_data = False
                 if modes['pickle'] and len(pickled_chunk_paths) > 0:
                     chunk_path_list = pickled_chunk_paths
                 else:
@@ -891,122 +909,120 @@ def program(first_date, second_date, unit, mode_info):
 
                     for chunk in chunk_list:
                         # Updates chunk to include previous chunk's passtime
-                        chunk.update_passtime(passtime_dict)
+                        chunk.set_passtime(passtime_dict)
 
                         tl.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
                         chunk.import_data(existing_filelists=True, ignore_missing=False)
 
                         # Checking that data is present in the necessary scintillators
 
-                        # Aborts the program for the day if necessary scintillator data is missing in any of the chunks
-                        if not chunk:
-                            missing_data = True
+                        # Skips the day if necessary list mode data is missing in any of the chunks
+                        if not chunk.data_present_in(chunk.default_scintillator):
                             print('\n')
-                            print('\n', file=detector.log)
-                            tl.print_logger('No/Missing data for specified day.', detector.log)
+                            tl.print_logger('No/missing necessary data for specified day.', detector.log)
                             print('\n')
-                            for chunk_path in chunk_path_list:
-                                os.remove(chunk_path)
+                            raise FileNotFoundError('data missing for one or more scintillators.')
 
-                            break
-                        # Otherwise runs normally
-                        else:
-                            print('\n')
-                            # Makes a full list of filetime extrema for long event search
-                            for scintillator in chunk:
-                                extrema = detector.get_attribute(scintillator, 'filetime_extrema')
-                                extrema += chunk.get_attribute(scintillator, 'filetime_extrema')
-                                detector.set_attribute(scintillator, 'filetime_extrema', extrema)
+                        # Makes a full list of filetime extrema for long event search
+                        for scintillator in chunk:
+                            extrema = detector.get_attribute(scintillator, 'lm_filetime_extrema')
+                            extrema += chunk.get_attribute(scintillator, 'lm_filetime_extrema')
+                            detector.set_attribute(scintillator, 'lm_filetime_extrema', extrema)
 
-                            # Updates passtime
-                            passtime_dict = chunk.return_passtime()
+                        # Updates passtime
+                        passtime_dict = chunk.get_passtime()
 
-                            # Pickle chunk and add its path to the list
-                            chunk_path_list.append(tl.pickle_chunk(chunk, f'chunk{chunk_num}'))
+                        # Pickle chunk and add its path to the list
+                        chunk_path_list.append(tl.pickle_chunk(chunk, f'chunk{chunk_num}'))
 
-                            # Eliminates the chunk from active memory
-                            del chunk
-                            gc.collect()
-                            chunk_list[chunk_num - 1] = 0
+                        # Eliminates the chunk from active memory
+                        del chunk
+                        gc.collect()
+                        chunk_list[chunk_num - 1] = 0
 
-                            chunk_num += 1
-
-                if not missing_data:
-                    print('Done.')
-
-                    # Calibrates each scintillator
-                    if not modes['skcali']:
+                        chunk_num += 1
                         print('\n')
-                        tl.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
-                        existing_spectra = {scintillator: np.array([]) for scintillator in chunk_scint_list}
-                        for chunk_path in chunk_path_list:
-                            chunk = tl.unpickle_chunk(chunk_path)
-                            existing_spectra = chunk.make_spectra_hist(existing_spectra)
-                            del chunk
 
-                        # Calling the calibration algorithm
-                        detector.calibrate(existing_spectra=existing_spectra, plot_spectra=True,
-                                           make_template=modes['template'])
+                print('Done.')
 
-                        tl.print_logger('Done.', detector.log)
+                # Calibrates each scintillator
+                if not modes['skcali']:
+                    print('\n')
+                    tl.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
+                    existing_spectra = {scintillator: np.array([]) for scintillator in chunk_scint_list}
+                    for chunk_path in chunk_path_list:
+                        chunk = tl.unpickle_chunk(chunk_path)
+                        existing_spectra = chunk.make_spectra_hist(existing_spectra)
+                        del chunk
 
-                    # Short event search
-                    if not modes['skshort']:
-                        tl.print_logger('\n', detector.log)
-                        tl.print_logger('Starting search for short events...', detector.log)
-                        tl.print_logger('Warning! In low memory mode, short events '
-                                        'will be ranked on a per-chunk basis.',
-                                        detector.log)
-                        tl.print_logger('\n', detector.log)
-                        existing_event_numbers = {scintillator: 0 for scintillator in chunk_scint_list}
+                    # Calling the calibration algorithm
+                    detector.calibrate(existing_spectra=existing_spectra, plot_spectra=True,
+                                       make_template=modes['template'])
 
-                        chunk_num = 1
-                        for chunk_path in chunk_path_list:
-                            chunk = tl.unpickle_chunk(chunk_path)
-                            chunk.log = log
-                            tl.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
-                            print('\n')
+                    tl.print_logger('Done.', detector.log)
 
-                            # Calling the short event search algorithm
-                            existing_event_numbers = short_event_search(chunk, modes,
-                                                                        existing_event_numbers, low_mem=True)
+                # Short event search
+                if not modes['skshort']:
+                    tl.print_logger('\n', detector.log)
+                    tl.print_logger('Starting search for short events...', detector.log)
+                    tl.print_logger('Warning! In low memory mode, short events '
+                                    'will be ranked on a per-chunk basis.',
+                                    detector.log)
+                    tl.print_logger('\n', detector.log)
+                    existing_event_numbers = {scintillator: 0 for scintillator in chunk_scint_list}
 
-                            del chunk
-                            gc.collect()
-                            chunk_num += 1
+                    chunk_num = 1
+                    for chunk_path in chunk_path_list:
+                        chunk = tl.unpickle_chunk(chunk_path)
+                        chunk.log = log
+                        tl.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
+                        print('\n')
 
-                            tl.print_logger('Done.', detector.log)
-                            tl.print_logger('\n', detector.log)
+                        # Calling the short event search algorithm
+                        existing_event_numbers = short_event_search(chunk, modes,
+                                                                    existing_event_numbers, low_mem=True)
 
-                    # Long event search
-                    if not modes['skglow']:
-                        tl.print_logger('Starting search for glows...', detector.log)
-                        le_hist = np.array([])
-                        for chunk_path in chunk_path_list:
-                            chunk = tl.unpickle_chunk(chunk_path)
-                            # Converts energy channels to MeV using the locations of peaks/edges
-                            # obtained during calibration
-                            le_times = long_event_cutoff(detector, modes, chunk)
-
-                            # Histograms the counts from each chunk and combines them with the main one
-                            chunk_hist = long_event_search(detector, modes, le_times, low_mem=True)
-                            le_hist = chunk_hist if len(le_hist) == 0 else le_hist + chunk_hist
-
-                            del chunk
-                            gc.collect()
-
-                        # Calling the long event search algorithm
-                        long_event_search(detector, modes, np.array([]), existing_hist=le_hist)
+                        del chunk
+                        gc.collect()
+                        chunk_num += 1
 
                         tl.print_logger('Done.', detector.log)
                         tl.print_logger('\n', detector.log)
 
-                    log.close()
-                    # Deletes chunk .pickle files
-                    # REMOVE CONDITIONAL STATEMENT WHEN PROGRAM IS DONE
-                    if not modes['pickle']:
-                        for chunk_path in chunk_path_list:
-                            os.remove(chunk_path)
+                # Long event search
+                if not modes['skglow']:
+                    tl.print_logger('Starting search for glows...', detector.log)
+                    le_hist = np.array([])
+                    for chunk_path in chunk_path_list:
+                        chunk = tl.unpickle_chunk(chunk_path)
+                        # Converts energy channels to MeV using the locations of peaks/edges
+                        # obtained during calibration
+                        le_times = long_event_cutoff(detector, modes, chunk)
+
+                        # Histograms the counts from each chunk and combines them with the main one
+                        chunk_hist = long_event_search(detector, modes, le_times, low_mem=True)
+                        le_hist = chunk_hist if len(le_hist) == 0 else le_hist + chunk_hist
+
+                        del chunk
+                        gc.collect()
+
+                    # Calling the long event search algorithm
+                    long_event_search(detector, modes, np.array([]), existing_hist=le_hist)
+
+                    tl.print_logger('Done.', detector.log)
+                    tl.print_logger('\n', detector.log)
+
+                log.close()
+                # Deletes chunk .pickle files
+                # REMOVE CONDITIONAL STATEMENT WHEN PROGRAM IS DONE
+                if not modes['pickle']:
+                    for chunk_path in chunk_path_list:
+                        os.remove(chunk_path)
+
+            except MemoryError:
+                tl.print_logger('\n', detector.log)
+                tl.print_logger('Cannot complete search. Too little memory available on system.', detector.log)
+                tl.print_logger('\n', detector.log)
 
             except FileNotFoundError:
                 pass

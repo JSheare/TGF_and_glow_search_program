@@ -301,7 +301,6 @@ class ShortEvent:
             energies_dict = {self.scintillator: energies[left_edge:right_edge]}
 
         event_times = times[self.start:self.stop]
-        event_length = event_times[-1] - event_times[0]  # in seconds
 
         figure1 = plt.figure(figsize=[20, 11.0], dpi=150.)
         figure1.suptitle(f'{"CM" if count_scints is not None else self.scintillator} Event {str(event_number)}, '
