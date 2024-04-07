@@ -165,19 +165,19 @@ def enqueue(gui, search_queue, program_modes):
 
 
 # Starts the search program when the start button is clicked
-def start(gui, event, search_queue, program_modes):
+def start(gui, communicator, search_queue, program_modes):
     enqueue(gui, search_queue, program_modes)
     if not search_queue.empty():
         # Runs the search manager in a different thread to prevent the GUI from locking up
-        search_thread = threading.Thread(target=run, args=(0, gui, event, search_queue))
+        search_thread = threading.Thread(target=run, args=(gui, communicator, search_queue))
         search_thread.start()
 
 
 # Stops the search script when the stop button is clicked
-def stop(event):
-    if event.running:
+def stop(communicator):
+    if communicator.running:
         print('Halting program execution...')
-        event.set()
+        communicator.set()
 
 
 # Here to redirect stdout and stderr from the search program
@@ -193,10 +193,10 @@ def program_wrapper(write, first_date, second_date, unit, mode_info):
 
 
 # Runs and manages the search program in another process
-def run(arg, gui, event, search_queue):  # The useless arg is unfortunately necessary or threading complains
+def run(gui, communicator, search_queue):
     if not search_queue.empty():
         disable_elements(gui)
-        event.running = True
+        communicator.running = True
 
     while not search_queue.empty():
         info = search_queue.get_nowait()
@@ -218,7 +218,7 @@ def run(arg, gui, event, search_queue):  # The useless arg is unfortunately nece
         process = multiprocessing.Process(target=program_wrapper,
                                           args=(write, first_date, second_date, unit, mode_info))
         process.start()
-        while process.is_alive() and not event.is_set():
+        while process.is_alive() and not communicator.is_set():
             # Prints the processes' piped stdout (which in turn gets printed to the text box in the gui)
             if read.poll():
                 print(read.recv(), end='')
@@ -227,8 +227,8 @@ def run(arg, gui, event, search_queue):  # The useless arg is unfortunately nece
             process.terminate()
             break
 
-    event.clear()
-    event.running = False
+    communicator.clear()
+    communicator.running = False
     print('Search Concluded.\n')
     enable_elements(gui)
 
@@ -242,11 +242,11 @@ def update_counter(gui, search_queue):
 
 # Resets all the text entry boxes and tick boxes, as well as the big text box, when the reset button is clicked.
 # Also empties the search queue
-def reset(gui, event, search_queue, program_modes, variables):
+def reset(gui, communicator, search_queue, program_modes, variables):
     while not search_queue.empty():  # Emptying the search queue
         search_queue.get_nowait()
 
-    stop(event)
+    stop(communicator)
 
     text_box = gui.nametowidget('text_box')
     text_box['state'] = tk.NORMAL
@@ -275,7 +275,7 @@ def main():
     program_modes = []
     search_queue = Queue()  # Threadsafe queue that holds all the enqueued days
     variables = []  # Checkbox on/off variables
-    event = Communicator()
+    communicator = Communicator()
 
     os_windows = True if platform.system() == 'Windows' else False
     correct_coord = lambda coord1, coord2: coord1 if os_windows else coord2
@@ -306,16 +306,16 @@ def main():
 
     # Start and Stop buttons
     start_button = tk.Button(gui, height=3, width=10, text='Start', bg='white', name='start_button',
-                             command=lambda: start(gui, event, search_queue, program_modes))
+                             command=lambda: start(gui, communicator, search_queue, program_modes))
     stop_button = tk.Button(gui, height=3, width=10, text='Stop', bg='white', name='stop_button',
-                            command=lambda: stop(event))
+                            command=lambda: stop(communicator))
 
     start_button.place(x=correct_coord(430, 417), y=correct_coord(510, 540))
     stop_button.place(x=correct_coord(570, 557), y=correct_coord(510, 540))
 
     # Input/queue reset button
     reset_button = tk.Button(gui, height=4, width=15, text='Reset/\nClear Queue', bg='white', name='reset_button',
-                             command=lambda: reset(gui, event, search_queue, program_modes, variables))
+                             command=lambda: reset(gui, communicator, search_queue, program_modes, variables))
 
     reset_button.place(x=correct_coord(810, 796), y=correct_coord(510, 540))
 

@@ -820,11 +820,11 @@ def divide_list(lst, num_parts):
 
 # Gets necessary info from command line args and then runs the program
 def main():
-    try:
+    if len(sys.argv) >= 4:
         first_date = str(sys.argv[1])
         second_date = str(sys.argv[2])
         unit = str(sys.argv[3])
-    except IndexError:
+    else:
         print('Please provide a first date, a second date, and a unit name.')
         exit()
 
@@ -837,9 +837,9 @@ def main():
         print('Not a valid date range.')
         exit()
 
-    try:
+    if len(sys.argv) > 4:
         mode_info = sys.argv[4:]
-    except IndexError:
+    else:
         mode_info = []
 
     program(first_date, second_date, unit, mode_info)

@@ -69,8 +69,21 @@ def search(unit, checked_dates, data_path, results_path, auto_search_path):
 
 
 def main():
-    results_path = '/home/jacob/search'
-    auto_search_path = results_path + '/Autosearch'
+    if len(sys.argv) >= 2:
+        results_path = sys.argv[1].replace('\\', '/')
+    else:
+        results_path = os.getcwd().replace('\\', '/')
+
+    if len(sys.argv) >= 3:
+        auto_search_path = sys.argv[2].replace('\\', '/')
+    else:
+        auto_search_path = (os.getcwd() + '\\Autosearch').replace('\\', '/')
+
+    if len(sys.argv) >= 4:
+        data_dir = sys.argv[3].replace('\\', '/')
+    else:
+        data_dir = '/media/tgfdata/Detectors'
+
     tl.make_path(auto_search_path)
 
     # Checks to see if the program is already running (maybe the dataset it's checking is quite large or long)
@@ -98,35 +111,35 @@ def main():
         # Running the program on each of the detectors
 
         # THOR1
-        checked_dates = search('THOR1', checked_dates, '/media/tgfdata/Detectors/THOR' + '/THOR1/Data',
+        checked_dates = search('THOR1', checked_dates, data_dir + '/THOR/THOR1/Data',
                                results_path, auto_search_path)
 
         # THOR2
-        checked_dates = search('THOR2', checked_dates, '/media/tgfdata/Detectors/THOR' + '/THOR2/Data',
+        checked_dates = search('THOR2', checked_dates, data_dir + '/THOR/THOR2/Data',
                                results_path, auto_search_path)
 
         # THOR3
-        checked_dates = search('THOR3', checked_dates, '/media/tgfdata/Detectors/THOR' + '/THOR3/Data',
+        checked_dates = search('THOR3', checked_dates, data_dir + '/THOR/THOR3/Data',
                                results_path, auto_search_path)
 
         # THOR4
-        checked_dates = search('THOR4', checked_dates, '/media/tgfdata/Detectors/THOR' + '/THOR4/Data',
+        checked_dates = search('THOR4', checked_dates, data_dir + '/THOR/THOR4/Data',
                                results_path, auto_search_path)
 
         # THOR5
-        checked_dates = search('THOR5', checked_dates, '/media/tgfdata/Detectors/THOR' + '/THOR5/Data',
+        checked_dates = search('THOR5', checked_dates, data_dir + '/THOR/THOR5/Data',
                                results_path, auto_search_path)
 
         # THOR6
-        checked_dates = search('THOR6', checked_dates, '/media/tgfdata/Detectors/THOR' + '/THOR6/Data',
+        checked_dates = search('THOR6', checked_dates, data_dir + '/THOR/THOR6/Data',
                                results_path, auto_search_path)
 
         # GODOT
-        checked_dates = search('GODOT', checked_dates, '/media/tgfdata/Detectors/SANTIS/Data',
+        checked_dates = search('GODOT', checked_dates, data_dir + '/GODOT/Data',
                                results_path, auto_search_path)
 
         # SANTIS
-        checked_dates = search('SANTIS', checked_dates, '/media/tgfdata/Detectors/GODOT/Data',
+        checked_dates = search('SANTIS', checked_dates, data_dir + '/SANTIS/Data',
                                results_path, auto_search_path)
 
         # Deletes the pid file

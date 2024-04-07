@@ -15,7 +15,7 @@ import tgfsearch.parameters as params
 
 
 def print_logger(string, logfile):
-    """Prints the specified string to both the console and the specified text file.
+    """Prints the specified string to both stdout and the specified text file.
 
     Parameters
     ----------
@@ -61,30 +61,22 @@ def days_per_month(month, year):
 
     """
 
-    if month == 1:  # January
-        return 31
-    elif month == 2:  # February
-        return 29 if year % 4 == 0 or (year % 100 != 0 and year % 400 == 0) else 28
-    elif month == 3:  # March
-        return 31
-    elif month == 4:  # April
-        return 30
-    elif month == 5:  # May
-        return 31
-    elif month == 6:  # June
-        return 30
-    elif month == 7:  # July
-        return 31
-    elif month == 8:  # August
-        return 31
-    elif month == 9:  # September
-        return 30
-    elif month == 10:  # October
-        return 31
-    elif month == 11:  # November
-        return 30
-    else:  # December
-        return 31
+    if 1 <= month <= 12:
+        month_dict = {1: 31,   # January
+                      2: 29 if year % 4 == 0 or (year % 100 != 0 and year % 400 == 0) else 28,  # February
+                      3: 31,   # March
+                      4: 30,   # April
+                      5: 31,   # May
+                      6: 30,   # June
+                      7: 31,   # July
+                      8: 31,   # August
+                      9: 30,   # September
+                      10: 31,  # October
+                      11: 30,  # November
+                      12: 31}  # December
+        return month_dict[month]
+
+    return 0
 
 
 def roll_date_forward(date_str):
@@ -132,6 +124,7 @@ def roll_date_backward(date_str):
         The calendar date before the one supplied (in yymmdd format).
 
     """
+
     date_int = int(date_str)
     date_int -= 1
     date_str = str(date_int)
@@ -381,13 +374,14 @@ def get_weather_conditions(full_date_str, event_time, detector, weather_cache):
         weather_from_score for a summary of what the scores mean.
 
     """
+
     if full_date_str in weather_cache and weather_cache[full_date_str] is not None:
         weather_table = weather_cache[full_date_str]
     else:
         weather_table = scrape_weather(full_date_str, detector.location['Station'])
         weather_cache[full_date_str] = weather_table
 
-    if weather_table is not None:
+    if not weather_table.empty:
         # Finds the time in the table that's closest to the time of the event
         index = 0
         best_diff = float('inf')
@@ -452,6 +446,7 @@ def scrape_weather(full_date_str, station):
         A pandas dataframe with weather information for the specified day.
 
     """
+
     try:
         chrome_options = Options()
         chrome_options.add_argument('--headless=new')  # Runs the chrome client in headless mode
@@ -468,7 +463,7 @@ def scrape_weather(full_date_str, station):
         return table  # This is a dataframe containing the table we want
 
     except:
-        return None
+        return pd.DataFrame()
 
 
 def dst_status(date_str):
@@ -485,6 +480,7 @@ def dst_status(date_str):
         A status for the date: inside if the date is inside dst, outside if out, or beginning/end for the boundaries.
 
     """
+
     year = int(params.CENTURY + date_str[0:2])
     month = int(date_str[2:4])
     day = int(date_str[4:])

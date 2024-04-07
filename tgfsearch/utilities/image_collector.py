@@ -13,11 +13,11 @@ import tgfsearch.tools as tl
 
 
 def main():
-    try:
+    if len(sys.argv) >= 4:
         first_date = str(sys.argv[1])
         second_date = str(sys.argv[2])
         unit = str(sys.argv[3])
-    except IndexError:
+    else:
         print('Please provide a first date, a second date, and a unit name.')
         exit()
 
