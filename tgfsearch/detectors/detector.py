@@ -370,6 +370,30 @@ class Detector:
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
+    def get_file_index(self, scintillator, count_time):
+        """Returns the index of the list mode file that the given count occurred in.
+
+        Parameters
+        ----------
+        scintillator : str
+            The scintillator that the count is from.
+        count_time : float
+            The time that the count occurred at (in seconds of day).
+
+        Returns
+        -------
+        int
+            The index of the file that the given count occurred in.
+
+        """
+
+        lm_filetime_extrema = self.get_attribute(scintillator, 'lm_filetime_extrema')
+        for i in range(len(lm_filetime_extrema)):
+            if lm_filetime_extrema[i][0] <= count_time <= lm_filetime_extrema[i][1]:
+                return i
+
+        return -1
+
     def get_passtime(self):
         """Returns a dictionary containing the passtime attributes for each of the detector's scintillators.
 

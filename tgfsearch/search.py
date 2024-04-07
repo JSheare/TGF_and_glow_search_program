@@ -129,7 +129,170 @@ def rank_events(detector, potential_events, times, energies):
 
 
 # Short event search algorithm
-def short_event_search(detector, modes, prev_event_numbers=None, low_mem=False):
+def find_short_events(detector, modes, scintillator, rollgap, times, energies):
+    stats = {
+        'total_potential_events': 0,
+        'total_threshold_reached': 0,
+        'removed_len': 0,
+        'removed_channel_ratio': 0,
+        'removed_low_energy': 0,
+        'removed_crs': 0
+    }
+
+    # Checks for an event by looking for a certain number of counts (rollgap + 1) in a small timeframe
+    potential_events = []
+    event_start = 0
+    event_length = 0
+    for i in range(len(times)):
+        rolled_index = i + rollgap if i + rollgap < len(times) else (i + rollgap) - len(times)
+        interval = times[rolled_index] - times[i]
+        if 0 < interval <= params.SHORT_EVENT_TIME_SPACING:
+            # Records the beginning index of a potential event
+            if event_length == 0:
+                event_start = i
+                event_length = 1 + rollgap  # 1 for first count, rollgap for the others
+                stats['total_potential_events'] += 1
+            # Measures the length of a potential event
+            else:
+                event_length += 1
+
+            # Counts the total number of times that the detection threshold was reached
+            stats['total_threshold_reached'] += 1
+
+        # Records the rough length of a potential event
+        if interval > params.SHORT_EVENT_TIME_SPACING and event_length > 0:
+            # Keeps potential event if it's longer than the specified minimum number of counts
+            if event_length >= params.SHORT_EVENT_MIN_COUNTS:
+                # Runs potential event through filters
+                if is_good_short_event(detector, modes, stats,
+                                       times, energies, event_start, event_length):
+                    potential_events.append(ShortEvent(event_start, event_length, scintillator))
+
+            else:
+                stats['removed_len'] += 1
+
+            event_start = 0
+            event_length = 0
+
+    tl.print_logger(f'\n{len(potential_events)} potential events recorded', detector.log)
+    if stats['removed_len'] > 0:
+        tl.print_logger(f'{stats["removed_len"]} events removed due to insufficient length', detector.log)
+
+    if stats['removed_channel_ratio'] > 0:
+        tl.print_logger(f'{stats["removed_channel_ratio"]} events removed due to noise '
+                        f'(bad high-to-low channel ratio)', detector.log)
+
+    if stats['removed_low_energy'] > 0:
+        tl.print_logger(f'{stats["removed_low_energy"]} events removed due to noise '
+                        f'(minimum energy threshold not reached)', detector.log)
+
+    if stats['removed_crs'] > 0:
+        tl.print_logger(f'{stats["removed_crs"]} events removed due to successive CRS', detector.log)
+
+    tl.print_logger(f'Detection threshold reached {stats["total_threshold_reached"]} times', detector.log)
+    print('\n', file=detector.log)
+
+    return potential_events
+
+
+# Makes the scatter plot for a short event
+def make_se_scatterplot(detector, event, times, energies, count_scints):
+    # Subplot timescales
+    timescales = [params.SE_TIMESCALE_ONE, params.SE_TIMESCALE_TWO, params.SE_TIMESCALE_THREE]
+
+    # Dot colors. Note that if an instrument with more than just NaI, SP, MP, and LP is ever added, this
+    # will result in key errors
+    colors = {'NaI': params.NAI_COLOR, 'SP': params.SP_COLOR, 'MP': params.MP_COLOR, 'LP': params.LP_COLOR}
+
+    # Truncated time and energy arrays to speed up scatter plot making
+    fraction_of_day = 1 / 128
+    spacer = int((len(times) * fraction_of_day) / 2)
+    left_edge = 0 if event.start - spacer < 0 else event.start - spacer
+    right_edge = (len(times) - 1) if event.stop + spacer > (len(times) - 1) else event.stop + spacer
+    if count_scints is not None:
+        times_dict, energies_dict = tl.separate_data(times, energies, count_scints, left_edge, right_edge)
+    else:
+        times_dict = {event.scintillator: times[left_edge:right_edge]}
+        energies_dict = {event.scintillator: energies[left_edge:right_edge]}
+
+    event_times = times[event.start:event.stop]
+
+    figure1 = plt.figure(figsize=[20, 11.0], dpi=150.)
+    figure1.suptitle(f'{event.scintillator} Event {str(event.number)}, '
+                     f'{dt.datetime.utcfromtimestamp(times[event.start] + detector.first_sec)} UTC, '
+                     f'{event.length} counts \n Weather: {tl.weather_from_score(event.weather_subscore)} \n'
+                     f'Rank: {event.rank}', fontsize=20)
+    ax1 = figure1.add_subplot(3, 1, 1)
+    ax2 = figure1.add_subplot(3, 1, 2)
+    ax3 = figure1.add_subplot(3, 1, 3)
+    ax_list = [ax1, ax2, ax3]
+    assert len(ax_list) == len(timescales)
+
+    best_time = event_times[np.argmin(np.abs(event_times - np.roll(event_times, 1)))]
+    for i in range(len(ax_list)):
+        ts = timescales[i]
+        ax = ax_list[i]
+        ax.set_xlim(xmin=best_time - (ts / 2), xmax=best_time + (ts / 2))
+
+        dot_size = 5 if ts == timescales[0] else 3  # makes larger dots for top plot
+        ax.set_yscale('log')
+        ax.set_ylim([0.5, 1e5])
+        for scintillator in times_dict:
+            ax.scatter(times_dict[scintillator], energies_dict[scintillator] + 0.6,
+                       s=dot_size, zorder=1, alpha=params.DOT_ALPHA, label=scintillator, color=colors[scintillator])
+
+        ax.set_xlabel(f'Time (Seconds, {ts}s total)')
+        ax.set_ylabel('Energy Channel')
+        # Lines appear (100*percent)% to the left or right of event start/stop depending on subplot timescale
+        percent = 0.001
+        # Event start line is orange, end line is red
+        ax.vlines([event_times[0] - percent * ts, event_times[-1] + percent * ts], 0, 1e5,
+                  colors=['orange', 'r'], linewidth=1, zorder=-1, alpha=0.3)
+
+    # Adds a legend to the plot if we're in combo mode
+    if count_scints is not None:
+        plt.legend(loc='lower right')
+
+    # Adds the name of the relevant list mode data file to the scatter plot
+    if count_scints is None:
+        plt.title(f'Obtained from {event.lm_files[event.scintillator]}', fontsize=15, y=-0.4)
+
+    # Saves the scatter plot
+    # Note: with this code, if an event happens in that 200-300 seconds of the next day that are included in the
+    # last file, the image will have the wrong date in its name (though the timestamp in the scatter plot title will
+    # always be correct)
+    scatter_path = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/scatterplots/'
+    tl.make_path(scatter_path)
+    event_num_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.number)))
+    rank_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.rank)))
+    figure1.savefig(f'{scatter_path}{detector.date_str}_{event.scintillator}_'
+                    f'event{event_num_padding}{event.number}_rank{rank_padding}{event.rank}.png')
+    plt.close(figure1)
+
+
+# Makes the json file for a short event
+def make_se_file(detector, event, times, energies, wallclock, count_scints):
+    eventpath = (f'{detector.get_results_loc()}/Results/{detector.unit}/'
+                 f'{detector.date_str}/event files/short events/')
+    tl.make_path(eventpath)
+    event_frame = pd.DataFrame()
+    event_frame['wc'] = wallclock[event.start:event.stop]
+    event_frame['SecondsOfDay'] = times[event.start:event.stop]
+    event_frame['energies'] = energies[event.start:event.stop]
+    event_frame['count_scintillator'] = count_scints[event.start:event.stop] if count_scints is not None else (
+            [event.scintillator] * event.length)
+    # Note: this column will be filled by the same string over and over again
+    event_frame['lm_file'] = ', '.join([event.lm_files[scintillator] for scintillator in event.lm_files])
+
+    # Saves the json file
+    event_num_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.number)))
+    rank_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.rank)))
+    event_frame.to_json(f'{eventpath}{detector.date_str}_{event.scintillator}_'
+                        f'event{event_num_padding}{event.number}_rank{rank_padding}{event.rank}.json')
+
+
+# Runs the short event search
+def short_event_search(detector, modes, prev_event_numbers=None):
     if modes['aircraft']:
         rollgap = params.AIRCRAFT_ROLLGAP
     elif modes['combo']:
@@ -137,22 +300,36 @@ def short_event_search(detector, modes, prev_event_numbers=None, low_mem=False):
     else:
         rollgap = params.NORMAL_ROLLGAP
 
+    # Making filelist and extrema dicts. These are essentially used to cache which list mode files haven't been
+    # looked at when trying to associate an event with a list mode file
+    if modes['allscints'] or modes['combo']:
+        filelist_dict = {scintillator: detector.get_attribute(scintillator, 'lm_filelist')
+                         for scintillator in detector}
+        extrema_dict = {scintillator: detector.get_attribute(scintillator, 'lm_filetime_extrema')
+                        for scintillator in detector}
+    else:
+        filelist_dict = {detector.default_scintillator: detector.get_attribute(
+            detector.default_scintillator, 'lm_filelist')}
+        extrema_dict = {detector.default_scintillator: detector.get_attribute(
+            detector.default_scintillator, 'lm_filetime_extrema')}
+
     event_numbers = prev_event_numbers if prev_event_numbers is not None else {}
-    for scintillator in detector:
-        if scintillator != detector.default_scintillator and not modes['allscints']:
+    for i in range(len(detector.scint_list)):
+        if detector.scint_list[i] != detector.default_scintillator and not modes['allscints']:
             continue
 
         # Combining data from all available scintillators
         if modes['combo']:
+            scintillator = 'CM'
             tl.print_logger('Searching combined scintillator data...', detector.log)
             (times,
              energies,
              wallclock,
              count_scints) = tl.combine_data(detector)
-            gc.collect()
 
         # Normal operating mode (one scintillator at a time)
         else:
+            scintillator = detector.scint_list[i]
             tl.print_logger(f'Searching eRC {detector.get_attribute(scintillator, "eRC")} '
                             f'({scintillator})...', detector.log)
             times = detector.get_attribute(scintillator, 'time')
@@ -163,67 +340,8 @@ def short_event_search(detector, modes, prev_event_numbers=None, low_mem=False):
         if detector.processed:
             times = times - detector.first_sec
 
-        stats = {
-            'total_potential_events': 0,
-            'total_threshold_reached': 0,
-            'removed_len': 0,
-            'removed_channel_ratio': 0,
-            'removed_low_energy': 0,
-            'removed_crs': 0
-        }
-
-        # Checks for an event by looking for a certain number of counts (rollgap + 1) in a small timeframe
-        potential_events = []
-        event_start = 0
-        event_length = 0
-        for i in range(len(times)):
-            rolled_index = i + rollgap if i + rollgap < len(times) else (i + rollgap) - len(times)
-            interval = times[rolled_index] - times[i]
-            if 0 < interval <= params.SHORT_EVENT_TIME_SPACING:
-                # Records the beginning index of a potential event
-                if event_length == 0:
-                    event_start = i
-                    event_length = 1 + rollgap  # 1 for first count, rollgap for the others
-                    stats['total_potential_events'] += 1
-                # Measures the length of a potential event
-                else:
-                    event_length += 1
-
-                # Counts the total number of times that the detection threshold was reached
-                stats['total_threshold_reached'] += 1
-
-            # Records the rough length of a potential event
-            if interval > params.SHORT_EVENT_TIME_SPACING and event_length > 0:
-                # Keeps potential event if it's longer than the specified minimum number of counts
-                if event_length >= params.SHORT_EVENT_MIN_COUNTS:
-                    # Runs potential event through filters
-                    if is_good_short_event(detector, modes, stats,
-                                           times, energies, event_start, event_length):
-                        potential_events.append(ShortEvent(event_start, event_length, scintillator))
-
-                else:
-                    stats['removed_len'] += 1
-
-                event_start = 0
-                event_length = 0
-
-        tl.print_logger(f'\n{len(potential_events)} potential events recorded', detector.log)
-        if stats['removed_len'] > 0:
-            tl.print_logger(f'{stats["removed_len"]} events removed due to insufficient length', detector.log)
-
-        if stats['removed_channel_ratio'] > 0:
-            tl.print_logger(f'{stats["removed_channel_ratio"]} events removed due to noise '
-                            f'(bad high-to-low channel ratio)', detector.log)
-
-        if stats['removed_low_energy'] > 0:
-            tl.print_logger(f'{stats["removed_low_energy"]} events removed due to noise '
-                            f'(minimum energy threshold not reached)', detector.log)
-
-        if stats['removed_crs'] > 0:
-            tl.print_logger(f'{stats["removed_crs"]} events removed due to successive CRS', detector.log)
-
-        tl.print_logger(f'Detection threshold reached {stats["total_threshold_reached"]} times', detector.log)
-        print('\n', file=detector.log)
+        # Finding potential events with the search algorithm in find_short_events
+        potential_events = find_short_events(detector, modes, scintillator, rollgap, times, energies)
 
         if len(potential_events) > 0:
             print('\n')
@@ -247,7 +365,7 @@ def short_event_search(detector, modes, prev_event_numbers=None, low_mem=False):
             plots_made = 0
             filecount_switch = True
             print('Potential short events:', file=detector.log)
-            for i in range(len(potential_events)):
+            for j in range(len(potential_events)):
                 # Stops making plots/event files/log entries after max reached
                 # This is to prevent the program getting stuck on lab test days (with hundreds of thousands of "events")
                 if (plots_made + plots_already_made) >= params.MAX_PLOTS_PER_SCINT:
@@ -261,7 +379,8 @@ def short_event_search(detector, modes, prev_event_numbers=None, low_mem=False):
                     print(f'Making {max_plots} plots...')
                     filecount_switch = False
 
-                event = potential_events[i]
+                event = potential_events[j]
+                event.number = j + 1 + plots_already_made
 
                 # Logs the event
                 start_second = times[event.start] - params.SEC_PER_DAY if times[event.start] > params.SEC_PER_DAY else (
@@ -273,30 +392,13 @@ def short_event_search(detector, modes, prev_event_numbers=None, low_mem=False):
                       f'Clumpiness: {event.clumpiness_subscore}, HEL: {event.hel_subscore}]\n',
                       file=detector.log)
 
-                if modes['combo']:
-                    filelist_dict = dict()
-                    filetime_extrema_dict = dict()
-                    for j in range(event.start, event.stop):
-                        if count_scints[j] not in filelist_dict:
-                            filelist_dict[count_scints[j]] = detector.get_attribute(
-                                count_scints[j], 'lm_filelist')
-                            filetime_extrema_dict[count_scints[j]] = detector.get_attribute(
-                                count_scints[j], 'lm_filetime_extrema')
-                else:
-                    filelist_dict = {scintillator: detector.get_attribute(scintillator, 'lm_filelist')}
-                    filetime_extrema_dict = {scintillator: detector.get_attribute(scintillator, 'lm_filetime_extrema')}
+                event.find_lm_filenames(filelist_dict, extrema_dict, times, count_scints)
 
-                (event_file_dict,
-                 filelist_dict,
-                 filetime_extrema_dict) = event.get_filenames(filelist_dict, filetime_extrema_dict, times, count_scints)
+                # Makes the scatter plot for the event
+                make_se_scatterplot(detector, event, times, energies, count_scints)
 
-                # Makes the scatter plot
-                event.make_scatterplot(i + 1 + plots_already_made, event_file_dict, detector, times, energies,
-                                       count_scints)
-
-                # Makes the event file
-                event.make_json(i + 1 + plots_already_made, event_file_dict, detector, times, energies,
-                                wallclock, count_scints)
+                # Makes a json file for the event
+                make_se_file(detector, event, times, energies, wallclock, count_scints)
 
                 plots_made += 1
 
@@ -307,13 +409,11 @@ def short_event_search(detector, modes, prev_event_numbers=None, low_mem=False):
         else:
             print('\n')
 
-        # In combo mode, we only need to run through this loop once. The number of events found is tracked
-        # in event_numbers by whichever scintillator the loop makes it to first (LP normally, NaI in 'allscints' mode)
+        # In combo mode, we only need to run through this loop once
         if modes['combo']:
             break
 
-    if low_mem:
-        return event_numbers
+    return event_numbers
 
 
 # Combines time data from several scintillators (if applicable) and cuts out counts below a certain energy
@@ -498,31 +598,7 @@ def calculate_rolling_baseline(day_bins, hist_allday, mue, sigma):
 
 
 # Long event search algorithm
-def long_event_search(detector, modes, times, existing_hist=None, low_mem=False):
-    # Makes one bin for every binsize seconds of the day (plus around 300 seconds more for the next day)
-    day_bins = np.arange(0, 86700 + params.BIN_SIZE, params.BIN_SIZE)
-
-    # Creates numerical values for histograms using numpy
-    if existing_hist is not None:
-        hist_allday = existing_hist
-    else:
-        hist_allday, bins_allday = np.histogram(times, bins=day_bins)
-        if low_mem:
-            return hist_allday
-
-    # Calculates mean
-    mue_val = calculate_mue(hist_allday)
-
-    # Note: mue is an array full of the mue values for each bin. On a normal day, mue will be
-    # filled entirely with mue_val. In aircraft mode, though, mue will be filled with a variety of different
-    # values dictated by the rolling baseline algorithm in calculate_rolling_baseline
-    mue = np.full(len(day_bins)-1, mue_val)
-    sigma = np.full(len(day_bins)-1, np.sqrt(mue_val))
-
-    # Calculating rolling baseline in aircraft mode
-    if modes['aircraft']:
-        mue, sigma = calculate_rolling_baseline(day_bins, hist_allday, mue, sigma)
-
+def find_long_events(modes, day_bins, hist_allday, mue, sigma):
     z_scores = []  # The z-scores themselves
     z_flags = []
     # Flags only those z-scores > params.FLAG_THRESH
@@ -563,10 +639,59 @@ def long_event_search(detector, modes, times, existing_hist=None, low_mem=False)
 
         potential_glows = a_potential_glows
 
+    return potential_glows
+
+
+# Makes the histogram subplots for long events
+def make_hist_subplot(ax, event, day_bins, hist_allday, mue, sigma):
+    left = 0 if (event.peak_index - params.LE_SUBPLOT_PADDING) < 0 else (event.peak_index - params.LE_SUBPLOT_PADDING)
+    right = (len(day_bins) - 2) if (event.peak_index + params.LE_SUBPLOT_PADDING) > (len(day_bins) - 2) else \
+        (event.peak_index + params.LE_SUBPLOT_PADDING)
+
+    sub_bins = day_bins[left:right]
+    ax.bar(sub_bins, hist_allday[left:right], alpha=params.LE_SUBPLOT_BAR_ALPHA,
+           color=params.LE_SUBPLOT_BAR_COLOR, width=params.BIN_SIZE)
+    ax.set_xlabel('Seconds of Day (UT)')
+    ax.set_ylabel('Counts/bin')
+    ax.plot(sub_bins, mue[left:right] + params.FLAG_THRESH * sigma[left:right],
+            color=params.LE_THRESH_LINE_COLOR, linestyle='dashed', linewidth=2)
+    ax.grid(True)
+
+
+# Runs the long event search
+def long_event_search(detector, modes, times, existing_hist=None, low_mem=False):
+    # Makes one bin for every binsize seconds of the day (plus around 300 seconds more for the next day)
+    day_bins = np.arange(0, 86700 + params.BIN_SIZE, params.BIN_SIZE)
+
+    # Creates numerical values for histograms using numpy
+    if existing_hist is not None:
+        hist_allday = existing_hist
+    else:
+        hist_allday, bins_allday = np.histogram(times, bins=day_bins)
+        if low_mem:
+            return hist_allday
+
+    # Calculates mean
+    mue_val = calculate_mue(hist_allday)
+
+    # Note: mue is an array full of the mue values for each bin. On a normal day, mue will be
+    # filled entirely with mue_val. In aircraft mode, though, mue will be filled with a variety of different
+    # values dictated by the rolling baseline algorithm in calculate_rolling_baseline
+    mue = np.full(len(day_bins)-1, mue_val)
+    sigma = np.full(len(day_bins)-1, np.sqrt(mue_val))
+
+    # Calculating rolling baseline in aircraft mode
+    if modes['aircraft']:
+        mue, sigma = calculate_rolling_baseline(day_bins, hist_allday, mue, sigma)
+
+    # Finding potential events with the search algorithm in find_long_events
+    potential_glows = find_long_events(modes, day_bins, hist_allday, mue, sigma)
+
     # Making histogram
     figure = plt.figure(figsize=[20, 11.0])
     plt.title(f'{detector.unit} at {detector.location["Location"]}, {detector.full_date_str}', loc='center')
     plt.tick_params(left=False, right=False, labelleft=False, labelbottom=False, bottom=False)
+
     ax1 = figure.add_subplot(5, 1, 1)  # Daily histogram
     # The 4 top events in descending order (if they exist)
     ax2 = figure.add_subplot(5, 1, 2)
@@ -574,15 +699,16 @@ def long_event_search(detector, modes, times, existing_hist=None, low_mem=False)
     ax4 = figure.add_subplot(5, 1, 4)
     ax5 = figure.add_subplot(5, 1, 5)
 
-    ax1.bar(day_bins[:-1], hist_allday, alpha=0.5, color='r', width=params.BIN_SIZE)
+    ax1.bar(day_bins[:-1], hist_allday, alpha=params.LE_MAIN_BAR_ALPHA,
+            color=params.LE_MAIN_BAR_COLOR, width=params.BIN_SIZE)
     ax1.set_xlabel('Seconds of Day (UT)')
     ax1.set_ylabel('Counts/bin')
-    ax1.plot(day_bins[:-1], mue + params.FLAG_THRESH * sigma, color='blue', linestyle='dashed')
+    ax1.plot(day_bins[:-1], mue + params.FLAG_THRESH * sigma, color=params.LE_THRESH_LINE_COLOR, linestyle='dashed')
 
     # Creates legend
-    allday_data = mpatches.Patch(color='r', label='All Energies')
-    allday_thresh_sigma = mpatches.Patch(color='blue', label=f'{params.FLAG_THRESH} Sigma Above All Energies',
-                                         linestyle='dashed')
+    allday_data = mpatches.Patch(color=params.LE_MAIN_BAR_COLOR, label='All Energies')
+    allday_thresh_sigma = mpatches.Patch(color=params.LE_THRESH_LINE_COLOR,
+                                         label=f'{params.FLAG_THRESH} Sigma Above All Energies', linestyle='dashed')
     ax1.legend(handles=[allday_data, allday_thresh_sigma, ], bbox_to_anchor=(1.05, 1), loc=1,
                borderaxespad=0.)
     ax1.grid(True)
@@ -590,21 +716,29 @@ def long_event_search(detector, modes, times, existing_hist=None, low_mem=False)
     tl.print_logger('Done.', detector.log)
 
     # Making event files and subplots (if they exist)
-    if len(potential_glows) == 0:
-        tl.print_logger('\n', detector.log)
-        tl.print_logger(f'There were no potential glows on {detector.full_date_str}', detector.log)
-    else:
-        # Logs potential glows and sorts them in descending order depending on their highest z-score
+    if len(potential_glows) > 0:
         tl.print_logger('\n', detector.log)
         tl.print_logger('Generating event files...', detector.log)
-        highest_scores = []
         print('\n', file=detector.log)
         print('Potential glows:', file=detector.log)
 
         eventpath = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/' \
                     f'event files/long events/'
         tl.make_path(eventpath)
-        event_number = 1
+
+        # Making filelist and extrema dicts. These are essentially used to cache which list mode files haven't been
+        # looked at when trying to associate an event with a list mode file
+        long_event_scintillators = detector.long_event_scint_list
+        for scintillator in detector.long_event_scint_list:
+            if not detector.data_present_in(scintillator):
+                long_event_scintillators = [detector.default_scintillator]
+                break
+
+        filelist_dict = {scintillator: detector.get_attribute(scintillator, 'lm_filelist')
+                         for scintillator in long_event_scintillators}
+        extrema_dict = {scintillator: detector.get_attribute(scintillator, 'lm_filetime_extrema')
+                        for scintillator in long_event_scintillators}
+
         files_made = 0
         filecount_switch = True
         for i in range(len(potential_glows)):
@@ -615,42 +749,22 @@ def long_event_search(detector, modes, times, existing_hist=None, low_mem=False)
                 filecount_switch = False
 
             glow = potential_glows[i]
-            highest_score = glow.highest_score
-            highest_scores.append(highest_score)
-            print(f'{dt.datetime.utcfromtimestamp(glow.start_sec + detector.first_sec)} UTC ({glow.start_sec} '
-                  f'seconds of day), {glow.stop_sec - glow.start_sec} seconds long, highest z-score: '
-                  f'{highest_score}', file=detector.log)
+            info = (f'{dt.datetime.utcfromtimestamp(glow.start_sec + detector.first_sec)} UTC ({glow.start_sec} '
+                    f'seconds of day), {glow.stop_sec - glow.start_sec} seconds long, highest z-score: '
+                    f'{glow.highest_score}')
 
-            event_file = open(f'{eventpath}{detector.date_str}_event{event_number}_zscore'
-                              f'{int(highest_score)}.txt', 'w')
-            print(f'{dt.datetime.utcfromtimestamp(glow.start_sec + detector.first_sec)} UTC ({glow.start_sec} '
-                  f'seconds of day), {glow.stop_sec - glow.start_sec} seconds long, highest z-score: '
-                  f'{highest_score}', file=event_file)
+            # Logging the event
+            print(info, file=detector.log)
 
-            long_event_scintillators = detector.long_event_scint_list
-            for scintillator in detector.long_event_scint_list:
-                if not detector.data_present_in(scintillator):
-                    long_event_scintillators = [detector.default_scintillator]
-                    break
-
-            for scintillator in long_event_scintillators:
-                print(f'{scintillator}:', file=event_file)
-                lm_filelist = detector.get_attribute(scintillator, 'lm_filelist')
-                lm_filetime_extrema = detector.get_attribute(scintillator, 'lm_filetime_extrema')
-                files_added = 0
-                for j in range(len(lm_filetime_extrema)):
-                    first_time = lm_filetime_extrema[j][0]
-                    last_time = lm_filetime_extrema[j][1]
-                    if first_time <= glow.start_sec <= last_time or \
-                            first_time <= glow.stop_sec <= last_time:
-                        print(lm_filelist[j], file=event_file)
-                        files_added += 1
-                    else:
-                        if files_added > 0:
-                            break
+            # Making the event file
+            event_file = open(f'{eventpath}{detector.date_str}_event{i + 1}_zscore'
+                              f'{int(glow.highest_score)}.txt', 'w')
+            print(info, file=event_file)
+            glow.find_lm_filenames(filelist_dict, extrema_dict)
+            for scintillator in glow.lm_files:
+                print(f'{scintillator}: {glow.lm_files[scintillator]}', file=event_file)
 
             event_file.close()
-            event_number += 1
             files_made += 1
 
         if not modes['gui']:
@@ -658,16 +772,21 @@ def long_event_search(detector, modes, times, existing_hist=None, low_mem=False)
 
         tl.print_logger('Done.', detector.log)
 
-        potential_glows = [potential_glows[s] for s in np.argsort(highest_scores)[::-1]]
+        # Sorts the glows in descending order depending on their highest z-scores
+        potential_glows = sorted(potential_glows, key=lambda x: x.highest_score)[::-1]
 
         # Makes the histogram subplots
         ax_list = [ax2, ax3, ax4, ax5]
         for i in range(4):
             try:
                 glow = potential_glows[i]
-                glow.make_hist_subplot(ax_list[i], day_bins, hist_allday, mue, sigma)
+                make_hist_subplot(ax_list[i], glow, day_bins, hist_allday, mue, sigma)
             except IndexError:
-                continue
+                break
+
+    else:
+        tl.print_logger('\n', detector.log)
+        tl.print_logger(f'There were no potential glows on {detector.full_date_str}', detector.log)
 
     plt.tight_layout()
 
@@ -979,8 +1098,7 @@ def program(first_date, second_date, unit, mode_info):
                         print('\n')
 
                         # Calling the short event search algorithm
-                        existing_event_numbers = short_event_search(chunk, modes,
-                                                                    existing_event_numbers, low_mem=True)
+                        existing_event_numbers = short_event_search(chunk, modes, existing_event_numbers)
 
                         del chunk
                         gc.collect()

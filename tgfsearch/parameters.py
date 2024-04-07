@@ -54,6 +54,16 @@ CLUMPINESS_WEIGHT = 0.2
 HEL_WEIGHT = 0.2
 WEATHER_WEIGHT = 0.3
 
+# Scatter plot formatting parameters
+SE_TIMESCALE_ONE = 1e-4  # Subplot 1 timescale, 100 Microseconds
+SE_TIMESCALE_TWO = 0.005  # Subplot 2 timescale, 5 milliseconds
+SE_TIMESCALE_THREE = 2  # Subplot 3 timescale, 2 seconds
+NAI_COLOR = 'b'  # Color for NaI scintillator dots
+SP_COLOR = 'm'  # Color for small plastic scintillator dots
+MP_COLOR = 'g'  # Color for medium plastic scintillator dots
+LP_COLOR = 'darkgoldenrod'  # Color for large plastic scintillator dots
+DOT_ALPHA = 0.5  # Controls dot transparency
+
 
 """Long Event Search Parameters"""
 # Search algorithm parameters
@@ -65,3 +75,11 @@ LONG_EVENT_MIN_COUNTS = 1000  # Only in aircraft mode
 # Rolling baseline parameters
 WINDOW_SIZE = 20  # The number of bins in the window on each side
 WINDOW_GAP = 5  # The number of bins between the center bin and the start of the window on each side
+
+# Histogram subplot formatting parameters
+LE_MAIN_BAR_COLOR = 'r'  # The color of the bars on the whole-day subplot
+LE_MAIN_BAR_ALPHA = 0.5  # Controls the transparency of the bars in the whole-day subplot
+LE_THRESH_LINE_COLOR = 'blue'  # Color of line representing triggering threshold
+LE_SUBPLOT_PADDING = 20  # The max number of bins to pad a long event by on either side
+LE_SUBPLOT_BAR_COLOR = 'c'  # Color of histogram bars in the subplots
+LE_SUBPLOT_BAR_ALPHA = 0.5  # Controls the transparency of the bars in the subplots

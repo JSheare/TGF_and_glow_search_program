@@ -15,7 +15,7 @@ class Scintillator:
 
     Attributes
     ----------
-    frame : pd.DataFrame
+    lm_frame : pd.DataFrame
         A pandas dataframe containing all the scintillator's data.
     calibration_bins : list
         A list containing the energy bins corresponding to Compton edges/photo peaks used for calibration.
@@ -98,4 +98,4 @@ class Scintillator:
         if time_id in self.traces:
             return self.traces[time_id]
         else:
-            raise ValueError(f"No trace with name '{time_id}'.")
+            raise ValueError(f"No trace with name '{time_id}' for scintillator '{self.name}'.")
