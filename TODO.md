@@ -3,7 +3,6 @@
 - [ ] Add support for weather scraper files
 - [ ] Make template maker less laggy
 - [ ] Do a pass on all newline characters. They're a little haphazard right now
-- [ ] Update autosearch to use multiprocessing instead of subprocess (for parity with gui)
 - [ ] Improve docs for pydoc
 - [ ] Add Detector object howto to readme, along with attribute list
 - [ ] Set up deployment database

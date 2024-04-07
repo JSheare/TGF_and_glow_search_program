@@ -4,7 +4,11 @@ import os
 import shutil
 import sys
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
+# Adds grandparent directory to sys.path. Necessary to make the import below work when running this file as a script
+grandparent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+if grandparent_dir not in sys.path:
+    sys.path.append(grandparent_dir)
+
 import tgfsearch.tools as tl
 
 
