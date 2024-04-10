@@ -3,7 +3,6 @@
 - [ ] Add support for weather scraper files
 - [ ] Make template maker less laggy
 - [ ] Do a pass on all newline characters. They're a little haphazard right now
-- [ ] Improve docs for pydoc
 - [ ] Add Detector object howto to readme, along with attribute list
 - [ ] Set up deployment database
 
@@ -30,3 +29,4 @@
 - [x] Make package importable as a module
 - [x] Rework autosearch and image_collector
 - [x] Add section on custom import/export locs to command line search instructions
+- [x] Improve docs for pydoc

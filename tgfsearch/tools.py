@@ -15,13 +15,13 @@ import tgfsearch.parameters as params
 
 
 def print_logger(string, logfile):
-    """Prints the specified string to both stdout and the specified text file.
+    """Prints the specified string to both stdout and the specified file.
 
     Parameters
     ----------
     string : str
         The string to be printed/logged
-    logfile : file
+    logfile : _io.TextIO
         The file where the string should be written.
 
     """
@@ -190,17 +190,17 @@ def get_first_sec(date_str):
 
 
 def pickle_detector(detector, file_name, path=None):
-    """Pickles detector objects.
+    """Pickles Detectors.
 
     Parameters
     ----------
-    detector : Detector
-        The detector to be pickled.
+    detector : tgfsearch.detectors.detector.Detector
+        The Detector to be pickled.
     file_name : str
         The name of the pickle file.
     path : str
         Optional. The directory where the pickle file will be saved. If not provided, the file will be saved
-            to the detector's daily results directory.
+            to the Detector's daily results directory.
 
     Returns
     -------
@@ -226,19 +226,19 @@ def pickle_detector(detector, file_name, path=None):
 
 
 def unpickle_detector(pickle_path, mode_info=None):
-    """Unpickles detector objects.
+    """Unpickles Detectors.
 
     Parameters
     ----------
     pickle_path : str
-        The path (including file name) to the pickle file that the detector is stored in.
+        The path (including file name) to the pickle file that the Detector is stored in.
     mode_info : list
         Optional. A list of information about the requested modes the object should operate under.
 
     Returns
     -------
-    Detector
-        A detector-type object.
+    tgfsearch.detectors.detector.Detector
+        A Detector.
 
     """
 
@@ -311,18 +311,18 @@ def separate_files(filelist):
 
 
 def convert_to_local(detector, event_time):
-    """Converts the detector date and event time to what they would actually be in local time.
+    """Converts the Detector date and event time to what they would actually be in local time.
 
     Parameters
     ----------
-    detector : Detector
-        The detector object where the date is stored
+    detector : tgfsearch.detectors.detector.Detector
+        The Detector where the date is stored.
     event_time : float
         The time of the day when the event occurred in seconds since the beginning of the day.
 
     Returns
     -------
-    str / float
+    tuple[str, float]
         An updated date in local time and an updated event time in local time.
 
     """
@@ -353,19 +353,19 @@ def convert_to_local(detector, event_time):
     return short_to_full_date(date_str), event_time
 
 
-def get_weather_conditions(full_date_str, event_time, detector, weather_cache):
+def get_weather_conditions(detector, weather_cache, full_date_str, event_time):
     """Scrapes weather underground and returns the weather at the approximate time of an event.
 
     Parameters
     ----------
+    detector : tgfsearch.detectors.detector.Detector
+        The Detector that contains the name of the nearest weather station.
+    weather_cache : dict
+        A cache containing weather tables that have already been retrieved. The keys are dates in yyyy-mm-dd format.
     full_date_str : str
         The date that the event occurred on (in local time) in yyyy-mm-dd format.
     event_time : float
         The time that the event occurred at during the day (in local time) in units of seconds since beginning of day.
-    detector : sc.Detector
-        The detector object that contains the name of the nearest weather station.
-    weather_cache : dict
-        A cache containing weather tables that have already been retrieved. Keys are dates in yyyy-mm-dd format.
 
     Returns
     -------
@@ -442,7 +442,7 @@ def scrape_weather(full_date_str, station):
 
     Returns
     -------
-    pd.Dataframe
+    pandas.core.frame.DataFrame
         A pandas dataframe with weather information for the specified day.
 
     """
@@ -453,7 +453,7 @@ def scrape_weather(full_date_str, station):
         with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):  # Prevents selenium from printing status stuff
             driver = webdriver.Chrome(options=chrome_options)
 
-            url = f'https://www.wunderground.com/history/daily/{station}/date/{full_date_str}'
+            url = f'https://www.wunderground.com/history/daily/{station.upper()}/date/{full_date_str}'
 
             driver.get(url)
             tables = WebDriverWait(driver, 20).until(ec.presence_of_all_elements_located((By.CSS_SELECTOR, "table")))
@@ -477,7 +477,8 @@ def dst_status(date_str):
     Returns
     -------
     str
-        A status for the date: inside if the date is inside dst, outside if out, or beginning/end for the boundaries.
+        A status for the date: 'inside' if the date is inside dst, 'outside' if out, or 'beginning'/'end' for
+        the boundaries.
 
     """
 
@@ -576,7 +577,19 @@ def convert_clock_hour(clock_hour):
 
 
 def weather_from_score(score):
-    """Returns the weather for each code given by the function get_weather_conditions."""
+    """Returns the weather for each code given by the function get_weather_conditions.
+
+    -1 == error getting weather data
+
+    0 == fair
+
+    0.5 == light rain
+
+    0.75 == heavy rain
+
+    1 == lightning or hail
+
+    """
     if score == 0:
         return 'fair'
     elif score == 0.5:
@@ -584,7 +597,7 @@ def weather_from_score(score):
     elif score == 0.75:
         return 'heavy rain'
     elif score == 1:
-        return 'Lightning or hail'
+        return 'lightning or hail'
     else:
         return 'error getting weather data'
 
@@ -594,20 +607,22 @@ def combine_data(detector):
 
     Parameters
     ----------
-    detector : Detector
-        The detector object that data will be combined for
+    detector : tgfsearch.detectors.detector.Detector
+        The Detector that data will be combined for.
 
     Returns
     -------
-        np.array
+    tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray]
+            Four numpy arrays:
+
             times
-                A numpy array containing a combined list of second-of-day times.
+                An array containing the combined second-of-day times for multiple scintillators.
             energies
-                A numpy array containing a combined list of energies.
+                An array containing the combined energies for multiple scintillators.
             wallclock
-                A numpy array containing a combined list of wallclock times.
+                An array containing the combined wallclock times for multiple scintillators.
             count_scints
-                A numpy array containing a list of strings. Each entry corresponds to the scintillator
+                An array containing scintillator names. Each entry corresponds to the scintillator
                 that its corresponding count originated from.
 
     """
@@ -637,17 +652,16 @@ def combine_data(detector):
 
 
 def separate_data(times, energies, count_scints, start, stop):
-    """Separates the combined data produced in combo mode into separate data for each scintillator, organized
-    in two dictionaries: time_dict and energy_dict.
+    """Separates combined data from multiple scintillators into separate data for each scintillator.
 
     Parameters
     ----------
-    times : np.array
-        A numpy array containing a combined list of second-of-day times.
-    energies : np.array
-        A numpy array containing a combined list of energies.
-    count_scints : np.array
-        A numpy array containing a list of strings. Each entry corresponds to the scintillator
+    times : numpy.ndarray
+        An array containing the combined second-of-day times for multiple scintillators.
+    energies : numpy.ndarray
+        An array containing the combined energies for multiple scintillators.
+    count_scints : numpy.ndarray
+        An array containing scintillator names. Each entry corresponds to the scintillator
         that its corresponding count originated from.
     start : int
         The beginning of the range to separate.
@@ -656,11 +670,12 @@ def separate_data(times, energies, count_scints, start, stop):
 
     Returns
     -------
-    dict
+    tuple[dict, dict]
+        Two dictionaries:
         time_dict
-            A dictionary containing lists of count times for each scintillator on the specified range.
+            A dictionary containing arrays of count times for each scintillator on the specified range.
         energy_dict
-            A dictionary containing lists of count energies for each scintillator on the specified range.
+            A dictionary containing arrays of count energies for each scintillator on the specified range.
 
     """
 
@@ -686,12 +701,12 @@ def separate_data(times, energies, count_scints, start, stop):
 
 
 def channel_to_mev(energy_array, channels, energies):
-    """Uses compton edges/photo peaks obtained from scintillator calibration to convert energy channels into MeV
+    """Uses compton edges/photo peaks obtained from scintillator calibration to convert energy channels into MeV.
 
     Parameters
     ----------
-    energy_array : np.array
-        The array containing all the energies for either the large plastic or sodium iodide scintillator.
+    energy_array : numpy.ndarray
+        An array containing energies for each count.
     channels : list
         A list containing the energy channels corresponding to the Compton edges/photo peaks.
     energies : list
@@ -699,8 +714,8 @@ def channel_to_mev(energy_array, channels, energies):
 
     Returns
     -------
-    np.array
-        An array full of float values. These are the energies in MeV.
+    numpy.ndarray
+        An array containing energies for each count in MeV.
 
     """
 

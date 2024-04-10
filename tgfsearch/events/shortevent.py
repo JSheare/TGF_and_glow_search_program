@@ -6,7 +6,7 @@ import tgfsearch.parameters as params
 
 
 class ShortEvent:
-    """Object used to store all relevant information about potential short events.
+    """A class used to store all relevant information about a potential short event.
 
     Parameters
     ----------
@@ -27,8 +27,6 @@ class ShortEvent:
         The index of the time array which corresponds to the end of the event.
     scintillator : str
         A string corresponding to the scintillator which the event was found in.
-    number : int
-        The event's number in relation to the others (chronologically).
     lm_files : dict
         The list mode file(s) associated with the event.
     len_subscore : int
@@ -41,6 +39,8 @@ class ShortEvent:
         The event's weather score given by the ranking system.
     total_score : int
         The event's total score as determined by the subscores. Calculated by the ranking system.
+    number : int
+        The event's number in relation to the others (chronologically).
     rank : int
         The event's rank among all the other events found.
 
@@ -51,7 +51,6 @@ class ShortEvent:
         self.length = int(event_length)
         self.stop = int(event_start + event_length)
         self.scintillator = scintillator
-        self.number = 0
         self.lm_files = {}
 
         # Ranking scores
@@ -61,6 +60,7 @@ class ShortEvent:
         self.weather_subscore = 0
         self.total_score = 0
 
+        self.number = 0
         self.rank = 0
 
     # String casting overload
@@ -71,7 +71,7 @@ class ShortEvent:
     def __repr__(self):
         return f'{self.scintillator} short event; start:{self.start}; stop:{self.stop}; length:{self.length}'
 
-    def _calculate_subscores(self, weather_cache, detector, times, energies):
+    def _calculate_subscores(self, detector, weather_cache, times, energies):
         """Calculates the event's ranking subscores and updates them."""
         clumpiness = 0
         clump_counts = 0
@@ -121,29 +121,30 @@ class ShortEvent:
         # Getting weather subscore
         if detector.location['Nearest weather station'] != '':
             local_date, local_time = tl.convert_to_local(detector.full_date_str, times[self.start])
-            self.weather_subscore = tl.get_weather_conditions(local_date, local_time, detector, weather_cache)
+            self.weather_subscore = tl.get_weather_conditions(detector, weather_cache, local_date, local_time)
         else:
             self.weather_subscore = -1
 
-    def calculate_score(self, weather_cache, detector, times, energies):
+    def calculate_score(self, detector, weather_cache, times, energies):
         """Calculates the event's score (likelihood of being an interesting event) and updates its total_score
         attribute.
 
         Parameters
         ----------
+        detector : tgfsearch.detectors.detector.Detector
+            The Detector used to store all data and relevant information
         weather_cache : dict
             A cache containing weather info for the day being investigated. If no info has been added yet, this
             function will find and add it during the scoring process.
-        detector : Detector object
-            The detector object used to store all data and relevant information
-        times : np.array
-            A numpy array containing times for each count.
+        times : numpy.ndarray
+            An array containing times for each count.
         energies : np.array
-            A numpy array containingenergies for each count.
+            An array containing energies for each count.
 
         """
 
-        self._calculate_subscores(weather_cache, detector, times, energies)
+        assert((params.LEN_WEIGHT + params.CLUMPINESS_WEIGHT + params.HEL_WEIGHT + params.WEATHER_WEIGHT) == 1.0)
+        self._calculate_subscores(detector, weather_cache, times, energies)
         # If weather info couldn't be obtained, the weather subscore is removed and the remaining weights are adjusted
         # so that they stay proportional to one another
         if self.weather_subscore == -1:
@@ -158,7 +159,7 @@ class ShortEvent:
                                 params.WEATHER_WEIGHT * self.weather_subscore)
 
     def find_lm_filenames(self, filelist_dict, extrema_dict, times, count_scints=None):
-        """Gets the names of the files that the event occurred in. Note: this code assumes that events are in
+        """Gets the names of the files that the event occurred in. Note: this function assumes that events are in
         chronological order.
 
         Parameters
@@ -167,9 +168,9 @@ class ShortEvent:
             A dictionary containing a list of files for each scintillator that contributed to the event.
         extrema_dict : dict
             A dictionary containing a list of file time extrema for each scintillator that contributed to the event.
-        times : np.array
+        times : numpy.ndarray
             A numpy array containing times for each count.
-        count_scints : np.array
+        count_scints : numpy.ndarray
             A numpy array containing the scintillator each count is from.
 
         """

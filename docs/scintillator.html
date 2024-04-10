@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Python: module scintillator</title>
+</head><body>
+
+<table class="heading">
+<tr class="heading-text decor">
+<td class="title">&nbsp;<br><strong class="title">scintillator</strong></td>
+<td class="extra"><a href=".">index</a><br><a href="file:d%3A%5Cdocuments%5Ctgf%20research%5Ctgf%20and%20glow%20search%20stuff%5Csearch%5Ctgfsearch%5Cdetectors%5Cscintillator.py">d:\documents\tgf research\tgf and glow search stuff\search\tgfsearch\detectors\scintillator.py</a></td></tr></table>
+    <p><span class="code">A&nbsp;class&nbsp;for&nbsp;keeping&nbsp;track&nbsp;of&nbsp;a&nbsp;particular&nbsp;scintillator's&nbsp;data.</span></p>
+<p>
+<table class="section">
+<tr class="decor pkg-content-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Modules</strong></td></tr>
+    
+<tr><td class="decor pkg-content-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
+<td class="singlecolumn"><table><tr><td class="multicolumn"><a href="numpy.html">numpy</a><br>
+</td><td class="multicolumn"><a href="pandas.html">pandas</a><br>
+</td><td class="multicolumn"></td><td class="multicolumn"></td></tr></table></td></tr></table><p>
+<table class="section">
+<tr class="decor index-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Classes</strong></td></tr>
+    
+<tr><td class="decor index-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
+<td class="singlecolumn"><dl>
+<dt class="heading-text"><a href="builtins.html#object">builtins.object</a>
+</dt><dd>
+<dl>
+<dt class="heading-text"><a href="scintillator.html#Scintillator">Scintillator</a>
+</dt></dl>
+</dd>
+</dl>
+ <p>
+<table class="section">
+<tr class="decor title-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><a name="Scintillator">class <strong>Scintillator</strong></a>(<a href="builtins.html#object">builtins.object</a>)</td></tr>
+    
+<tr><td class="decor title-decor" rowspan=2><span class="code">&nbsp;&nbsp;&nbsp;</span></td>
+<td class="decor title-decor" colspan=2><span class="code"><a href="#Scintillator">Scintillator</a>(name,&nbsp;eRC)<br>
+&nbsp;<br>
+A&nbsp;class&nbsp;used&nbsp;to&nbsp;store&nbsp;data&nbsp;for&nbsp;a&nbsp;single&nbsp;scintillator.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+name&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;scintillator's&nbsp;name&nbsp;(usually&nbsp;an&nbsp;abbreviation).<br>
+eRC&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;scintillator's&nbsp;serial&nbsp;number.<br>
+&nbsp;<br>
+Attributes<br>
+----------<br>
+lm_frame&nbsp;:&nbsp;pandas.core.frame.Dataframe<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;pandas&nbsp;dataframe&nbsp;containing&nbsp;all&nbsp;the&nbsp;scintillator's&nbsp;data.<br>
+calibration_bins&nbsp;:&nbsp;list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;containing&nbsp;the&nbsp;energy&nbsp;bins&nbsp;corresponding&nbsp;to&nbsp;Compton&nbsp;edges/photo&nbsp;peaks&nbsp;used&nbsp;for&nbsp;calibration.<br>
+calibration_energies&nbsp;:&nbsp;list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;containing&nbsp;the&nbsp;energies&nbsp;of&nbsp;Compton&nbsp;edges/photo&nbsp;peaks&nbsp;used&nbsp;for&nbsp;calibration.<br>
+lm_filelist&nbsp;:&nbsp;list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;list&nbsp;mode&nbsp;files&nbsp;for&nbsp;the&nbsp;day.<br>
+lm_filetime_extrema&nbsp;:&nbsp;list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;lists.&nbsp;Each&nbsp;sublist&nbsp;contains&nbsp;a&nbsp;pair&nbsp;of&nbsp;numbers&nbsp;corresponding&nbsp;to<br>
+&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;first&nbsp;and&nbsp;last&nbsp;second&nbsp;in&nbsp;each&nbsp;list&nbsp;mode&nbsp;file.<br>
+trace_filelist&nbsp;:&nbsp;list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;trace&nbsp;files&nbsp;for&nbsp;the&nbsp;day.<br>
+traces&nbsp;:&nbsp;dict<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;trace&nbsp;data&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;day's&nbsp;trace&nbsp;files.<br>
+passtime&nbsp;:&nbsp;dict<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;information&nbsp;needed&nbsp;to&nbsp;import&nbsp;the&nbsp;subsequent&nbsp;files&nbsp;properly&nbsp;(if&nbsp;applicable).<br>&nbsp;</span></td></tr>
+<tr><td>&nbsp;</td>
+<td class="singlecolumn">Methods defined here:<br>
+<dl><dt><a name="Scintillator-__bool__"><strong>__bool__</strong></a>(self)</dt></dl>
+
+<dl><dt><a name="Scintillator-__init__"><strong>__init__</strong></a>(self, name, eRC)</dt><dd><span class="code">Initialize&nbsp;self.&nbsp;&nbsp;See&nbsp;help(type(self))&nbsp;for&nbsp;accurate&nbsp;signature.</span></dd></dl>
+
+<dl><dt><a name="Scintillator-__repr__"><strong>__repr__</strong></a>(self)</dt><dd><span class="code">Return&nbsp;repr(self).</span></dd></dl>
+
+<dl><dt><a name="Scintillator-__str__"><strong>__str__</strong></a>(self)</dt><dd><span class="code">Return&nbsp;str(self).</span></dd></dl>
+
+<dl><dt><a name="Scintillator-get_attribute"><strong>get_attribute</strong></a>(self, attribute)</dt></dl>
+
+<dl><dt><a name="Scintillator-get_trace"><strong>get_trace</strong></a>(self, time_id)</dt></dl>
+
+<dl><dt><a name="Scintillator-get_trace_list"><strong>get_trace_list</strong></a>(self)</dt></dl>
+
+<dl><dt><a name="Scintillator-set_attribute"><strong>set_attribute</strong></a>(self, attribute, info)</dt></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><span class="code">dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</span></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><span class="code">list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</span></dd>
+</dl>
+</td></tr></table></td></tr></table>
+</body></html>

@@ -149,10 +149,10 @@ def enqueue(gui, search_queue, program_modes):
         for mode in program_modes:
             command.append(mode)
 
-        custom_results_dir = gui.nametowidget('results_entrybox').get() if (
-                gui.nametowidget('results_entrybox').get() != '') else 'none'
         custom_import_dir = gui.nametowidget('custom_entrybox').get() if (
                 gui.nametowidget('custom_entrybox').get() != '') else 'none'
+        custom_results_dir = gui.nametowidget('results_entrybox').get() if (
+                gui.nametowidget('results_entrybox').get() != '') else 'none'
         command.append('custom')
         command.append(str(custom_import_dir))
         command.append(str(custom_results_dir))

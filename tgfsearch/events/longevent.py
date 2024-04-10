@@ -5,17 +5,17 @@ import tgfsearch.parameters as params
 
 
 class LongEvent:
-    """Object used to store all relevant information about long events.
+    """A class used to store all relevant information about a potential long event.
 
     Parameters
     ----------
     start : int
         The index of the histogram bin which corresponds to the start of the event.
     length : int
-        The number of histogram bins which make up an event.
+        The number of histogram bins that make up the event.
     z_scores : list
         A list containing the z-scores for each bin in the daily histogram.
-    day_bins : np.array
+    day_bins : numpy.ndarray
         An array containing the bins for the daily histogram.
 
     Attributes
@@ -23,7 +23,7 @@ class LongEvent:
     start : int
         The index of the histogram bin which corresponds to the start of the event.
     length : int
-        The number of histogram bins which make up an event.
+        The number of histogram bins that make up the event.
     stop : int
         The index of the histogram bin which corresponds to the end of the event.
     peak_index : int
@@ -31,9 +31,9 @@ class LongEvent:
     highest_score : float
         The largest z-score in the event.
     start_sec : int
-        The beginning of the event in seconds.
+        The beginning of the event in seconds since the beginning of the day.
     stop_sec : int
-        The end of the event in seconds.
+        The end of the event in seconds since the beginning of the day.
     lm_files : dict
         The list mode file(s) that the event is associated with.
 
@@ -72,7 +72,7 @@ class LongEvent:
         return first_sec, last_sec
 
     def find_lm_filenames(self, filelist_dict, extrema_dict):
-        """Gets the names of the files that the event occurred in. Note: this code assumes that events are in
+        """Gets the names of the files that the event occurred in. Note: this function assumes that events are in
         chronological order.
 
         Parameters

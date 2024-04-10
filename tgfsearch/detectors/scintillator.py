@@ -4,7 +4,7 @@ import numpy as np
 
 
 class Scintillator:
-    """Used to store data for a single scintillator.
+    """A class used to store data for a single scintillator.
 
     Parameters
     ----------
@@ -15,7 +15,7 @@ class Scintillator:
 
     Attributes
     ----------
-    lm_frame : pd.DataFrame
+    lm_frame : pandas.core.frame.Dataframe
         A pandas dataframe containing all the scintillator's data.
     calibration_bins : list
         A list containing the energy bins corresponding to Compton edges/photo peaks used for calibration.

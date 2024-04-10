@@ -49,6 +49,11 @@ def get_detector(unit, date_str, mode_info=None, print_feedback=False):
 
 # Checks whether a short event is valid by passing it through several filters
 def is_good_short_event(detector, modes, stats, times, energies, start, length):
+    # Checks that the length of the event is greater than or equal to a certain minimum number of counts
+    if length < params.SHORT_EVENT_MIN_COUNTS:
+        stats['removed_len'] += 1
+        return False
+
     low_channel_counts = 0
     high_channel_counts = 0
 
@@ -121,7 +126,7 @@ def is_good_short_event(detector, modes, stats, times, energies, start, length):
 def rank_events(detector, potential_events, times, energies):
     weather_cache = {}
     for event in potential_events:
-        event.calculate_score(weather_cache, detector, times, energies)
+        event.calculate_score(detector, weather_cache, times, energies)
 
     ranked_events = sorted(potential_events, key=lambda x: -x.total_score)  # negative so we get a descending order sort
     for i in range(len(ranked_events)):
@@ -160,16 +165,10 @@ def find_short_events(detector, modes, scintillator, rollgap, times, energies):
             stats['total_threshold_reached'] += 1
 
         # Records the rough length of a potential event
-        if interval > params.SHORT_EVENT_TIME_SPACING and event_length > 0:
-            # Keeps potential event if it's longer than the specified minimum number of counts
-            if event_length >= params.SHORT_EVENT_MIN_COUNTS:
-                # Runs potential event through filters
-                if is_good_short_event(detector, modes, stats,
-                                       times, energies, event_start, event_length):
-                    potential_events.append(ShortEvent(event_start, event_length, scintillator))
-
-            else:
-                stats['removed_len'] += 1
+        elif interval > params.SHORT_EVENT_TIME_SPACING and event_length > 0:
+            # Runs potential event through filters
+            if is_good_short_event(detector, modes, stats, times, energies, event_start, event_length):
+                potential_events.append(ShortEvent(event_start, event_length, scintillator))
 
             event_start = 0
             event_length = 0
@@ -405,7 +404,7 @@ def short_event_search(detector, modes, prev_event_numbers=None):
             if not modes['gui']:
                 print(f'{plots_made}/{max_plots}\n', end='\r')
 
-            event_numbers.update({scintillator: plots_made + plots_already_made})
+            event_numbers[scintillator] = plots_made + plots_already_made
         else:
             print('\n')
 
@@ -429,6 +428,7 @@ def long_event_cutoff(detector, modes, chunk=None):
             long_event_scintillators = [operating_obj.default_scintillator]
             break
 
+    # Checks to see if scintillators have all been calibrated. If one or more aren't, no counts are cut out
     all_calibrated = True
     for i in range(len(long_event_scintillators)):
         scintillator = long_event_scintillators[i]
@@ -579,7 +579,7 @@ def calculate_rolling_baseline(day_bins, hist_allday, mue, sigma):
 
             r_bool.pop(0)
 
-        # Fitting curve is linear if either of the windows contains a zero value bin
+        # Fitting curve is linear if either of the windows contains a zero-value bin
         fit_curve = line if l_zeros != 0 or r_zeros != 0 else so_poly
 
         if len(l_bins) + len(r_bins) >= 3:
@@ -972,8 +972,9 @@ def program(first_date, second_date, unit, mode_info):
                 total_file_size = detector.calculate_fileset_size()
                 for scintillator in detector:
                     # Clears leftover data (just to be sure)
-                    detector.set_attribute(scintillator, ['lm_frame', 'lm_filetime_extrema', 'traces'],
-                                           [pd.DataFrame(), [], {}])
+                    detector.set_multiple_attributes(scintillator,
+                                                     ['lm_frame', 'lm_filetime_extrema', 'traces'],
+                                                     [pd.DataFrame(), [], {}])
 
                 gc.collect()
 

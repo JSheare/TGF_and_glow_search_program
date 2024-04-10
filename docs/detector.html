@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Python: module detector</title>
+</head><body>
+
+<table class="heading">
+<tr class="heading-text decor">
+<td class="title">&nbsp;<br><strong class="title">detector</strong></td>
+<td class="extra"><a href=".">index</a><br><a href="file:d%3A%5Cdocuments%5Ctgf%20research%5Ctgf%20and%20glow%20search%20stuff%5Csearch%5Ctgfsearch%5Cdetectors%5Cdetector.py">d:\documents\tgf research\tgf and glow search stuff\search\tgfsearch\detectors\detector.py</a></td></tr></table>
+    <p><span class="code">A&nbsp;base&nbsp;class&nbsp;for&nbsp;keeping&nbsp;track&nbsp;of&nbsp;data&nbsp;and&nbsp;associated&nbsp;information.</span></p>
+<p>
+<table class="section">
+<tr class="decor pkg-content-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Modules</strong></td></tr>
+    
+<tr><td class="decor pkg-content-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
+<td class="singlecolumn"><table><tr><td class="multicolumn"><a href="tgfsearch.utilities.DataReaderTimetrack2.html">tgfsearch.utilities.DataReaderTimetrack2</a><br>
+<a href="contextlib.html">contextlib</a><br>
+<a href="datetime.html">datetime</a><br>
+<a href="glob.html">glob</a><br>
+</td><td class="multicolumn"><a href="json.html">json</a><br>
+<a href="numpy.html">numpy</a><br>
+<a href="os.html">os</a><br>
+<a href="tgfsearch.parameters.html">tgfsearch.parameters</a><br>
+</td><td class="multicolumn"><a href="pandas.html">pandas</a><br>
+<a href="matplotlib.pyplot.html">matplotlib.pyplot</a><br>
+<a href="psutil.html">psutil</a><br>
+<a href="scipy.signal.html">scipy.signal</a><br>
+</td><td class="multicolumn"><a href="tgfsearch.tools.html">tgfsearch.tools</a><br>
+<a href="warnings.html">warnings</a><br>
+</td></tr></table></td></tr></table><p>
+<table class="section">
+<tr class="decor index-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Classes</strong></td></tr>
+    
+<tr><td class="decor index-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
+<td class="singlecolumn"><dl>
+<dt class="heading-text"><a href="builtins.html#object">builtins.object</a>
+</dt><dd>
+<dl>
+<dt class="heading-text"><a href="detector.html#Detector">Detector</a>
+</dt></dl>
+</dd>
+</dl>
+ <p>
+<table class="section">
+<tr class="decor title-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><a name="Detector">class <strong>Detector</strong></a>(<a href="builtins.html#object">builtins.object</a>)</td></tr>
+    
+<tr><td class="decor title-decor" rowspan=2><span class="code">&nbsp;&nbsp;&nbsp;</span></td>
+<td class="decor title-decor" colspan=2><span class="code"><a href="#Detector">Detector</a>(unit,&nbsp;date_str,&nbsp;mode_info,&nbsp;print_feedback=False)<br>
+&nbsp;<br>
+A&nbsp;class&nbsp;used&nbsp;to&nbsp;store&nbsp;all&nbsp;relevant&nbsp;information&nbsp;about&nbsp;an&nbsp;instrument&nbsp;and&nbsp;its&nbsp;data&nbsp;for&nbsp;a&nbsp;day.<br>
+&nbsp;<br>
+The&nbsp;<a href="#Detector">Detector</a>&nbsp;class&nbsp;is&nbsp;used&nbsp;to&nbsp;store&nbsp;the&nbsp;name&nbsp;of&nbsp;the&nbsp;detector,&nbsp;the&nbsp;date&nbsp;in&nbsp;various&nbsp;formats,<br>
+and&nbsp;the&nbsp;actual&nbsp;data&nbsp;for&nbsp;the&nbsp;requested&nbsp;day&nbsp;in&nbsp;a&nbsp;single,&nbsp;centralized&nbsp;location.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+unit&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;detector&nbsp;that&nbsp;the&nbsp;analysis&nbsp;is&nbsp;being&nbsp;requested&nbsp;for.<br>
+date_str&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;timestamp&nbsp;for&nbsp;the&nbsp;requested&nbsp;day&nbsp;in&nbsp;yymmdd&nbsp;format.<br>
+mode_info&nbsp;:&nbsp;list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;information&nbsp;about&nbsp;the&nbsp;requested&nbsp;modes&nbsp;to&nbsp;be&nbsp;operated&nbsp;under.<br>
+print_feedback&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;flag&nbsp;specifying&nbsp;whether&nbsp;feedback&nbsp;should&nbsp;be&nbsp;printed&nbsp;to&nbsp;stdout&nbsp;or&nbsp;not.<br>
+&nbsp;<br>
+Attributes<br>
+----------<br>
+log&nbsp;:&nbsp;_io.TextIO<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;file&nbsp;where&nbsp;actions&nbsp;and&nbsp;findings&nbsp;are&nbsp;logged.<br>
+first_sec&nbsp;:&nbsp;float<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;first&nbsp;second&nbsp;in&nbsp;EPOCH&nbsp;time&nbsp;of&nbsp;the&nbsp;day.<br>
+full_date_str&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;timestamp&nbsp;for&nbsp;the&nbsp;requested&nbsp;in&nbsp;day&nbsp;in&nbsp;yyyy-mm-dd&nbsp;format.<br>
+location&nbsp;:&nbsp;dict<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Location&nbsp;information&nbsp;for&nbsp;the&nbsp;detector&nbsp;on&nbsp;the&nbsp;requested&nbsp;day.<br>
+default_scintillator&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;string&nbsp;representing&nbsp;the&nbsp;default&nbsp;scintillator.&nbsp;Data&nbsp;from&nbsp;this&nbsp;scintillator&nbsp;must&nbsp;be&nbsp;present&nbsp;for&nbsp;the&nbsp;search<br>
+&nbsp;&nbsp;&nbsp;&nbsp;program&nbsp;to&nbsp;run.<br>
+long_event_scint_list&nbsp;:&nbsp;list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;the&nbsp;scintillators&nbsp;used&nbsp;by&nbsp;the&nbsp;search&nbsp;program's&nbsp;long&nbsp;event&nbsp;search&nbsp;algorithm.<br>
+calibration_params&nbsp;:&nbsp;dict<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;various&nbsp;parameters&nbsp;used&nbsp;to&nbsp;calibrate&nbsp;the&nbsp;<a href="#Detector">Detector</a>.<br>
+default_data_loc&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;default&nbsp;directory&nbsp;for&nbsp;a&nbsp;detector's&nbsp;raw&nbsp;data.<br>
+import_loc&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;directory&nbsp;where&nbsp;data&nbsp;files&nbsp;for&nbsp;the&nbsp;day&nbsp;are&nbsp;located.<br>
+results_loc&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;directory&nbsp;where&nbsp;program&nbsp;results&nbsp;will&nbsp;be&nbsp;exported.<br>
+file_form&nbsp;:&nbsp;function<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;lambda&nbsp;function&nbsp;that,&nbsp;when&nbsp;given&nbsp;the&nbsp;eRC&nbsp;serial&nbsp;number,&nbsp;returns&nbsp;the&nbsp;regex&nbsp;for&nbsp;a&nbsp;scintillator's&nbsp;files.<br>
+scintillators&nbsp;:&nbsp;dict<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;scintillator&nbsp;objects.&nbsp;These&nbsp;objects&nbsp;keep&nbsp;track&nbsp;of&nbsp;data&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;detector's<br>
+&nbsp;&nbsp;&nbsp;&nbsp;scintillators.<br>
+scint_list&nbsp;:&nbsp;list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;the&nbsp;detector's&nbsp;scintillator&nbsp;names.<br>
+processed&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;flag&nbsp;for&nbsp;whether&nbsp;the&nbsp;program&nbsp;should&nbsp;operate&nbsp;in&nbsp;'processed'&nbsp;mode&nbsp;or&nbsp;not.&nbsp;Under&nbsp;this&nbsp;mode,&nbsp;the&nbsp;program&nbsp;will<br>
+&nbsp;&nbsp;&nbsp;&nbsp;import&nbsp;processed&nbsp;data&nbsp;instead&nbsp;of&nbsp;raw&nbsp;data.&nbsp;Only&nbsp;available&nbsp;for&nbsp;Godot.<br>&nbsp;</span></td></tr>
+<tr><td>&nbsp;</td>
+<td class="singlecolumn">Methods defined here:<br>
+<dl><dt><a name="Detector-__bool__"><strong>__bool__</strong></a>(self)</dt><dd><span class="code">Bool&nbsp;casting&nbsp;overload.&nbsp;Returns&nbsp;True&nbsp;if&nbsp;data&nbsp;for&nbsp;the&nbsp;default&nbsp;scintillator&nbsp;is&nbsp;present.</span></dd></dl>
+
+<dl><dt><a name="Detector-__init__"><strong>__init__</strong></a>(self, unit, date_str, mode_info, print_feedback=False)</dt><dd><span class="code">Initialize&nbsp;self.&nbsp;&nbsp;See&nbsp;help(type(self))&nbsp;for&nbsp;accurate&nbsp;signature.</span></dd></dl>
+
+<dl><dt><a name="Detector-__iter__"><strong>__iter__</strong></a>(self)</dt><dd><span class="code">Iterator&nbsp;dunder.&nbsp;Returns&nbsp;a&nbsp;generator&nbsp;that&nbsp;yields&nbsp;the&nbsp;detector's&nbsp;scintillator&nbsp;names.</span></dd></dl>
+
+<dl><dt><a name="Detector-__repr__"><strong>__repr__</strong></a>(self)</dt><dd><span class="code">Debugging&nbsp;string&nbsp;dunder&nbsp;method.&nbsp;Returns&nbsp;a&nbsp;string&nbsp;of&nbsp;the&nbsp;form&nbsp;'<a href="#Detector">Detector</a>(unit,&nbsp;first_sec,&nbsp;mode_info)'&nbsp;along<br>
+with&nbsp;some&nbsp;info&nbsp;about&nbsp;which&nbsp;scintillators&nbsp;have&nbsp;data.</span></dd></dl>
+
+<dl><dt><a name="Detector-__str__"><strong>__str__</strong></a>(self)</dt><dd><span class="code">String&nbsp;casting&nbsp;overload.&nbsp;Returns&nbsp;a&nbsp;string&nbsp;of&nbsp;the&nbsp;form&nbsp;'<a href="#Detector">Detector</a>(unit,&nbsp;first_sec,&nbsp;mode_info)'.</span></dd></dl>
+
+<dl><dt><a name="Detector-calculate_fileset_size"><strong>calculate_fileset_size</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;the&nbsp;total&nbsp;size&nbsp;(in&nbsp;bytes)&nbsp;of&nbsp;all&nbsp;the&nbsp;currently&nbsp;listed&nbsp;files&nbsp;for&nbsp;the&nbsp;day.</span></dd></dl>
+
+<dl><dt><a name="Detector-calibrate"><strong>calibrate</strong></a>(self, existing_spectra=None, plot_spectra=False, make_template=False)</dt><dd><span class="code">Makes&nbsp;energy&nbsp;spectra&nbsp;histograms&nbsp;and&nbsp;calibrates&nbsp;the&nbsp;large&nbsp;plastic&nbsp;and&nbsp;sodium&nbsp;iodide&nbsp;scintillators.<br>
+&nbsp;<br>
+Parameters<br>
+------<br>
+existing_spectra&nbsp;:&nbsp;dict<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;Existing&nbsp;energy&nbsp;spectra&nbsp;histograms&nbsp;for&nbsp;each&nbsp;scintillator.<br>
+plot_spectra&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;Specifies&nbsp;whether&nbsp;to&nbsp;make&nbsp;and&nbsp;export&nbsp;spectra&nbsp;histograms.<br>
+make_template&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;Specifies&nbsp;whether&nbsp;to&nbsp;run&nbsp;the&nbsp;large&nbsp;plastic&nbsp;scintillator&nbsp;template&nbsp;maker.</span></dd></dl>
+
+<dl><dt><a name="Detector-check_custom"><strong>check_custom</strong></a>(self)</dt><dd><span class="code">Checks&nbsp;to&nbsp;see&nbsp;if&nbsp;the&nbsp;user&nbsp;passed&nbsp;in&nbsp;custom&nbsp;import/export&nbsp;directories&nbsp;via&nbsp;mode_info&nbsp;and<br>
+changes&nbsp;the&nbsp;import&nbsp;and&nbsp;export&nbsp;directories&nbsp;if&nbsp;the&nbsp;user&nbsp;specified&nbsp;different&nbsp;ones&nbsp;from&nbsp;the&nbsp;defaults.</span></dd></dl>
+
+<dl><dt><a name="Detector-check_processed"><strong>check_processed</strong></a>(self)</dt><dd><span class="code">Checks&nbsp;to&nbsp;see&nbsp;if&nbsp;'processed'&nbsp;is&nbsp;one&nbsp;of&nbsp;the&nbsp;user-specified&nbsp;modes,&nbsp;and&nbsp;sets&nbsp;the&nbsp;processed&nbsp;flag&nbsp;to&nbsp;true.<br>
+Raises&nbsp;an&nbsp;error&nbsp;if&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;isn't&nbsp;Godot.</span></dd></dl>
+
+<dl><dt><a name="Detector-data_present_in"><strong>data_present_in</strong></a>(self, scintillator)</dt><dd><span class="code">Returns&nbsp;True&nbsp;if&nbsp;data&nbsp;is&nbsp;present&nbsp;for&nbsp;the&nbsp;specified&nbsp;scintillator&nbsp;and&nbsp;False&nbsp;otherwise.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+scintillator&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;scintillator's&nbsp;name.&nbsp;Allowed&nbsp;values&nbsp;(detector&nbsp;dependent):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'NaI',&nbsp;'SP',&nbsp;'MP',&nbsp;'LP'.<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;if&nbsp;data&nbsp;is&nbsp;present&nbsp;in&nbsp;the&nbsp;specified&nbsp;scintillator,&nbsp;False&nbsp;otherwise.</span></dd></dl>
+
+<dl><dt><a name="Detector-get_attribute"><strong>get_attribute</strong></a>(self, scintillator, attribute)</dt><dd><span class="code">Retrieves&nbsp;the&nbsp;requested&nbsp;attribute&nbsp;for&nbsp;a&nbsp;particular&nbsp;scintillator.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+scintillator&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;scintillator&nbsp;of&nbsp;interest.&nbsp;Allowed&nbsp;values&nbsp;(detector&nbsp;dependent):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'NaI',&nbsp;'SP',&nbsp;'MP',&nbsp;'LP'.<br>
+attribute&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;attribute&nbsp;of&nbsp;interest.<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+str&nbsp;||&nbsp;list&nbsp;||&nbsp;numpy.ndarray&nbsp;||&nbsp;dict&nbsp;||&nbsp;pandas.core.frame.DataFrame<br>
+&nbsp;&nbsp;&nbsp;&nbsp;String&nbsp;if&nbsp;'eRC'&nbsp;is&nbsp;requested;&nbsp;list&nbsp;if&nbsp;'lm_filelist',&nbsp;'calibration',&nbsp;or&nbsp;'lm_filetime_extrema'&nbsp;is&nbsp;requested;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;numpy&nbsp;array&nbsp;&nbsp;if&nbsp;'time',&nbsp;'energy',&nbsp;or&nbsp;'wc'&nbsp;is&nbsp;requested;&nbsp;dictionary&nbsp;if&nbsp;'passtime'&nbsp;is&nbsp;requested;&nbsp;dataframe<br>
+&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;'lm_frame'&nbsp;is&nbsp;requested,&nbsp;etc.</span></dd></dl>
+
+<dl><dt><a name="Detector-get_file_iloc"><strong>get_file_iloc</strong></a>(self, scintillator, count_time)</dt><dd><span class="code">Returns&nbsp;the&nbsp;index&nbsp;of&nbsp;the&nbsp;list&nbsp;mode&nbsp;file&nbsp;that&nbsp;the&nbsp;given&nbsp;count&nbsp;occurred&nbsp;in.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+scintillator&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;scintillator&nbsp;that&nbsp;the&nbsp;count&nbsp;is&nbsp;from.&nbsp;Allowed&nbsp;values&nbsp;(detector&nbsp;dependent):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'NaI',&nbsp;'SP',&nbsp;'MP',&nbsp;'LP'.<br>
+count_time&nbsp;:&nbsp;float<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;time&nbsp;that&nbsp;the&nbsp;count&nbsp;occurred&nbsp;at&nbsp;(in&nbsp;seconds&nbsp;of&nbsp;day).<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+int<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;index&nbsp;of&nbsp;the&nbsp;file&nbsp;that&nbsp;the&nbsp;given&nbsp;count&nbsp;occurred&nbsp;in.</span></dd></dl>
+
+<dl><dt><a name="Detector-get_import_loc"><strong>get_import_loc</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;the&nbsp;directory&nbsp;where&nbsp;data&nbsp;will&nbsp;be&nbsp;imported&nbsp;from.</span></dd></dl>
+
+<dl><dt><a name="Detector-get_location"><strong>get_location</strong></a>(self, deployment_file_loc)</dt><dd><span class="code">Returns&nbsp;a&nbsp;dictionary&nbsp;full&nbsp;of&nbsp;location&nbsp;information&nbsp;for&nbsp;the&nbsp;detector&nbsp;on&nbsp;its&nbsp;specified&nbsp;date.</span></dd></dl>
+
+<dl><dt><a name="Detector-get_passtime"><strong>get_passtime</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;a&nbsp;dictionary&nbsp;containing&nbsp;the&nbsp;passtime&nbsp;attributes&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;<a href="#Detector">Detector</a>'s&nbsp;scintillators.<br>
+&nbsp;<br>
+Returns<br>
+----------<br>
+dict<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;the&nbsp;passtime&nbsp;dictionaries&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;<a href="#Detector">Detector</a>'s&nbsp;scintillators.</span></dd></dl>
+
+<dl><dt><a name="Detector-get_results_loc"><strong>get_results_loc</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;the&nbsp;directory&nbsp;where&nbsp;all&nbsp;results&nbsp;will&nbsp;be&nbsp;stored.</span></dd></dl>
+
+<dl><dt><a name="Detector-get_trace"><strong>get_trace</strong></a>(self, scintillator, time_id)</dt><dd><span class="code">Returns&nbsp;the&nbsp;trace&nbsp;data&nbsp;for&nbsp;the&nbsp;given&nbsp;scintillator&nbsp;and&nbsp;time&nbsp;id.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+scintillator&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;scintillator&nbsp;of&nbsp;interest.&nbsp;Allowed&nbsp;values&nbsp;(detector&nbsp;dependent):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'NaI',&nbsp;'SP',&nbsp;'MP',&nbsp;'LP'.<br>
+time_id&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;time&nbsp;id&nbsp;of&nbsp;the&nbsp;trace&nbsp;file.<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+pandas.core.frame.DataFrame<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dataframe&nbsp;containing&nbsp;the&nbsp;trace&nbsp;data&nbsp;for&nbsp;the&nbsp;given&nbsp;id.</span></dd></dl>
+
+<dl><dt><a name="Detector-get_trace_list"><strong>get_trace_list</strong></a>(self, scintillator)</dt><dd><span class="code">Returns&nbsp;a&nbsp;list&nbsp;of&nbsp;time&nbsp;ids&nbsp;for&nbsp;traces&nbsp;that&nbsp;are&nbsp;currently&nbsp;being&nbsp;stored.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+scintillator&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;scintillator&nbsp;of&nbsp;interest.&nbsp;Allowed&nbsp;values&nbsp;(detector&nbsp;dependent):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'NaI',&nbsp;'SP',&nbsp;'MP',&nbsp;'LP'.<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;time&nbsp;ids&nbsp;for&nbsp;traces&nbsp;that&nbsp;are&nbsp;currently&nbsp;being&nbsp;stored.</span></dd></dl>
+
+<dl><dt><a name="Detector-import_data"><strong>import_data</strong></a>(self, existing_filelists=False, ignore_missing=True, import_traces=True)</dt><dd><span class="code">Imports&nbsp;data&nbsp;from&nbsp;data&nbsp;files&nbsp;into&nbsp;arrays&nbsp;and&nbsp;then&nbsp;updates&nbsp;them&nbsp;into&nbsp;the&nbsp;detector's<br>
+scintillator&nbsp;objects.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+existing_filelists&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;the&nbsp;function&nbsp;will&nbsp;use&nbsp;the&nbsp;file&nbsp;lists&nbsp;already&nbsp;stored&nbsp;in&nbsp;the&nbsp;<a href="#Detector">Detector</a>.<br>
+ignore_missing&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;the&nbsp;function&nbsp;will&nbsp;not&nbsp;raise&nbsp;an&nbsp;error&nbsp;if&nbsp;data&nbsp;is&nbsp;missing&nbsp;in&nbsp;the&nbsp;default&nbsp;scintillator.<br>
+import_traces&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;the&nbsp;function&nbsp;will&nbsp;import&nbsp;any&nbsp;trace&nbsp;files&nbsp;it&nbsp;finds.</span></dd></dl>
+
+<dl><dt><a name="Detector-is_named"><strong>is_named</strong></a>(self, name)</dt><dd><span class="code">Returns&nbsp;True&nbsp;if&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;has&nbsp;the&nbsp;same&nbsp;name&nbsp;as&nbsp;the&nbsp;passed&nbsp;string.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+name&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;being&nbsp;queried.<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;if&nbsp;the&nbsp;name&nbsp;matches&nbsp;the&nbsp;name&nbsp;of&nbsp;the&nbsp;<a href="#Detector">Detector</a>,&nbsp;False&nbsp;otherwise.</span></dd></dl>
+
+<dl><dt><a name="Detector-make_spectra_hist"><strong>make_spectra_hist</strong></a>(self, existing_spectra_dict)</dt><dd><span class="code">Mainly&nbsp;meant&nbsp;as&nbsp;a&nbsp;helper&nbsp;for&nbsp;the&nbsp;search&nbsp;program's&nbsp;low&nbsp;memory&nbsp;mode.&nbsp;Makes&nbsp;the&nbsp;energy&nbsp;spectra&nbsp;histograms&nbsp;for<br>
+a&nbsp;chunk&nbsp;of&nbsp;the&nbsp;day&nbsp;(no&nbsp;calibration).&nbsp;Returns&nbsp;the&nbsp;histograms&nbsp;in&nbsp;a&nbsp;dictionary.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+existing_spectra_dict&nbsp;:&nbsp;dict<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;energy&nbsp;spectra&nbsp;histograms&nbsp;for&nbsp;previous&nbsp;chunks&nbsp;of&nbsp;the&nbsp;day.<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+dict<br>
+&nbsp;&nbsp;&nbsp;&nbsp;An&nbsp;updated&nbsp;version&nbsp;of&nbsp;existing_spectra_dict&nbsp;featuring&nbsp;the&nbsp;chunk's&nbsp;contribution&nbsp;to&nbsp;the&nbsp;energy<br>
+&nbsp;&nbsp;&nbsp;&nbsp;spectra&nbsp;histograms.</span></dd></dl>
+
+<dl><dt><a name="Detector-set_attribute"><strong>set_attribute</strong></a>(self, scintillator, attribute, new_info)</dt><dd><span class="code">Updates&nbsp;the&nbsp;requested&nbsp;attribute&nbsp;for&nbsp;a&nbsp;particular&nbsp;scintillator.<br>
+Note:&nbsp;new&nbsp;info&nbsp;must&nbsp;be&nbsp;of&nbsp;the&nbsp;same&nbsp;type&nbsp;as&nbsp;the&nbsp;old.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+scintillator&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;scintillator&nbsp;of&nbsp;interest.&nbsp;Allowed&nbsp;values&nbsp;(detector&nbsp;dependent):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'NaI',&nbsp;'SP',&nbsp;'MP',&nbsp;'LP'.<br>
+attribute&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;attribute&nbsp;of&nbsp;interest.<br>
+new_info&nbsp;:&nbsp;any<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;new&nbsp;information&nbsp;for&nbsp;the&nbsp;requested&nbsp;attribute.</span></dd></dl>
+
+<dl><dt><a name="Detector-set_import_loc"><strong>set_import_loc</strong></a>(self, loc)</dt><dd><span class="code">Sets&nbsp;the&nbsp;directory&nbsp;where&nbsp;data&nbsp;will&nbsp;be&nbsp;imported&nbsp;from.</span></dd></dl>
+
+<dl><dt><a name="Detector-set_multiple_attributes"><strong>set_multiple_attributes</strong></a>(self, scintillator, attribute_list, new_info_list)</dt><dd><span class="code">Updates&nbsp;multiple&nbsp;requested&nbsp;attributes&nbsp;for&nbsp;a&nbsp;particular&nbsp;scintillator.<br>
+Note:&nbsp;new&nbsp;info&nbsp;for&nbsp;each&nbsp;attribute&nbsp;must&nbsp;be&nbsp;of&nbsp;the&nbsp;same&nbsp;type&nbsp;as&nbsp;the&nbsp;old.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+scintillator&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;scintillator&nbsp;of&nbsp;interest.&nbsp;Allowed&nbsp;values&nbsp;(detector&nbsp;dependent):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'NaI',&nbsp;'SP',&nbsp;'MP',&nbsp;'LP'.<br>
+attribute_list&nbsp;:&nbsp;list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;names&nbsp;of&nbsp;the&nbsp;attributes&nbsp;of&nbsp;interest.<br>
+new_info_list&nbsp;:&nbsp;list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;new&nbsp;information&nbsp;for&nbsp;each&nbsp;requested&nbsp;attribute.</span></dd></dl>
+
+<dl><dt><a name="Detector-set_passtime"><strong>set_passtime</strong></a>(self, passtime_dict)</dt><dd><span class="code">Updates&nbsp;the&nbsp;passtime&nbsp;attributes&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;<a href="#Detector">Detector</a>'s&nbsp;scintillators.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+passtime_dict&nbsp;:&nbsp;dict<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;the&nbsp;passtime&nbsp;dictionaries&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;<a href="#Detector">Detector</a>'s&nbsp;scintillators.</span></dd></dl>
+
+<dl><dt><a name="Detector-set_results_loc"><strong>set_results_loc</strong></a>(self, loc)</dt><dd><span class="code">Sets&nbsp;the&nbsp;directory&nbsp;where&nbsp;all&nbsp;results&nbsp;will&nbsp;be&nbsp;stored.</span></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><span class="code">dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</span></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><span class="code">list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</span></dd>
+</dl>
+</td></tr></table></td></tr></table>
+</body></html>
