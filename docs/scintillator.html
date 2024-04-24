@@ -16,9 +16,12 @@
 <td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Modules</strong></td></tr>
     
 <tr><td class="decor pkg-content-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
-<td class="singlecolumn"><table><tr><td class="multicolumn"><a href="numpy.html">numpy</a><br>
-</td><td class="multicolumn"><a href="pandas.html">pandas</a><br>
-</td><td class="multicolumn"></td><td class="multicolumn"></td></tr></table></td></tr></table><p>
+<td class="singlecolumn"><table><tr><td class="multicolumn"><a href="copy.html">copy</a><br>
+<a href="numpy.html">numpy</a><br>
+</td><td class="multicolumn"><a href="tgfsearch.parameters.html">tgfsearch.parameters</a><br>
+<a href="pandas.html">pandas</a><br>
+</td><td class="multicolumn"><a href="tgfsearch.tools.html">tgfsearch.tools</a><br>
+</td><td class="multicolumn"></td></tr></table></td></tr></table><p>
 <table class="section">
 <tr class="decor index-decor heading-text">
 <td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Classes</strong></td></tr>
@@ -62,6 +65,9 @@ lm_filelist&nbsp;:&nbsp;list<br>
 lm_filetime_extrema&nbsp;:&nbsp;list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;lists.&nbsp;Each&nbsp;sublist&nbsp;contains&nbsp;a&nbsp;pair&nbsp;of&nbsp;numbers&nbsp;corresponding&nbsp;to<br>
 &nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;first&nbsp;and&nbsp;last&nbsp;second&nbsp;in&nbsp;each&nbsp;list&nbsp;mode&nbsp;file.<br>
+lm_file_indices&nbsp;:&nbsp;dict<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;of&nbsp;lists.&nbsp;Each&nbsp;list&nbsp;contains&nbsp;the&nbsp;indices&nbsp;needed&nbsp;to&nbsp;slice&nbsp;data&nbsp;for&nbsp;a&nbsp;particular&nbsp;file<br>
+&nbsp;&nbsp;&nbsp;&nbsp;out&nbsp;of&nbsp;lm_frame.<br>
 trace_filelist&nbsp;:&nbsp;list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;trace&nbsp;files&nbsp;for&nbsp;the&nbsp;day.<br>
 traces&nbsp;:&nbsp;dict<br>
@@ -78,13 +84,19 @@ passtime&nbsp;:&nbsp;dict<br>
 
 <dl><dt><a name="Scintillator-__str__"><strong>__str__</strong></a>(self)</dt><dd><span class="code">Return&nbsp;str(self).</span></dd></dl>
 
-<dl><dt><a name="Scintillator-get_attribute"><strong>get_attribute</strong></a>(self, attribute)</dt></dl>
+<dl><dt><a name="Scintillator-find_lm_file_index"><strong>find_lm_file_index</strong></a>(self, count_time)</dt><dd><span class="code">Returns&nbsp;the&nbsp;index&nbsp;of&nbsp;the&nbsp;list&nbsp;mode&nbsp;file&nbsp;that&nbsp;the&nbsp;given&nbsp;count&nbsp;occurred&nbsp;in.</span></dd></dl>
 
-<dl><dt><a name="Scintillator-get_trace"><strong>get_trace</strong></a>(self, time_id)</dt></dl>
+<dl><dt><a name="Scintillator-find_matching_trace_id"><strong>find_matching_trace_id</strong></a>(self, count_time, first_sec, trace_list=None, count_file_index=None)</dt><dd><span class="code">Returns&nbsp;the&nbsp;time&nbsp;id&nbsp;of&nbsp;the&nbsp;trace&nbsp;most&nbsp;likely&nbsp;to&nbsp;be&nbsp;associated&nbsp;with&nbsp;the&nbsp;given&nbsp;count.</span></dd></dl>
 
-<dl><dt><a name="Scintillator-get_trace_list"><strong>get_trace_list</strong></a>(self)</dt></dl>
+<dl><dt><a name="Scintillator-get_attribute"><strong>get_attribute</strong></a>(self, attribute)</dt><dd><span class="code">Returns&nbsp;the&nbsp;requested&nbsp;attribute.</span></dd></dl>
 
-<dl><dt><a name="Scintillator-set_attribute"><strong>set_attribute</strong></a>(self, attribute, info)</dt></dl>
+<dl><dt><a name="Scintillator-get_lm_file_data"><strong>get_lm_file_data</strong></a>(self, file_name)</dt><dd><span class="code">Returns&nbsp;a&nbsp;dataframe&nbsp;containing&nbsp;the&nbsp;list&nbsp;mode&nbsp;data&nbsp;for&nbsp;only&nbsp;the&nbsp;specified&nbsp;file.</span></dd></dl>
+
+<dl><dt><a name="Scintillator-get_trace"><strong>get_trace</strong></a>(self, time_id)</dt><dd><span class="code">Returns&nbsp;trace&nbsp;data&nbsp;for&nbsp;the&nbsp;given&nbsp;time&nbsp;id.</span></dd></dl>
+
+<dl><dt><a name="Scintillator-get_trace_ids"><strong>get_trace_ids</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;a&nbsp;list&nbsp;of&nbsp;time&nbsp;ids&nbsp;for&nbsp;traces&nbsp;that&nbsp;are&nbsp;currently&nbsp;being&nbsp;stored.</span></dd></dl>
+
+<dl><dt><a name="Scintillator-set_attribute"><strong>set_attribute</strong></a>(self, attribute, info)</dt><dd><span class="code">Updates&nbsp;the&nbsp;requested&nbsp;attribute.</span></dd></dl>
 
 <hr>
 Data descriptors defined here:<br>

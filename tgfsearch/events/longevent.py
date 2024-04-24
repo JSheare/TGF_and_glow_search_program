@@ -70,37 +70,3 @@ class LongEvent:
         length = self.length * params.BIN_SIZE
         last_sec = first_sec + length
         return first_sec, last_sec
-
-    def find_lm_filenames(self, filelist_dict, extrema_dict):
-        """Gets the names of the files that the event occurred in. Note: this function assumes that events are in
-        chronological order.
-
-        Parameters
-        ----------
-        filelist_dict : dict
-            A dictionary containing a list of files for each scintillator that contributed to the event.
-        extrema_dict : dict
-            A dictionary containing a list of file time extrema for each scintillator that contributed to the event.
-
-        """
-
-        for scintillator in filelist_dict:
-            if scintillator not in self.lm_files:
-                event_file = ''
-                files_examined = 0
-                filetime_extrema = extrema_dict[scintillator]
-                filelist = filelist_dict[scintillator]
-                for i in range(len(filetime_extrema)):
-                    first_time = filetime_extrema[i][0]
-                    last_time = filetime_extrema[i][1]
-                    if (first_time <= self.start_sec <= last_time) or (
-                            first_time <= self.stop_sec <= last_time):
-                        event_file = filelist[i]
-                        # Warning: modifies the actual dictionaries because python passes dictionaries by reference
-                        filelist_dict[scintillator] = filelist[files_examined:]
-                        extrema_dict[scintillator] = filetime_extrema[files_examined:]
-                        break
-
-                    files_examined += 1
-
-                self.lm_files[scintillator] = event_file

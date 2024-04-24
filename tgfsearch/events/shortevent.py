@@ -29,6 +29,8 @@ class ShortEvent:
         A string corresponding to the scintillator which the event was found in.
     lm_files : dict
         The list mode file(s) associated with the event.
+    traces
+        The time id(s) of the trace(s) associated with the event.
     len_subscore : int
         The event's length score given by the ranking system.
     clumpiness_subscore : int
@@ -52,6 +54,7 @@ class ShortEvent:
         self.stop = int(event_start + event_length)
         self.scintillator = scintillator
         self.lm_files = {}
+        self.traces = {}
 
         # Ranking scores
         self.len_subscore = 0
@@ -157,48 +160,3 @@ class ShortEvent:
                                 params.CLUMPINESS_WEIGHT * self.clumpiness_subscore +
                                 params.HEL_WEIGHT * self.hel_subscore +
                                 params.WEATHER_WEIGHT * self.weather_subscore)
-
-    def find_lm_filenames(self, filelist_dict, extrema_dict, times, count_scints=None):
-        """Gets the names of the files that the event occurred in. Note: this function assumes that events are in
-        chronological order.
-
-        Parameters
-        ----------
-        filelist_dict : dict
-            A dictionary containing a list of files for each scintillator that contributed to the event.
-        extrema_dict : dict
-            A dictionary containing a list of file time extrema for each scintillator that contributed to the event.
-        times : numpy.ndarray
-            A numpy array containing times for each count.
-        count_scints : numpy.ndarray
-            A numpy array containing the scintillator each count is from.
-
-        """
-
-        for i in range(self.start, self.stop):
-            if count_scints is not None:
-                scintillator = count_scints[i]
-            else:
-                scintillator = self.scintillator
-
-            if scintillator not in self.lm_files:
-                event_time = times[i] - 86400 if times[i] > 86400 else times[i]
-                event_file = ''
-                files_examined = 0
-                filetime_extrema = extrema_dict[scintillator]
-                filelist = filelist_dict[scintillator]
-                for j in range(len(filetime_extrema)):
-                    if filetime_extrema[j][0] <= event_time <= filetime_extrema[j][1]:
-                        event_file = filelist[j]
-                        # Warning: modifies the actual dictionaries because python passes dictionaries by reference
-                        filelist_dict[scintillator] = filelist[files_examined:]
-                        extrema_dict[scintillator] = filetime_extrema[files_examined:]
-                        break
-
-                    files_examined += 1
-
-                self.lm_files[scintillator] = event_file
-
-            # So that we don't loop through the whole event for no reason when not in combo mode
-            if count_scints is None:
-                break

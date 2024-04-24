@@ -91,16 +91,13 @@ import_loc&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;directory&nbsp;where&nbsp;data&nbsp;files&nbsp;for&nbsp;the&nbsp;day&nbsp;are&nbsp;located.<br>
 results_loc&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;directory&nbsp;where&nbsp;program&nbsp;results&nbsp;will&nbsp;be&nbsp;exported.<br>
-file_form&nbsp;:&nbsp;function<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;lambda&nbsp;function&nbsp;that,&nbsp;when&nbsp;given&nbsp;the&nbsp;eRC&nbsp;serial&nbsp;number,&nbsp;returns&nbsp;the&nbsp;regex&nbsp;for&nbsp;a&nbsp;scintillator's&nbsp;files.<br>
-scintillators&nbsp;:&nbsp;dict<br>
+_scintillators&nbsp;:&nbsp;dict<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;scintillator&nbsp;objects.&nbsp;These&nbsp;objects&nbsp;keep&nbsp;track&nbsp;of&nbsp;data&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;detector's<br>
-&nbsp;&nbsp;&nbsp;&nbsp;scintillators.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;scintillators.&nbsp;Note&nbsp;the&nbsp;name&nbsp;mangling&nbsp;underscore.<br>
 scint_list&nbsp;:&nbsp;list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;the&nbsp;detector's&nbsp;scintillator&nbsp;names.<br>
 processed&nbsp;:&nbsp;bool<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;flag&nbsp;for&nbsp;whether&nbsp;the&nbsp;program&nbsp;should&nbsp;operate&nbsp;in&nbsp;'processed'&nbsp;mode&nbsp;or&nbsp;not.&nbsp;Under&nbsp;this&nbsp;mode,&nbsp;the&nbsp;program&nbsp;will<br>
-&nbsp;&nbsp;&nbsp;&nbsp;import&nbsp;processed&nbsp;data&nbsp;instead&nbsp;of&nbsp;raw&nbsp;data.&nbsp;Only&nbsp;available&nbsp;for&nbsp;Godot.<br>&nbsp;</span></td></tr>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;flag&nbsp;for&nbsp;whether&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;should&nbsp;import&nbsp;processed&nbsp;data.&nbsp;Only&nbsp;available&nbsp;for&nbsp;Godot.<br>&nbsp;</span></td></tr>
 <tr><td>&nbsp;</td>
 <td class="singlecolumn">Methods defined here:<br>
 <dl><dt><a name="Detector-__bool__"><strong>__bool__</strong></a>(self)</dt><dd><span class="code">Bool&nbsp;casting&nbsp;overload.&nbsp;Returns&nbsp;True&nbsp;if&nbsp;data&nbsp;for&nbsp;the&nbsp;default&nbsp;scintillator&nbsp;is&nbsp;present.</span></dd></dl>
@@ -131,7 +128,7 @@ make_template&nbsp;:&nbsp;bool<br>
 changes&nbsp;the&nbsp;import&nbsp;and&nbsp;export&nbsp;directories&nbsp;if&nbsp;the&nbsp;user&nbsp;specified&nbsp;different&nbsp;ones&nbsp;from&nbsp;the&nbsp;defaults.</span></dd></dl>
 
 <dl><dt><a name="Detector-check_processed"><strong>check_processed</strong></a>(self)</dt><dd><span class="code">Checks&nbsp;to&nbsp;see&nbsp;if&nbsp;'processed'&nbsp;is&nbsp;one&nbsp;of&nbsp;the&nbsp;user-specified&nbsp;modes,&nbsp;and&nbsp;sets&nbsp;the&nbsp;processed&nbsp;flag&nbsp;to&nbsp;true.<br>
-Raises&nbsp;an&nbsp;error&nbsp;if&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;isn't&nbsp;Godot.</span></dd></dl>
+Raises&nbsp;a&nbsp;ValueError&nbsp;if&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;isn't&nbsp;Godot.</span></dd></dl>
 
 <dl><dt><a name="Detector-data_present_in"><strong>data_present_in</strong></a>(self, scintillator)</dt><dd><span class="code">Returns&nbsp;True&nbsp;if&nbsp;data&nbsp;is&nbsp;present&nbsp;for&nbsp;the&nbsp;specified&nbsp;scintillator&nbsp;and&nbsp;False&nbsp;otherwise.<br>
 &nbsp;<br>
@@ -146,7 +143,46 @@ Returns<br>
 bool<br>
 &nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;if&nbsp;data&nbsp;is&nbsp;present&nbsp;in&nbsp;the&nbsp;specified&nbsp;scintillator,&nbsp;False&nbsp;otherwise.</span></dd></dl>
 
-<dl><dt><a name="Detector-get_attribute"><strong>get_attribute</strong></a>(self, scintillator, attribute)</dt><dd><span class="code">Retrieves&nbsp;the&nbsp;requested&nbsp;attribute&nbsp;for&nbsp;a&nbsp;particular&nbsp;scintillator.<br>
+<dl><dt><a name="Detector-file_form"><strong>file_form</strong></a>(self, eRC)</dt><dd><span class="code">Returns&nbsp;the&nbsp;regex&nbsp;for&nbsp;a&nbsp;scintillator's&nbsp;files&nbsp;given&nbsp;the&nbsp;scintillator's&nbsp;eRC&nbsp;serial&nbsp;number.</span></dd></dl>
+
+<dl><dt><a name="Detector-find_lm_file_index"><strong>find_lm_file_index</strong></a>(self, scintillator, count_time)</dt><dd><span class="code">Returns&nbsp;the&nbsp;index&nbsp;of&nbsp;the&nbsp;list&nbsp;mode&nbsp;file&nbsp;that&nbsp;the&nbsp;given&nbsp;count&nbsp;occurred&nbsp;in.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+scintillator&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;scintillator&nbsp;that&nbsp;the&nbsp;count&nbsp;is&nbsp;from.&nbsp;Allowed&nbsp;values&nbsp;(detector&nbsp;dependent):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'NaI',&nbsp;'SP',&nbsp;'MP',&nbsp;'LP'.<br>
+count_time&nbsp;:&nbsp;float<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;time&nbsp;that&nbsp;the&nbsp;count&nbsp;occurred&nbsp;at&nbsp;(in&nbsp;seconds&nbsp;of&nbsp;day).<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+int<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;index&nbsp;of&nbsp;the&nbsp;file&nbsp;that&nbsp;the&nbsp;given&nbsp;count&nbsp;occurred&nbsp;in.&nbsp;Returns&nbsp;-1&nbsp;if&nbsp;the&nbsp;count&nbsp;isn't&nbsp;in&nbsp;any&nbsp;of&nbsp;the&nbsp;files.</span></dd></dl>
+
+<dl><dt><a name="Detector-find_matching_trace_id"><strong>find_matching_trace_id</strong></a>(self, scintillator, count_time, trace_list=None, count_file_index=None)</dt><dd><span class="code">Returns&nbsp;the&nbsp;time&nbsp;id&nbsp;of&nbsp;the&nbsp;trace&nbsp;most&nbsp;likely&nbsp;to&nbsp;be&nbsp;associated&nbsp;with&nbsp;the&nbsp;given&nbsp;count.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+scintillator&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;scintillator&nbsp;that&nbsp;the&nbsp;count&nbsp;is&nbsp;from.&nbsp;Allowed&nbsp;values&nbsp;(detector&nbsp;dependent):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'NaI',&nbsp;'SP',&nbsp;'MP',&nbsp;'LP'.<br>
+count_time&nbsp;:&nbsp;float<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;time&nbsp;that&nbsp;the&nbsp;count&nbsp;occurred&nbsp;at&nbsp;(in&nbsp;seconds&nbsp;of&nbsp;day).<br>
+trace_list&nbsp;:&nbsp;list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;A&nbsp;list&nbsp;of&nbsp;time&nbsp;ids&nbsp;for&nbsp;traces&nbsp;that&nbsp;might&nbsp;be&nbsp;matches.&nbsp;If&nbsp;not&nbsp;specified,&nbsp;all&nbsp;traces&nbsp;stored&nbsp;in&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Detector">Detector</a>&nbsp;will&nbsp;be&nbsp;considered&nbsp;potential&nbsp;matches.<br>
+count_file_index&nbsp;:&nbsp;int<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;The&nbsp;index&nbsp;of&nbsp;the&nbsp;file&nbsp;the&nbsp;count&nbsp;came&nbsp;from.&nbsp;If&nbsp;not&nbsp;provided,&nbsp;the&nbsp;function&nbsp;will&nbsp;spend&nbsp;a&nbsp;little<br>
+&nbsp;&nbsp;&nbsp;&nbsp;time&nbsp;finding&nbsp;this&nbsp;index&nbsp;itself.<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;time&nbsp;id&nbsp;of&nbsp;the&nbsp;trace&nbsp;most&nbsp;likely&nbsp;to&nbsp;be&nbsp;associated&nbsp;with&nbsp;the&nbsp;given&nbsp;count.&nbsp;Returns&nbsp;an&nbsp;empty&nbsp;string<br>
+&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;no&nbsp;good&nbsp;match&nbsp;is&nbsp;found.</span></dd></dl>
+
+<dl><dt><a name="Detector-get_attribute"><strong>get_attribute</strong></a>(self, scintillator, attribute)</dt><dd><span class="code">Returns&nbsp;the&nbsp;requested&nbsp;attribute&nbsp;for&nbsp;a&nbsp;particular&nbsp;scintillator.<br>
 &nbsp;<br>
 Parameters<br>
 ----------<br>
@@ -163,22 +199,23 @@ str&nbsp;||&nbsp;list&nbsp;||&nbsp;numpy.ndarray&nbsp;||&nbsp;dict&nbsp;||&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;numpy&nbsp;array&nbsp;&nbsp;if&nbsp;'time',&nbsp;'energy',&nbsp;or&nbsp;'wc'&nbsp;is&nbsp;requested;&nbsp;dictionary&nbsp;if&nbsp;'passtime'&nbsp;is&nbsp;requested;&nbsp;dataframe<br>
 &nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;'lm_frame'&nbsp;is&nbsp;requested,&nbsp;etc.</span></dd></dl>
 
-<dl><dt><a name="Detector-get_file_iloc"><strong>get_file_iloc</strong></a>(self, scintillator, count_time)</dt><dd><span class="code">Returns&nbsp;the&nbsp;index&nbsp;of&nbsp;the&nbsp;list&nbsp;mode&nbsp;file&nbsp;that&nbsp;the&nbsp;given&nbsp;count&nbsp;occurred&nbsp;in.<br>
+<dl><dt><a name="Detector-get_import_loc"><strong>get_import_loc</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;the&nbsp;directory&nbsp;where&nbsp;data&nbsp;will&nbsp;be&nbsp;imported&nbsp;from.</span></dd></dl>
+
+<dl><dt><a name="Detector-get_lm_file_data"><strong>get_lm_file_data</strong></a>(self, scintillator, file_name)</dt><dd><span class="code">Returns&nbsp;a&nbsp;dataframe&nbsp;containing&nbsp;the&nbsp;list&nbsp;mode&nbsp;data&nbsp;for&nbsp;only&nbsp;the&nbsp;specified&nbsp;file.<br>
 &nbsp;<br>
 Parameters<br>
 ----------<br>
 scintillator&nbsp;:&nbsp;str<br>
-&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;scintillator&nbsp;that&nbsp;the&nbsp;count&nbsp;is&nbsp;from.&nbsp;Allowed&nbsp;values&nbsp;(detector&nbsp;dependent):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;scintillator&nbsp;that&nbsp;the&nbsp;file&nbsp;is&nbsp;from.&nbsp;Allowed&nbsp;values&nbsp;(detector&nbsp;dependent):<br>
 &nbsp;&nbsp;&nbsp;&nbsp;'NaI',&nbsp;'SP',&nbsp;'MP',&nbsp;'LP'.<br>
-count_time&nbsp;:&nbsp;float<br>
-&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;time&nbsp;that&nbsp;the&nbsp;count&nbsp;occurred&nbsp;at&nbsp;(in&nbsp;seconds&nbsp;of&nbsp;day).<br>
+file_name&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;file&nbsp;that&nbsp;data&nbsp;is&nbsp;being&nbsp;requested&nbsp;for.&nbsp;Note&nbsp;that&nbsp;this&nbsp;must&nbsp;be&nbsp;the&nbsp;*full*&nbsp;name&nbsp;of&nbsp;the&nbsp;file,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;including&nbsp;the&nbsp;path&nbsp;from&nbsp;the&nbsp;root&nbsp;directory.<br>
 &nbsp;<br>
 Returns<br>
 -------<br>
-int<br>
-&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;index&nbsp;of&nbsp;the&nbsp;file&nbsp;that&nbsp;the&nbsp;given&nbsp;count&nbsp;occurred&nbsp;in.</span></dd></dl>
-
-<dl><dt><a name="Detector-get_import_loc"><strong>get_import_loc</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;the&nbsp;directory&nbsp;where&nbsp;data&nbsp;will&nbsp;be&nbsp;imported&nbsp;from.</span></dd></dl>
+pandas.core.frame.DataFrame<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dataframe&nbsp;with&nbsp;the&nbsp;data&nbsp;for&nbsp;the&nbsp;requested&nbsp;list&nbsp;mode&nbsp;file.</span></dd></dl>
 
 <dl><dt><a name="Detector-get_location"><strong>get_location</strong></a>(self, deployment_file_loc)</dt><dd><span class="code">Returns&nbsp;a&nbsp;dictionary&nbsp;full&nbsp;of&nbsp;location&nbsp;information&nbsp;for&nbsp;the&nbsp;detector&nbsp;on&nbsp;its&nbsp;specified&nbsp;date.</span></dd></dl>
 
@@ -206,7 +243,7 @@ Returns<br>
 pandas.core.frame.DataFrame<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dataframe&nbsp;containing&nbsp;the&nbsp;trace&nbsp;data&nbsp;for&nbsp;the&nbsp;given&nbsp;id.</span></dd></dl>
 
-<dl><dt><a name="Detector-get_trace_list"><strong>get_trace_list</strong></a>(self, scintillator)</dt><dd><span class="code">Returns&nbsp;a&nbsp;list&nbsp;of&nbsp;time&nbsp;ids&nbsp;for&nbsp;traces&nbsp;that&nbsp;are&nbsp;currently&nbsp;being&nbsp;stored.<br>
+<dl><dt><a name="Detector-get_trace_ids"><strong>get_trace_ids</strong></a>(self, scintillator)</dt><dd><span class="code">Returns&nbsp;a&nbsp;list&nbsp;of&nbsp;time&nbsp;ids&nbsp;for&nbsp;traces&nbsp;that&nbsp;are&nbsp;currently&nbsp;being&nbsp;stored.<br>
 &nbsp;<br>
 Parameters<br>
 ----------<br>

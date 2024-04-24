@@ -64,6 +64,8 @@ scintillator&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;string&nbsp;corresponding&nbsp;to&nbsp;the&nbsp;scintillator&nbsp;which&nbsp;the&nbsp;event&nbsp;was&nbsp;found&nbsp;in.<br>
 lm_files&nbsp;:&nbsp;dict<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;list&nbsp;mode&nbsp;file(s)&nbsp;associated&nbsp;with&nbsp;the&nbsp;event.<br>
+traces<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;time&nbsp;id(s)&nbsp;of&nbsp;the&nbsp;trace(s)&nbsp;associated&nbsp;with&nbsp;the&nbsp;event.<br>
 len_subscore&nbsp;:&nbsp;int<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;event's&nbsp;length&nbsp;score&nbsp;given&nbsp;by&nbsp;the&nbsp;ranking&nbsp;system.<br>
 clumpiness_subscore&nbsp;:&nbsp;int<br>
@@ -100,20 +102,6 @@ times&nbsp;:&nbsp;numpy.ndarray<br>
 &nbsp;&nbsp;&nbsp;&nbsp;An&nbsp;array&nbsp;containing&nbsp;times&nbsp;for&nbsp;each&nbsp;count.<br>
 energies&nbsp;:&nbsp;np.array<br>
 &nbsp;&nbsp;&nbsp;&nbsp;An&nbsp;array&nbsp;containing&nbsp;energies&nbsp;for&nbsp;each&nbsp;count.</span></dd></dl>
-
-<dl><dt><a name="ShortEvent-find_lm_filenames"><strong>find_lm_filenames</strong></a>(self, filelist_dict, extrema_dict, times, count_scints=None)</dt><dd><span class="code">Gets&nbsp;the&nbsp;names&nbsp;of&nbsp;the&nbsp;files&nbsp;that&nbsp;the&nbsp;event&nbsp;occurred&nbsp;in.&nbsp;Note:&nbsp;this&nbsp;function&nbsp;assumes&nbsp;that&nbsp;events&nbsp;are&nbsp;in<br>
-chronological&nbsp;order.<br>
-&nbsp;<br>
-Parameters<br>
-----------<br>
-filelist_dict&nbsp;:&nbsp;dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;a&nbsp;list&nbsp;of&nbsp;files&nbsp;for&nbsp;each&nbsp;scintillator&nbsp;that&nbsp;contributed&nbsp;to&nbsp;the&nbsp;event.<br>
-extrema_dict&nbsp;:&nbsp;dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;a&nbsp;list&nbsp;of&nbsp;file&nbsp;time&nbsp;extrema&nbsp;for&nbsp;each&nbsp;scintillator&nbsp;that&nbsp;contributed&nbsp;to&nbsp;the&nbsp;event.<br>
-times&nbsp;:&nbsp;numpy.ndarray<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;numpy&nbsp;array&nbsp;containing&nbsp;times&nbsp;for&nbsp;each&nbsp;count.<br>
-count_scints&nbsp;:&nbsp;numpy.ndarray<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;numpy&nbsp;array&nbsp;containing&nbsp;the&nbsp;scintillator&nbsp;each&nbsp;count&nbsp;is&nbsp;from.</span></dd></dl>
 
 <hr>
 Data descriptors defined here:<br>

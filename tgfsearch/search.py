@@ -194,6 +194,36 @@ def find_short_events(detector, modes, scintillator, rollgap, times, energies):
     return potential_events
 
 
+# Finds the list mode file(s) and trace(s) associated with a short event
+def find_se_files(detector, event, filelist_dict, trace_dict, times, count_scints=None):
+    event_lm_files = {}
+    event_traces = {}
+    for i in range(event.start, event.stop):
+        if count_scints is not None:
+            scintillator = count_scints[i]
+        else:
+            scintillator = event.scintillator
+
+        if scintillator not in event_lm_files:
+            event_time = times[i]
+            event_file = ''
+            event_trace = ''
+            lm_file_index = detector.find_lm_file_index(scintillator, event_time)
+            if lm_file_index != -1:
+                event_file = filelist_dict[scintillator][lm_file_index]
+                event_trace = detector.find_matching_trace_id(scintillator, event_time,
+                                                              trace_dict[scintillator], lm_file_index)
+
+            event_lm_files[scintillator] = event_file
+            event_traces[scintillator] = event_trace
+
+        # So that we don't loop through the whole event for no reason when not in combo mode
+        if count_scints is None:
+            break
+
+    return event_lm_files, event_traces
+
+
 # Makes the scatter plot for a short event
 def make_se_scatterplot(detector, event, times, energies, count_scints):
     # Subplot timescales
@@ -270,7 +300,7 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
 
 
 # Makes the json file for a short event
-def make_se_file(detector, event, times, energies, wallclock, count_scints):
+def make_se_json(detector, event, times, energies, wallclock, count_scints):
     eventpath = (f'{detector.get_results_loc()}/Results/{detector.unit}/'
                  f'{detector.date_str}/event files/short events/')
     tl.make_path(eventpath)
@@ -299,18 +329,16 @@ def short_event_search(detector, modes, prev_event_numbers=None):
     else:
         rollgap = params.NORMAL_ROLLGAP
 
-    # Making filelist and extrema dicts. These are essentially used to cache which list mode files haven't been
-    # looked at when trying to associate an event with a list mode file
+    # Making filelist dict. Basically just making this so that we don't have to keep calling
+    # detector.get_attribute() over and over again when trying to associate events with list mode files
     if modes['allscints'] or modes['combo']:
         filelist_dict = {scintillator: detector.get_attribute(scintillator, 'lm_filelist')
                          for scintillator in detector}
-        extrema_dict = {scintillator: detector.get_attribute(scintillator, 'lm_filetime_extrema')
-                        for scintillator in detector}
+        trace_dict = {scintillator: detector.get_trace_ids(scintillator) for scintillator in detector}  # temp
     else:
         filelist_dict = {detector.default_scintillator: detector.get_attribute(
             detector.default_scintillator, 'lm_filelist')}
-        extrema_dict = {detector.default_scintillator: detector.get_attribute(
-            detector.default_scintillator, 'lm_filetime_extrema')}
+        trace_dict = {detector.default_scintillator: detector.get_trace_ids(detector.default_scintillator)}  # temp
 
     event_numbers = prev_event_numbers if prev_event_numbers is not None else {}
     for i in range(len(detector.scint_list)):
@@ -382,8 +410,8 @@ def short_event_search(detector, modes, prev_event_numbers=None):
                 event.number = j + 1 + plots_already_made
 
                 # Logs the event
-                start_second = times[event.start] - params.SEC_PER_DAY if times[event.start] > params.SEC_PER_DAY else (
-                    times)[event.start]
+                start_second = times[event.start] - params.SEC_PER_DAY if (
+                        times[event.start] > params.SEC_PER_DAY) else times[event.start]
                 print(f'{dt.datetime.utcfromtimestamp(times[event.start] + detector.first_sec)} UTC '
                       f'({start_second} seconds of day) - weather: {tl.weather_from_score(event.weather_subscore)}',
                       file=detector.log)
@@ -391,13 +419,15 @@ def short_event_search(detector, modes, prev_event_numbers=None):
                       f'Clumpiness: {event.clumpiness_subscore}, HEL: {event.hel_subscore}]\n',
                       file=detector.log)
 
-                event.find_lm_filenames(filelist_dict, extrema_dict, times, count_scints)
+                # Finds the file(s) that the event occurred in and the event's trace(s)
+                event.lm_files, event.traces = find_se_files(detector, event, filelist_dict,
+                                                             trace_dict, times, count_scints)
 
                 # Makes the scatter plot for the event
                 make_se_scatterplot(detector, event, times, energies, count_scints)
 
                 # Makes a json file for the event
-                make_se_file(detector, event, times, energies, wallclock, count_scints)
+                make_se_json(detector, event, times, energies, wallclock, count_scints)
 
                 plots_made += 1
 
@@ -642,6 +672,21 @@ def find_long_events(modes, day_bins, hist_allday, mue, sigma):
     return potential_glows
 
 
+# Finds the list mode file(s) associated with a long event
+def find_le_files(detector, event, filelist_dict):
+    lm_files = {}
+    for scintillator in filelist_dict:
+        if scintillator not in lm_files:
+            event_file = ''
+            lm_file_index = detector.find_lm_file_index(scintillator, event.start_sec)
+            if lm_file_index != -1:
+                event_file = filelist_dict[scintillator][lm_file_index]
+
+            lm_files[scintillator] = event_file
+
+    return lm_files
+
+
 # Makes the histogram subplots for long events
 def make_hist_subplot(ax, event, day_bins, hist_allday, mue, sigma):
     left = 0 if (event.peak_index - params.LE_SUBPLOT_PADDING) < 0 else (event.peak_index - params.LE_SUBPLOT_PADDING)
@@ -726,8 +771,8 @@ def long_event_search(detector, modes, times, existing_hist=None, low_mem=False)
                     f'event files/long events/'
         tl.make_path(eventpath)
 
-        # Making filelist and extrema dicts. These are essentially used to cache which list mode files haven't been
-        # looked at when trying to associate an event with a list mode file
+        # Making filelist dict. Basically just making this so that we don't have to keep calling
+        # detector.get_attribute() over and over again when trying to associate events with list mode files
         long_event_scintillators = detector.long_event_scint_list
         for scintillator in detector.long_event_scint_list:
             if not detector.data_present_in(scintillator):
@@ -736,8 +781,6 @@ def long_event_search(detector, modes, times, existing_hist=None, low_mem=False)
 
         filelist_dict = {scintillator: detector.get_attribute(scintillator, 'lm_filelist')
                          for scintillator in long_event_scintillators}
-        extrema_dict = {scintillator: detector.get_attribute(scintillator, 'lm_filetime_extrema')
-                        for scintillator in long_event_scintillators}
 
         files_made = 0
         filecount_switch = True
@@ -760,7 +803,7 @@ def long_event_search(detector, modes, times, existing_hist=None, low_mem=False)
             event_file = open(f'{eventpath}{detector.date_str}_event{i + 1}_zscore'
                               f'{int(glow.highest_score)}.txt', 'w')
             print(info, file=event_file)
-            glow.find_lm_filenames(filelist_dict, extrema_dict)
+            glow.lm_files = find_le_files(detector, glow, filelist_dict)
             for scintillator in glow.lm_files:
                 print(f'{scintillator}: {glow.lm_files[scintillator]}', file=event_file)
 

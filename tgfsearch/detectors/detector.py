@@ -58,16 +58,13 @@ class Detector:
         The directory where data files for the day are located.
     results_loc : str
         The directory where program results will be exported.
-    file_form : function
-        A lambda function that, when given the eRC serial number, returns the regex for a scintillator's files.
-    scintillators : dict
+    _scintillators : dict
         A dictionary containing scintillator objects. These objects keep track of data for each of the detector's
-        scintillators.
+        scintillators. Note the name mangling underscore.
     scint_list : list
         A list of the detector's scintillator names.
     processed : bool
-        A flag for whether the program should operate in 'processed' mode or not. Under this mode, the program will
-        import processed data instead of raw data. Only available for Godot.
+        A flag for whether the Detector should import processed data. Only available for Godot.
 
     """
 
@@ -90,8 +87,7 @@ class Detector:
         self.default_data_loc = ''
         self.import_loc = ''
         self.results_loc = os.getcwd()
-        self.file_form = lambda eRC: ''
-        self.scintillators = {'NaI': Scintillator('NaI', '0'), 'LP': Scintillator('LP', '0')}
+        self._scintillators = {'NaI': Scintillator('NaI', '0'), 'LP': Scintillator('LP', '0')}
         self.scint_list = []
 
         self.processed = False
@@ -106,8 +102,8 @@ class Detector:
         with some info about which scintillators have data."""
         scintillators_with_data = []
         has_data = False
-        for scintillator in self.scintillators:
-            if self.scintillators[scintillator]:
+        for scintillator in self._scintillators:
+            if self._scintillators[scintillator]:
                 has_data = True
                 scintillators_with_data.append(scintillator)
                 break
@@ -124,6 +120,10 @@ class Detector:
     def __bool__(self):
         """Bool casting overload. Returns True if data for the default scintillator is present."""
         return self.data_present_in(self.default_scintillator)
+
+    def file_form(self, eRC):
+        """Returns the regex for a scintillator's files given the scintillator's eRC serial number."""
+        return ''
 
     def get_import_loc(self):
         """Returns the directory where data will be imported from."""
@@ -169,7 +169,7 @@ class Detector:
 
     def check_processed(self):
         """Checks to see if 'processed' is one of the user-specified modes, and sets the processed flag to true.
-        Raises an error if the Detector isn't Godot."""
+        Raises a ValueError if the Detector isn't Godot."""
         if 'processed' in self.mode_info:
             self.processed = True
             if self.is_named('GODOT'):
@@ -226,13 +226,13 @@ class Detector:
 
         """
 
-        if scintillator in self.scintillators:
-            return bool(self.scintillators[scintillator])
+        if scintillator in self._scintillators:
+            return bool(self._scintillators[scintillator])
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
     def get_attribute(self, scintillator, attribute):
-        """Retrieves the requested attribute for a particular scintillator.
+        """Returns the requested attribute for a particular scintillator.
 
         Parameters
         ----------
@@ -251,8 +251,8 @@ class Detector:
 
         """
 
-        if scintillator in self.scintillators:
-            medium = self.scintillators[scintillator]
+        if scintillator in self._scintillators:
+            medium = self._scintillators[scintillator]
             return medium.get_attribute(attribute)
 
         else:
@@ -274,9 +274,8 @@ class Detector:
 
         """
 
-        if scintillator in self:
-            scintillator_obj = self.scintillators[scintillator]
-            scintillator_obj.set_attribute(attribute, new_info)
+        if scintillator in self._scintillators:
+            self._scintillators[scintillator].set_attribute(attribute, new_info)
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
@@ -302,6 +301,53 @@ class Detector:
         else:
             raise ValueError('attribute_list and new_info_list must be of the same length.')
 
+    def find_lm_file_index(self, scintillator, count_time):
+        """Returns the index of the list mode file that the given count occurred in.
+
+        Parameters
+        ----------
+        scintillator : str
+            The name of the scintillator that the count is from. Allowed values (detector dependent):
+            'NaI', 'SP', 'MP', 'LP'.
+        count_time : float
+            The time that the count occurred at (in seconds of day).
+
+        Returns
+        -------
+        int
+            The index of the file that the given count occurred in. Returns -1 if the count isn't in any of the files.
+
+        """
+
+        if scintillator in self._scintillators:
+            return self._scintillators[scintillator].find_lm_file_index(count_time)
+        else:
+            raise ValueError(f"'{scintillator}' is not a valid scintillator.")
+
+    def get_lm_file_data(self, scintillator, file_name):
+        """Returns a dataframe containing the list mode data for only the specified file.
+
+        Parameters
+        ----------
+        scintillator : str
+            The name of the scintillator that the file is from. Allowed values (detector dependent):
+            'NaI', 'SP', 'MP', 'LP'.
+        file_name : str
+            The name of the file that data is being requested for. Note that this must be the *full* name of the file,
+            including the path from the root directory.
+
+        Returns
+        -------
+        pandas.core.frame.DataFrame
+            A dataframe with the data for the requested list mode file.
+
+        """
+
+        if scintillator in self._scintillators:
+            return self._scintillators[scintillator].get_lm_file_data(file_name)
+        else:
+            raise ValueError(f"'{scintillator}' is not a valid scintillator.")
+
     def get_trace(self, scintillator, time_id):
         """Returns the trace data for the given scintillator and time id.
 
@@ -320,12 +366,12 @@ class Detector:
 
         """
 
-        if scintillator in self:
-            return self.scintillators[scintillator].get_trace(time_id)
+        if scintillator in self._scintillators:
+            return self._scintillators[scintillator].get_trace(time_id)
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
-    def get_trace_list(self, scintillator):
+    def get_trace_ids(self, scintillator):
         """Returns a list of time ids for traces that are currently being stored.
 
         Parameters
@@ -341,13 +387,13 @@ class Detector:
 
         """
 
-        if scintillator in self:
-            return self.scintillators[scintillator].get_trace_list()
+        if scintillator in self._scintillators:
+            return self._scintillators[scintillator].get_trace_ids()
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
-    def get_file_iloc(self, scintillator, count_time):
-        """Returns the index of the list mode file that the given count occurred in.
+    def find_matching_trace_id(self, scintillator, count_time, trace_list=None, count_file_index=None):
+        """Returns the time id of the trace most likely to be associated with the given count.
 
         Parameters
         ----------
@@ -356,20 +402,26 @@ class Detector:
             'NaI', 'SP', 'MP', 'LP'.
         count_time : float
             The time that the count occurred at (in seconds of day).
+        trace_list : list
+            Optional. A list of time ids for traces that might be matches. If not specified, all traces stored in the
+            Detector will be considered potential matches.
+        count_file_index : int
+            Optional. The index of the file the count came from. If not provided, the function will spend a little
+            time finding this index itself.
 
         Returns
         -------
-        int
-            The index of the file that the given count occurred in.
+        str
+            The time id of the trace most likely to be associated with the given count. Returns an empty string
+            if no good match is found.
 
         """
 
-        lm_filetime_extrema = self.get_attribute(scintillator, 'lm_filetime_extrema')
-        for i in range(len(lm_filetime_extrema)):
-            if lm_filetime_extrema[i][0] <= count_time <= lm_filetime_extrema[i][1]:
-                return i
-
-        return -1
+        if scintillator in self._scintillators:
+            return self._scintillators[scintillator].find_matching_trace_id(count_time, self.first_sec,
+                                                                            trace_list, count_file_index)
+        else:
+            raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
     def get_passtime(self):
         """Returns a dictionary containing the passtime attributes for each of the Detector's scintillators.
@@ -382,7 +434,7 @@ class Detector:
         """
 
         passtime_dict = {}
-        for scintillator in self:
+        for scintillator in self._scintillators:
             passtime = self.get_attribute(scintillator, 'passtime')
             passtime_dict[scintillator] = passtime
 
@@ -398,13 +450,13 @@ class Detector:
 
         """
 
-        for scintillator in self:
+        for scintillator in self._scintillators:
             self.set_attribute(scintillator, 'passtime', passtime_dict[scintillator])
 
     def calculate_fileset_size(self):
         """Returns the total size (in bytes) of all the currently listed files for the day."""
         total_file_size = 0
-        for scintillator in self:
+        for scintillator in self._scintillators:
             lm_filelist = self.get_attribute(scintillator, 'lm_filelist')
             trace_filelist = self.get_attribute(scintillator, 'trace_filelist')
             for file in lm_filelist:
@@ -430,8 +482,10 @@ class Detector:
 
         file_frames = []
         filetime_extrema = []
+        file_indices = {}
         file_time_gaps = []
         prev_second = 0
+        start_index = 0
         files_imported = 0
 
         if self.log is not None:
@@ -488,6 +542,11 @@ class Detector:
             if self.log is not None:
                 print(f'{file}|True|{file_time_gap}', file=self.log)
 
+            # Keeps track of file indices in the larger dataframe
+            data_length = len(data.index)
+            file_indices[file] = [start_index, start_index + data_length]
+            start_index += data_length
+
             files_imported += 1
 
         if self.print_feedback:
@@ -515,12 +574,12 @@ class Detector:
                         filetime_extrema[-k][j] += params.SEC_PER_DAY
 
             self.set_multiple_attributes(scintillator,
-                                         ['lm_frame', 'lm_filetime_extrema'],
-                                         [all_data, filetime_extrema])
+                                         ['lm_frame', 'lm_filetime_extrema', 'lm_file_indices'],
+                                         [all_data, filetime_extrema, file_indices])
 
             if self.log is not None:
                 print('\n', file=self.log)
-                print(f'Total Counts: {len(all_data["time"])}', file=self.log)
+                print(f'Total Counts: {len(all_data.index)}', file=self.log)
                 print(f'Average time gap: {sum(file_time_gaps) / len(file_time_gaps)}', file=self.log)
                 print('\n', file=self.log)
         else:
@@ -573,7 +632,8 @@ class Detector:
 
                 continue
 
-            time_id = file.split(self.date_str)[1].split('.')[0][1:]
+            # Time id is just the time the trace has in its file name (last digits before the file extension)
+            time_id = file.split('.')[0].split('_')[-1]
             traces[time_id] = data
             if self.log is not None:
                 print(f'{file}|True', file=self.log)
@@ -609,7 +669,7 @@ class Detector:
 
         if not existing_filelists:
             # Locates the files to be imported
-            for scintillator in self.scintillators:
+            for scintillator in self._scintillators:
                 eRC = self.get_attribute(scintillator, 'eRC')
                 # Here in case the data files are grouped into daily folders
                 try:
@@ -628,7 +688,7 @@ class Detector:
         # Checks to see if the necessary files for a full search are present
         if not ignore_missing and len(self.get_attribute(self.default_scintillator, 'lm_filelist')) == 0:
             missing_data_scints = []
-            for scintillator in self.scintillators:
+            for scintillator in self._scintillators:
                 if len(self.get_attribute(scintillator, 'lm_filelist')) == 0:
                     missing_data_scints.append(scintillator)
 
@@ -650,7 +710,7 @@ class Detector:
         if (params.OPERATING_MEMORY_ALLOWANCE + total_file_size) > available_memory:
             raise MemoryError('not enough free memory to hold complete dataset.')
 
-        for scintillator in self.scintillators:
+        for scintillator in self._scintillators:
             eRC = self.get_attribute(scintillator, 'eRC')
             if self.log is not None:
                 print(f'For eRC {eRC} ({scintillator}):', file=self.log)
@@ -687,7 +747,7 @@ class Detector:
         bin_size = self.calibration_params['bin_size']
 
         energy_bins = np.arange(0.0, bin_range, bin_size)
-        for scintillator in self:
+        for scintillator in self._scintillators:
             energies = self.get_attribute(scintillator, 'energy')
             chunk_hist, bin_edges = np.histogram(energies, bins=energy_bins)
             if len(existing_spectra_dict[scintillator]) == 0:
@@ -923,7 +983,7 @@ class Detector:
         spectra_frame = pd.DataFrame()
         spectra_frame['energy bins'] = energy_bins[:-1]
         if self or existing_spectra:
-            if 'LP' in self.scintillators:
+            if 'LP' in self._scintillators:
                 if self.data_present_in('LP') or (existing_spectra and len(existing_spectra['LP']) != 0):
                     energy_hist = self._generate_hist(energy_bins, 'LP', existing_spectra)  # Putting this up here
                     # so that we don't have to do it again just for template mode
@@ -943,7 +1003,7 @@ class Detector:
                         print('Cannot calibrate LP (missing data)...')
 
             # Calibrates the NaI scintillator (if possible) and plots the calibration
-            if 'NaI' in self.scintillators:
+            if 'NaI' in self._scintillators:
                 if self.data_present_in('NaI') or (existing_spectra and len(existing_spectra['NaI']) != 0):
                     energy_hist = self._generate_hist(energy_bins, 'NaI', existing_spectra)
                     flagged_indices = self._calibrate_NaI(energy_bins, energy_hist, spectra_conversions, spectra_frame)

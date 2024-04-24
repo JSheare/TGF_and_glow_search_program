@@ -12,9 +12,11 @@ class Santis(Detector):
         self.default_data_loc = '/media/tgfdata/Detectors/SANTIS/Data'
         self.location = self.get_location(self.default_data_loc[:-5])
         self.import_loc = f'{self.default_data_loc}/{self.date_str}'
-        self.file_form = lambda eRC: f'eRC{eRC}*_*_{self.date_str}_*'
-        self.scintillators = {'LP': Scintillator('LP', '2549')}
-        self.scint_list = list(self.scintillators.keys())
+        self._scintillators = {'LP': Scintillator('LP', '2549')}
+        self.scint_list = list(self._scintillators.keys())
 
         self.check_processed()
         self.check_custom()
+
+    def file_form(self, eRC):
+        return f'eRC{eRC}*_*_{self.date_str}_*'
