@@ -67,16 +67,17 @@ def is_good_short_event(detector, modes, stats, times, energies, start, length):
     # All filters share a single loop to speed things up
     high_channel_start = params.LOW_CHANNEL_START + params.CHANNEL_RANGE_WIDTH + params.CHANNEL_SEPARATION
     for i in range(start, stop):
+        count_energy = energies[i]
         # Counting for low/high energy ratio filter
         if length >= params.GOOD_LEN_THRESH and not detector.is_named('THOR'):
-            if params.LOW_CHANNEL_START <= energies[i] <= (params.LOW_CHANNEL_START + params.CHANNEL_RANGE_WIDTH):
+            if params.LOW_CHANNEL_START <= count_energy <= (params.LOW_CHANNEL_START + params.CHANNEL_RANGE_WIDTH):
                 low_channel_counts += 1
 
-            if high_channel_start <= energies[i] <= (high_channel_start + params.CHANNEL_RANGE_WIDTH):
+            if high_channel_start <= count_energy <= (high_channel_start + params.CHANNEL_RANGE_WIDTH):
                 high_channel_counts += 1
 
         # Adding to priority queue for counts above minimum energy threshold filter
-        heapq.heappush(priority_queue, -1 * energies[i])  # -1 to turn this into a max heap
+        heapq.heappush(priority_queue, -1 * count_energy)  # -1 to turn this into a max heap
 
         # Measuring clumpiness for successive crs filter
         if modes['aircraft'] and length < params.GOOD_LEN_THRESH and i > start:
@@ -345,7 +346,7 @@ def short_event_search(detector, modes, prev_event_numbers=None):
         if detector.scint_list[i] != detector.default_scintillator and not modes['allscints']:
             continue
 
-        # Combining data from all available scintillators
+        # Combining data from all available scintillators (combo mode)
         if modes['combo']:
             scintillator = 'CM'
             tl.print_logger('Searching combined scintillator data...', detector.log)
@@ -449,8 +450,6 @@ def short_event_search(detector, modes, prev_event_numbers=None):
 def long_event_cutoff(detector, modes, chunk=None):
     # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
     operating_obj = chunk if chunk is not None else detector  # operating_obj should contain data
-    times = np.array([])
-    energies = np.array([])
     # Checks to see that data is present in all preferred scintillators. Otherwise, uses the default scintillator.
     long_event_scintillators = operating_obj.long_event_scint_list
     for scintillator in operating_obj.long_event_scint_list:
@@ -458,6 +457,8 @@ def long_event_cutoff(detector, modes, chunk=None):
             long_event_scintillators = [operating_obj.default_scintillator]
             break
 
+    times = np.array([])
+    energies = np.array([])
     # Checks to see if scintillators have all been calibrated. If one or more aren't, no counts are cut out
     all_calibrated = True
     for i in range(len(long_event_scintillators)):
@@ -514,13 +515,14 @@ def calculate_mue(hist_allday):
     # Finds the index of the first zscore above 3 (this is essentially just a modified binary search algorithm)
     low = 0
     high = len(sorting_order) - 1
-    while low < high:
+    while low <= high:
         mid = low + (high - low) // 2
         if abs_zscores[sorting_order[mid]] >= 3:
-            high = mid
+            high = mid - 1
         else:
             low = mid + 1
 
+    # Recalculates mue without outliers
     hist_sum = 0
     for i in range(0, low):
         hist_sum += hist_allday_nz[sorting_order[i]]
@@ -676,13 +678,12 @@ def find_long_events(modes, day_bins, hist_allday, mue, sigma):
 def find_le_files(detector, event, filelist_dict):
     lm_files = {}
     for scintillator in filelist_dict:
-        if scintillator not in lm_files:
-            event_file = ''
-            lm_file_index = detector.find_lm_file_index(scintillator, event.start_sec)
-            if lm_file_index != -1:
-                event_file = filelist_dict[scintillator][lm_file_index]
+        event_file = ''
+        lm_file_index = detector.find_lm_file_index(scintillator, event.start_sec)
+        if lm_file_index != -1:
+            event_file = filelist_dict[scintillator][lm_file_index]
 
-            lm_files[scintillator] = event_file
+        lm_files[scintillator] = event_file
 
     return lm_files
 
@@ -704,17 +705,15 @@ def make_hist_subplot(ax, event, day_bins, hist_allday, mue, sigma):
 
 
 # Runs the long event search
-def long_event_search(detector, modes, times, existing_hist=None, low_mem=False):
+def long_event_search(detector, modes, times, existing_hist=None):
     # Makes one bin for every binsize seconds of the day (plus around 300 seconds more for the next day)
-    day_bins = np.arange(0, 86700 + params.BIN_SIZE, params.BIN_SIZE)
+    day_bins = np.arange(0, params.SEC_PER_DAY + 200 + params.BIN_SIZE, params.BIN_SIZE)
 
     # Creates numerical values for histograms using numpy
     if existing_hist is not None:
         hist_allday = existing_hist
     else:
-        hist_allday, bins_allday = np.histogram(times, bins=day_bins)
-        if low_mem:
-            return hist_allday
+        hist_allday, _ = np.histogram(times, bins=day_bins)
 
     # Calculates mean
     mue_val = calculate_mue(hist_allday)
@@ -1155,6 +1154,7 @@ def program(first_date, second_date, unit, mode_info):
                 if not modes['skglow']:
                     tl.print_logger('Starting search for glows...', detector.log)
                     le_hist = np.array([])
+                    day_bins = np.arange(0, params.SEC_PER_DAY + 200 + params.BIN_SIZE, params.BIN_SIZE)
                     for chunk_path in chunk_path_list:
                         chunk = tl.unpickle_chunk(chunk_path)
                         # Converts energy channels to MeV using the locations of peaks/edges
@@ -1162,7 +1162,7 @@ def program(first_date, second_date, unit, mode_info):
                         le_times = long_event_cutoff(detector, modes, chunk)
 
                         # Histograms the counts from each chunk and combines them with the main one
-                        chunk_hist = long_event_search(detector, modes, le_times, low_mem=True)
+                        chunk_hist, _ = np.histogram(le_times, bins=day_bins)
                         le_hist = chunk_hist if len(le_hist) == 0 else le_hist + chunk_hist
 
                         del chunk

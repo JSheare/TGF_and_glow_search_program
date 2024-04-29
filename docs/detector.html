@@ -92,7 +92,7 @@ import_loc&nbsp;:&nbsp;str<br>
 results_loc&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;directory&nbsp;where&nbsp;program&nbsp;results&nbsp;will&nbsp;be&nbsp;exported.<br>
 _scintillators&nbsp;:&nbsp;dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;scintillator&nbsp;objects.&nbsp;These&nbsp;objects&nbsp;keep&nbsp;track&nbsp;of&nbsp;data&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;detector's<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;Scintillators.&nbsp;These&nbsp;keep&nbsp;track&nbsp;of&nbsp;data&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;detector's<br>
 &nbsp;&nbsp;&nbsp;&nbsp;scintillators.&nbsp;Note&nbsp;the&nbsp;name&nbsp;mangling&nbsp;underscore.<br>
 scint_list&nbsp;:&nbsp;list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;the&nbsp;detector's&nbsp;scintillator&nbsp;names.<br>
@@ -199,7 +199,12 @@ str&nbsp;||&nbsp;list&nbsp;||&nbsp;numpy.ndarray&nbsp;||&nbsp;dict&nbsp;||&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;numpy&nbsp;array&nbsp;&nbsp;if&nbsp;'time',&nbsp;'energy',&nbsp;or&nbsp;'wc'&nbsp;is&nbsp;requested;&nbsp;dictionary&nbsp;if&nbsp;'passtime'&nbsp;is&nbsp;requested;&nbsp;dataframe<br>
 &nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;'lm_frame'&nbsp;is&nbsp;requested,&nbsp;etc.</span></dd></dl>
 
-<dl><dt><a name="Detector-get_import_loc"><strong>get_import_loc</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;the&nbsp;directory&nbsp;where&nbsp;data&nbsp;will&nbsp;be&nbsp;imported&nbsp;from.</span></dd></dl>
+<dl><dt><a name="Detector-get_import_loc"><strong>get_import_loc</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;the&nbsp;directory&nbsp;where&nbsp;data&nbsp;will&nbsp;be&nbsp;imported&nbsp;from.<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;import&nbsp;directory&nbsp;as&nbsp;a&nbsp;string.</span></dd></dl>
 
 <dl><dt><a name="Detector-get_lm_file_data"><strong>get_lm_file_data</strong></a>(self, scintillator, file_name)</dt><dd><span class="code">Returns&nbsp;a&nbsp;dataframe&nbsp;containing&nbsp;the&nbsp;list&nbsp;mode&nbsp;data&nbsp;for&nbsp;only&nbsp;the&nbsp;specified&nbsp;file.<br>
 &nbsp;<br>
@@ -226,7 +231,12 @@ Returns<br>
 dict<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;the&nbsp;passtime&nbsp;dictionaries&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;<a href="#Detector">Detector</a>'s&nbsp;scintillators.</span></dd></dl>
 
-<dl><dt><a name="Detector-get_results_loc"><strong>get_results_loc</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;the&nbsp;directory&nbsp;where&nbsp;all&nbsp;results&nbsp;will&nbsp;be&nbsp;stored.</span></dd></dl>
+<dl><dt><a name="Detector-get_results_loc"><strong>get_results_loc</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;the&nbsp;directory&nbsp;where&nbsp;all&nbsp;results&nbsp;will&nbsp;be&nbsp;stored.<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;results&nbsp;directory&nbsp;as&nbsp;a&nbsp;string.</span></dd></dl>
 
 <dl><dt><a name="Detector-get_trace"><strong>get_trace</strong></a>(self, scintillator, time_id)</dt><dd><span class="code">Returns&nbsp;the&nbsp;trace&nbsp;data&nbsp;for&nbsp;the&nbsp;given&nbsp;scintillator&nbsp;and&nbsp;time&nbsp;id.<br>
 &nbsp;<br>
@@ -307,7 +317,12 @@ attribute&nbsp;:&nbsp;str<br>
 new_info&nbsp;:&nbsp;any<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;new&nbsp;information&nbsp;for&nbsp;the&nbsp;requested&nbsp;attribute.</span></dd></dl>
 
-<dl><dt><a name="Detector-set_import_loc"><strong>set_import_loc</strong></a>(self, loc)</dt><dd><span class="code">Sets&nbsp;the&nbsp;directory&nbsp;where&nbsp;data&nbsp;will&nbsp;be&nbsp;imported&nbsp;from.</span></dd></dl>
+<dl><dt><a name="Detector-set_import_loc"><strong>set_import_loc</strong></a>(self, loc)</dt><dd><span class="code">Sets&nbsp;the&nbsp;directory&nbsp;where&nbsp;data&nbsp;will&nbsp;be&nbsp;imported&nbsp;from.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+loc&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;import&nbsp;directory&nbsp;as&nbsp;a&nbsp;string.</span></dd></dl>
 
 <dl><dt><a name="Detector-set_multiple_attributes"><strong>set_multiple_attributes</strong></a>(self, scintillator, attribute_list, new_info_list)</dt><dd><span class="code">Updates&nbsp;multiple&nbsp;requested&nbsp;attributes&nbsp;for&nbsp;a&nbsp;particular&nbsp;scintillator.<br>
 Note:&nbsp;new&nbsp;info&nbsp;for&nbsp;each&nbsp;attribute&nbsp;must&nbsp;be&nbsp;of&nbsp;the&nbsp;same&nbsp;type&nbsp;as&nbsp;the&nbsp;old.<br>
@@ -329,7 +344,12 @@ Parameters<br>
 passtime_dict&nbsp;:&nbsp;dict<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;the&nbsp;passtime&nbsp;dictionaries&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;<a href="#Detector">Detector</a>'s&nbsp;scintillators.</span></dd></dl>
 
-<dl><dt><a name="Detector-set_results_loc"><strong>set_results_loc</strong></a>(self, loc)</dt><dd><span class="code">Sets&nbsp;the&nbsp;directory&nbsp;where&nbsp;all&nbsp;results&nbsp;will&nbsp;be&nbsp;stored.</span></dd></dl>
+<dl><dt><a name="Detector-set_results_loc"><strong>set_results_loc</strong></a>(self, loc)</dt><dd><span class="code">Sets&nbsp;the&nbsp;directory&nbsp;where&nbsp;all&nbsp;results&nbsp;will&nbsp;be&nbsp;stored.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+loc&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;results&nbsp;directory&nbsp;as&nbsp;a&nbsp;string.</span></dd></dl>
 
 <hr>
 Data descriptors defined here:<br>

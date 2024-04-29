@@ -13,7 +13,7 @@ class Scintillator:
     Parameters
     ----------
     name : str
-        The scintillator's name (usually an abbreviation).
+        The scintillator's name (abbreviated).
     eRC : str
         The scintillator's serial number.
 
@@ -38,7 +38,7 @@ class Scintillator:
     traces : dict
         A dictionary containing trace data for each of the day's trace files.
     passtime : dict
-        A dictionary containing information needed to import the subsequent files properly (if applicable).
+        A dictionary containing information needed to import the subsequent list mode files properly (if applicable).
 
     """
 

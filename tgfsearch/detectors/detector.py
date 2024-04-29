@@ -59,7 +59,7 @@ class Detector:
     results_loc : str
         The directory where program results will be exported.
     _scintillators : dict
-        A dictionary containing scintillator objects. These objects keep track of data for each of the detector's
+        A dictionary containing Scintillators. These keep track of data for each of the detector's
         scintillators. Note the name mangling underscore.
     scint_list : list
         A list of the detector's scintillator names.
@@ -87,7 +87,7 @@ class Detector:
         self.default_data_loc = ''
         self.import_loc = ''
         self.results_loc = os.getcwd()
-        self._scintillators = {'NaI': Scintillator('NaI', '0'), 'LP': Scintillator('LP', '0')}
+        self._scintillators = {self.default_scintillator: Scintillator(self.default_scintillator, '0')}
         self.scint_list = []
 
         self.processed = False
@@ -126,11 +126,27 @@ class Detector:
         return ''
 
     def get_import_loc(self):
-        """Returns the directory where data will be imported from."""
+        """Returns the directory where data will be imported from.
+
+        Returns
+        -------
+        str
+            The import directory as a string.
+
+        """
+
         return self.import_loc
 
     def set_import_loc(self, loc):
-        """Sets the directory where data will be imported from."""
+        """Sets the directory where data will be imported from.
+
+        Parameters
+        ----------
+        loc : str
+            The import directory as a string.
+
+        """
+
         if type(loc) == str:
             if len(loc) > 0:
                 if loc[-1] == '/':
@@ -141,11 +157,27 @@ class Detector:
             raise TypeError('loc must be a string.')
 
     def get_results_loc(self):
-        """Returns the directory where all results will be stored."""
+        """Returns the directory where all results will be stored.
+
+        Returns
+        -------
+        str
+            The results directory as a string.
+
+        """
+
         return self.results_loc
 
     def set_results_loc(self, loc):
-        """Sets the directory where all results will be stored."""
+        """Sets the directory where all results will be stored.
+
+        Parameters
+        ----------
+        loc : str
+            The results directory as a string.
+
+        """
+
         if type(loc) == str:
             if len(loc) > 0:
                 if loc[-1] == '/':
@@ -559,7 +591,7 @@ class Detector:
             # Correcting for the fact that the first 200-300 seconds of the next day are usually included
             # in the last file
             times = all_data['time'].to_numpy()
-            day_change = np.array(np.where(np.diff(times) < -80000))
+            day_change = np.where(np.diff(times) < -80000)[0]
             if day_change.size > 0:
                 change_index = int(day_change[0]) + 1
                 for i in range(change_index, len(times)):
@@ -763,7 +795,7 @@ class Detector:
             energy_hist = existing_spectra[scintillator]
         else:
             energies = self.get_attribute(scintillator, 'energy')
-            energy_hist, bin_edges = np.histogram(energies, bins=energy_bins)
+            energy_hist, _ = np.histogram(energies, bins=energy_bins)
 
         return energy_hist
 
@@ -778,7 +810,7 @@ class Detector:
 
             return
 
-        bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1 (no idea why)
+        bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1
         template_bin_plot_edge = self.calibration_params['template_bin_plot_edge']
 
         template_bins = energy_bins[0:template_bin_plot_edge]
