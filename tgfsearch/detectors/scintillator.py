@@ -125,63 +125,58 @@ class Scintillator:
 
         return -1
 
-    def get_lm_file_data(self, file_name):
-        """Returns a dataframe containing the list mode data for only the specified file."""
+    def find_lm_file(self, count_time):
+        """Returns the name of the list mode file that the given count occurred in."""
+        index = self.find_lm_file_index(count_time)
+        if index != -1:
+            return self.lm_filelist[index]
+        else:
+            return ''
+
+    def get_lm_file(self, file_name):
+        """Returns a dataframe containing the list mode data for the specified file."""
         if file_name in self.lm_file_indices:
             indices = self.lm_file_indices[file_name]
             return self.lm_frame[indices[0]:indices[1]]
         else:
-            raise ValueError(f'no file {file_name} in {self.name}.')
+            raise ValueError(f"no file '{file_name}' for scintillator '{self.name}'.")
 
-    def get_trace(self, time_id):
+    def get_trace(self, trace_name):
         """Returns trace data for the given time id."""
-        if time_id in self.traces:
-            return self.traces[time_id].copy(deep=True)
+        if trace_name in self.traces:
+            return self.traces[trace_name].copy(deep=True)
         else:
-            raise ValueError(f"No trace with name '{time_id}' for scintillator '{self.name}'.")
+            raise ValueError(f"No trace with name '{trace_name}' for scintillator '{self.name}'.")
 
-    def get_trace_ids(self):
-        """Returns a list of time ids for traces that are currently being stored."""
+    def get_trace_names(self):
+        """Returns a list of names for traces that are currently being stored."""
         return list(self.traces.keys())
 
-    def find_matching_trace_id(self, count_time, first_sec, trace_list=None, count_file_index=None):
-        """Returns the time id of the trace most likely to be associated with the given count."""
-        # Checking to see that the count is inside the day or in the ~500 seconds of the next day included sometimes
-        if count_time < 0 or count_time > params.SEC_PER_DAY + 500:
-            return ''
+    def find_matching_traces(self, count_time, date_str, trace_list=None):
+        """Finds the traces that could be a match for the given count (if they exist)."""
+        if count_time < 0 or count_time > params.SEC_PER_DAY + 500:  # Checking that count is inside the day
+            return []
 
         if trace_list is None:
-            trace_list = self.get_trace_ids()
+            trace_list = self.trace_filelist
 
-        # Getting the time range of the file the event occurred in
-        if count_file_index is None:
-            index = self.find_lm_file_index(count_time)
-            if index != -1:
-                count_file_extrema = self.lm_filetime_extrema[index]
+        # Get the timestamp of the count in hhmmss format
+        timestamp = ''
+        carry = int(count_time)
+        for num_sec in [params.SEC_PER_HOUR, 60, 1]:
+            dial_val = carry // num_sec
+            carry = carry % num_sec
+            timestamp += '0' + str(dial_val) if dial_val < 10 else str(dial_val)
+
+        # Finding traces that contain the timestamp of the count
+        matches = []
+        for trace in trace_list:
+            # Meant to account for edge cases where the timestamp happens to be the same as the date
+            if timestamp == date_str:
+                if trace.split('xtr')[1].count(timestamp) >= 2:
+                    matches.append(trace)
             else:
-                return ''
+                if trace.split('xtr')[1].count(timestamp) >= 1:
+                    matches.append(trace)
 
-        else:
-            count_file_extrema = self.lm_filetime_extrema[count_file_index]
-
-        best_match = ''
-        best_diff = float('inf')
-        for time_id in trace_list:
-            if time_id in self.traces:
-                # No matter what, this time is probably wrong because it doesn't account
-                # for any buffers except the first
-                try:
-                    # Datetime is sometimes a series object with two entries?
-                    # Looks like a reader bug. Should always be a single datetime object
-                    trace_time = self.traces[time_id]['DateTime'][0].timestamp() - first_sec
-                except AttributeError:
-                    continue
-
-                # print(time_id, count_time, trace_time)
-                if count_file_extrema[0] <= trace_time <= count_file_extrema[1]:
-                    diff = abs(trace_time - count_time)
-                    if diff < best_diff:
-                        best_match = time_id
-                        best_diff = diff
-
-        return best_match
+        return matches

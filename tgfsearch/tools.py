@@ -651,7 +651,7 @@ def combine_data(detector):
     return times, energies, wallclock, count_scints
 
 
-def separate_data(times, energies, count_scints, start, stop):
+def separate_data(times, energies, wallclock, count_scints, start, stop):
     """Separates combined data from multiple scintillators into separate data for each scintillator.
 
     Parameters
@@ -660,6 +660,8 @@ def separate_data(times, energies, count_scints, start, stop):
         An array containing the combined second-of-day times for multiple scintillators.
     energies : numpy.ndarray
         An array containing the combined energies for multiple scintillators.
+    wallclock : numpy.ndarray
+        An array containing the combined wallclock times for multiple scintillators
     count_scints : numpy.ndarray
         An array containing scintillator names. Each entry corresponds to the scintillator
         that its corresponding count originated from.
@@ -681,14 +683,17 @@ def separate_data(times, energies, count_scints, start, stop):
 
     time_dict = dict()
     energy_dict = dict()
+    wallclock_dict = dict()
     for i in range(start, stop):
         scintillator = count_scints[i]
         if scintillator not in time_dict:
             time_dict[scintillator] = [times[i]]
             energy_dict[scintillator] = [energies[i]]
+            wallclock_dict[scintillator] = [wallclock[i]]
         else:
             time_dict[scintillator].append(times[i])
             energy_dict[scintillator].append(energies[i])
+            wallclock_dict[scintillator].append(wallclock[i])
 
     # Converting back to numpy arrays
     for scintillator in time_dict:
@@ -697,7 +702,240 @@ def separate_data(times, energies, count_scints, start, stop):
         time_dict[scintillator] = np.array(times)
         energy_dict[scintillator] = np.array(energies)
 
-    return time_dict, energy_dict
+    return time_dict, energy_dict, wallclock_dict
+
+
+def is_good_trace(trace, trigspot=None):
+    """Returns True if the given trace is likely to be interesting, False otherwise.
+
+    Parameters
+    ----------
+    trace : pandas.core.frame.DataFrame
+        A dataframe containing the trace data to be aligned.
+    trigspot : int
+        Optional. The location in the buffer where the trace was triggered (in units of samples).
+
+    Returns
+    -------
+    bool
+        True if the given trace is likely to be interesting, False otherwise.
+
+    """
+
+    if trigspot is None:
+        if trace['BufferNo'].iloc[0] == 0:  # Large buffer
+            trigspot = params.LARGE_TRIGSPOT
+        else:  # Smaller buffers
+            trigspot = params.SMALL_TRIGSPOT
+
+    pulse_window = trace['pulse'][trigspot - params.TRACE_WINDOW_RADIUS:trigspot + params.TRACE_WINDOW_RADIUS]
+    value_freq = pulse_window.value_counts(sort=False)
+    pulse_mode = pulse_window.mode()
+    if len(pulse_mode) > 0:  # If there is a mode, use it as the baseline. Otherwise, use the median
+        trigger_thresh = int(pulse_mode.iloc[0]) + params.TRIGGER_ABOVE_BASELINE
+    else:
+        trigger_thresh = int(pulse_window.median()) + params.TRIGGER_ABOVE_BASELINE
+
+    # "Bad" counts are those that are either at the minimum or maximum pulse value. Extra weight for those at the min
+    num_bad_counts = 0
+    if 0 in value_freq.index:
+        num_bad_counts += value_freq[0] * params.ZERO_WEIGHT
+
+    if 255 in value_freq.index:
+        num_bad_counts += value_freq[255]
+
+    # "Good" counts are those that are above the trace trigger threshold (not including those at the max value)
+    num_good_counts = 0
+    for val in value_freq.index:
+        if trigger_thresh <= val < 255:
+            num_good_counts += value_freq[val]
+
+    if num_bad_counts > 0:
+        # Ratio of good counts to bad counts must be above threshold for the trace to pass
+        if num_good_counts / num_bad_counts >= params.GOOD_TRACE_THRESH:
+            return True
+        else:
+            return False
+
+    else:
+        return True
+
+
+def filter_traces(detector, scintillator, trigspot=None):
+    """Returns a list of traces that are likely to be interesting for the given scintillator.
+
+    Parameters
+    ----------
+    detector : tgfsearch.detectors.detector.Detector
+        The Detector containing the traces.
+    scintillator : str
+        The name of the scintillator of interest. Allowed values (detector dependent):
+        'NaI', 'SP', 'MP', 'LP'.
+    trigspot : int
+        Optional. The location in the buffer where the trace was triggered (in units of samples).
+
+    Returns
+    -------
+    list
+        A list containing the names of traces that are likely to be interesting for the requested scintillator.
+
+    """
+
+    good_traces = []
+    trace_names = detector.get_trace_names(scintillator)
+    for trace_name in trace_names:
+        if is_good_trace(detector.get_trace(scintillator, trace_name), trigspot):
+            good_traces.append(trace_name)
+
+    return good_traces
+
+
+def trace_to_counts(trace_energies):
+    """Simulates the eMorpho response to trace data and returns the results."""
+
+    # Adapted from esim_tools
+    times = []
+    energies = []
+    peak = []
+    tbnt = []  # What is this?
+    psd = []  # What is this
+
+    n = len(trace_energies)
+    di = int(params.DT / params.T_STEP)
+    i = di
+    baseline = np.median(trace_energies)
+    thresh = params.TRACE_TRIGGER_THRESH / params.MV_PER_ADC
+    while i < (n - params.DEADTIME_I - 1):
+        # If we find a value above threshold
+        if trace_energies[i] > (thresh + baseline):
+            clip = trace_energies[i - 5:(i - 6 + params.INT_I)]
+
+            energy = np.sum(clip - baseline)  # Integrate energy over INT_I samples starting with first > threshold
+            partial = np.sum(clip[0:params.PARTIAL_INT_I] - baseline)  # Partial integration for PSD
+
+            # Convert energy into channels to compare to real data spectrum
+            norm_energy = energy * params.ENERGY_RESCALE
+            norm_partial = partial * params.ENERGY_RESCALE
+
+            times.append(i)
+            energies.append(norm_energy)
+            peak.append(np.max(clip))
+            tbnt.append(len(np.where(clip < baseline - thresh)[0]))
+            psd.append(norm_partial)
+
+            i += params.DEADTIME_I
+            # Paralyzable deadtime. Keep extending the window as long as the last sample of the
+            # last interval is still high
+            if params.DEADTIME_EXTEND > 0:
+                while trace_energies[i - 1] > (thresh + baseline) and i < (n - di - params.DEADTIME_EXTEND):
+                    i += params.DEADTIME_EXTEND
+
+        else:
+            i += 1
+
+    return np.array(times), np.array(energies), np.array(peak), np.array(tbnt), np.array(psd)
+
+
+def align_trace(trace, lm_frame, buff_no=0, trigspot=None):
+    """Aligns the given trace with the given list mode data.
+
+    Parameters
+    ----------
+    trace : pandas.core.frame.DataFrame
+        A dataframe containing the trace data to be aligned.
+    lm_frame : pandas.core.frame.DataFrame
+        A dataframe containing the list mode data to be aligned against.
+    buff_no : int
+        Optional. The number of the trace buffer to be aligned (buffer zero by default).
+    trigspot : int
+        Optional. The location in the buffer where the trace was triggered (in units of samples).
+
+    Returns
+    -------
+    tuple[numpy.ndarray, numpy.ndarray]
+        Two numpy arrays. The first contains the aligned trace times in seconds of day,
+        the second contains the bit-corrected trace pulse magnitude.
+
+    """
+
+    trace = trace[trace['BufferNo'] == buff_no]  # Only doing the alignment for the buffer we request
+    if trace.size == 0:
+        raise ValueError(f"no data for buff_no '{buff_no}'.")
+
+    # Note: in the future, we might want to consider moving these bit shift operations to the data reader instead
+
+    # Restoring four lost clock bits and converting to seconds
+    trigger_time = trace['freeze'].iloc[0] * 16 * params.T_STEP
+    trace_times = np.array(trace['Seconds']) + trigger_time
+    # Restoring four lost pulse magnitude bits
+    trace_energies = np.array(trace['pulse']) * 16
+
+    # Simulating eMorpho response to trace data (effectively gives us a list mode analogue of the trace)
+    sim_times, _, _, _, _ = trace_to_counts(trace_energies)
+    if len(sim_times) < 2:
+        raise ValueError('insufficient trace data to align.')
+
+    sim_times = sim_times * params.T_STEP + trigger_time
+
+    rollover_correction = params.ROLLOVER_PERIOD * params.T_STEP  # here because we're using this a decent amount
+
+    # Converting wallclock to seconds and compensating for rollover
+    wallclock_times = np.array(lm_frame['wc']) * params.T_STEP
+    rollover_locs = np.where((wallclock_times - np.roll(wallclock_times, 1))[1:] < -800)[0]
+    if len(rollover_locs) > 0:
+        wallclock_times[(rollover_locs[0] + 1):] += rollover_correction
+
+    # Compensating for rollover in the simulation times
+    if sim_times[0] < wallclock_times[0]:
+        sim_times += rollover_correction
+
+    if sim_times[0] > wallclock_times[-1]:
+        sim_times -= rollover_correction
+
+    # Identifying the best alignment
+    sim_times_us = sim_times * 1e6  # Trace times in microseconds
+    wallclock_times_us = wallclock_times * 1e6  # List mode times in microseconds
+
+    if trigspot is None:
+        if buff_no == 0:  # Large buffer
+            trigspot = params.LARGE_TRIGSPOT
+        else:  # Smaller buffers
+            trigspot = params.SMALL_TRIGSPOT
+
+    # Making potential shift values (in microseconds)
+    shifts = (np.arange(100) - 50)/10 - trigspot * 12.5e-3
+
+    # Getting the rough times of the event
+    event_indices = np.where((wallclock_times_us > (sim_times_us.min() - 2)) &
+                             (wallclock_times_us < (sim_times_us.max() + 2)))[0]
+    if len(event_indices) == 0:
+        raise ValueError('trace did not take place in given list mode data.')
+
+    wallclock_times_us = wallclock_times_us[event_indices]
+
+    best_score = 0
+    best_shift = 0
+    for shift in shifts:
+        score = 0
+        shifted_trace = sim_times_us + shift
+        for val in shifted_trace:
+            min_diff = np.absolute(val - wallclock_times_us).min()
+            score += np.exp(-min_diff**5)
+
+        if score > best_score:
+            best_score = score
+            best_shift = shift
+
+    if best_score == 0:
+        best_shift = np.median(shifts)
+
+    # Returning the proper alignment
+    event_start_wc = wallclock_times[event_indices[0]]
+    if event_start_wc > rollover_correction:
+        event_start_wc -= rollover_correction
+
+    trace_times += best_shift * 1e-6 + lm_frame['time'].iloc[event_indices[0]] - event_start_wc
+    return trace_times, trace_energies
 
 
 def channel_to_mev(energy_array, channels, energies):

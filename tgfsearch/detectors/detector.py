@@ -347,7 +347,8 @@ class Detector:
         Returns
         -------
         int
-            The index of the file that the given count occurred in. Returns -1 if the count isn't in any of the files.
+            The index of the list mode file that the given count occurred in. Returns -1 if the count
+            isn't in any of the files.
 
         """
 
@@ -356,8 +357,32 @@ class Detector:
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
-    def get_lm_file_data(self, scintillator, file_name):
-        """Returns a dataframe containing the list mode data for only the specified file.
+    def find_lm_file(self, scintillator, count_time):
+        """Returns the name of the list mode file that the given count occurred in.
+
+        Parameters
+        ----------
+        scintillator : str
+            The name of the scintillator that the count is from. Allowed values (detector dependent):
+            'NaI', 'SP', 'MP', 'LP'.
+        count_time : float
+            The time that the count occurred at (in seconds of day).
+
+        Returns
+        -------
+        str
+            The name of the list mode file that the given count occurred in. Returns an empty string if the count
+            isn't in any of the files.
+
+        """
+
+        if scintillator in self._scintillators:
+            return self._scintillators[scintillator].find_lm_file(count_time)
+        else:
+            raise ValueError(f"'{scintillator}' is not a valid scintillator.")
+
+    def get_lm_file(self, scintillator, file_name):
+        """Returns a dataframe containing the list mode data for the specified file.
 
         Parameters
         ----------
@@ -376,35 +401,35 @@ class Detector:
         """
 
         if scintillator in self._scintillators:
-            return self._scintillators[scintillator].get_lm_file_data(file_name)
+            return self._scintillators[scintillator].get_lm_file(file_name)
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
-    def get_trace(self, scintillator, time_id):
-        """Returns the trace data for the given scintillator and time id.
+    def get_trace(self, scintillator, trace_name):
+        """Returns the trace data for the given scintillator and trace name.
 
         Parameters
         ----------
         scintillator : str
             The name of the scintillator of interest. Allowed values (detector dependent):
             'NaI', 'SP', 'MP', 'LP'.
-        time_id : str
-            The time id of the trace file.
+        trace_name : str
+            The name of the trace file.
 
         Returns
         -------
         pandas.core.frame.DataFrame
-            A dataframe containing the trace data for the given id.
+            A dataframe containing the trace data for the given name.
 
         """
 
         if scintillator in self._scintillators:
-            return self._scintillators[scintillator].get_trace(time_id)
+            return self._scintillators[scintillator].get_trace(trace_name)
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
-    def get_trace_ids(self, scintillator):
-        """Returns a list of time ids for traces that are currently being stored.
+    def get_trace_names(self, scintillator):
+        """Returns a list of names for traces that are currently being stored.
 
         Parameters
         ----------
@@ -415,43 +440,38 @@ class Detector:
         Returns
         -------
         list
-            A list of time ids for traces that are currently being stored.
+            A list of names for traces that are currently being stored.
 
         """
 
         if scintillator in self._scintillators:
-            return self._scintillators[scintillator].get_trace_ids()
+            return self._scintillators[scintillator].get_trace_names()
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
-    def find_matching_trace_id(self, scintillator, count_time, trace_list=None, count_file_index=None):
-        """Returns the time id of the trace most likely to be associated with the given count.
+    def find_matching_traces(self, scintillator, count_time, trace_list=None):
+        """Finds the traces that could be a match for the given count (if they exist).
 
         Parameters
         ----------
         scintillator : str
-            The name of the scintillator that the count is from. Allowed values (detector dependent):
+            The name of the scintillator of interest. Allowed values (detector dependent):
             'NaI', 'SP', 'MP', 'LP'.
         count_time : float
             The time that the count occurred at (in seconds of day).
         trace_list : list
-            Optional. A list of time ids for traces that might be matches. If not specified, all traces stored in the
-            Detector will be considered potential matches.
-        count_file_index : int
-            Optional. The index of the file the count came from. If not provided, the function will spend a little
-            time finding this index itself.
+            Optional. A list of traces that could be valid matches. If not provided, all traces stored for the
+            scintillator of interest will be considered valid.
 
         Returns
         -------
-        str
-            The time id of the trace most likely to be associated with the given count. Returns an empty string
-            if no good match is found.
+        list
+            A list of trace names that could be matches.
 
         """
 
         if scintillator in self._scintillators:
-            return self._scintillators[scintillator].find_matching_trace_id(count_time, self.first_sec,
-                                                                            trace_list, count_file_index)
+            return self._scintillators[scintillator].find_matching_traces(count_time, self.date_str, trace_list)
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
@@ -665,8 +685,7 @@ class Detector:
                 continue
 
             # Time id is just the time the trace has in its file name (last digits before the file extension)
-            time_id = file.split('.')[0].split('_')[-1]
-            traces[time_id] = data
+            traces[file] = data
             if self.log is not None:
                 print(f'{file}|True', file=self.log)
 
@@ -682,7 +701,7 @@ class Detector:
         if self.log is not None:
             print('\n', file=self.log)
 
-    def import_data(self, existing_filelists=False, ignore_missing=True, import_traces=True):
+    def import_data(self, existing_filelists=False, ignore_missing=True, import_traces=True, import_lm=True):
         """Imports data from data files into arrays and then updates them into the detector's
         scintillator objects.
 
@@ -693,7 +712,9 @@ class Detector:
         ignore_missing : bool
             Optional. If True, the function will not raise an error if data is missing in the default scintillator.
         import_traces : bool
-            Optional. If True, the function will import any trace files it finds.
+            Optional. If True, the function will import any trace files it finds. True by default.
+        import_lm : bool
+            Optional. If True, the function will import any list mode data it finds. True by default.
 
         """
 
@@ -752,7 +773,8 @@ class Detector:
                 print(f'For eRC {eRC} ({scintillator}):')
 
             # Importing list mode data
-            self._import_lm_data(scintillator, gui)
+            if import_lm:
+                self._import_lm_data(scintillator, gui)
 
             # Importing trace data
             if import_traces:

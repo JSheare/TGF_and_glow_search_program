@@ -19,6 +19,25 @@ NAI_CALI_RATIO_TOLERANCE = 0.001  # Used in NaI calibration. The max tolerance f
 # to be considered "the same" as the desired ratio.
 
 
+"""Trace-Related Parameters"""
+LARGE_TRIGSPOT = 4092  # The usual trigspot for the large buffer
+SMALL_TRIGSPOT = 1024  # The usual trigspot for the smaller buffers
+TRACE_WINDOW_RADIUS = 400  # The number of samples on either side of the trigger point to use in the filtering process
+TRIGGER_ABOVE_BASELINE = 2  # The number of energy channels above baseline needed to trigger a trace
+ZERO_WEIGHT = 4  # The weight given pulse values of zero in the measurement of "bad" counts
+GOOD_TRACE_THRESH = 1.5  # The minimum ratio of "good" and "bad" counts for a trace to be considered worthwhile
+ROLLOVER_PERIOD = 2**36  # Maximum number of clock ticks before a rollover
+T_STEP = 12.5e-9  # clock tick time resolution (80 MHz)
+DT = 200e-9  # Time to extend sample on either side to let pulse shapes finish
+TRACE_TRIGGER_THRESH = 5  # Threshold in mV for triggering a count from a trace
+MV_PER_ADC = 0.2442002442002442  # Conversion for ADC scale (fixed)
+DEADTIME_I = 24  # Holdoff (dead) time (units of samples)
+INT_I = 24  # Integration time (units of samples)
+PARTIAL_INT_I = 12  # Integration time (units of samples) for PSD partial integration
+ENERGY_RESCALE = 1.0  # Possible energy rescaling for trace to counts
+DEADTIME_EXTEND = 1  # Number of samples to extend deadtime by if not yet back to baseline after holdoff
+
+
 """Short Event Search Parameters"""
 # Search algorithm parameters
 NORMAL_ROLLGAP = 4  # The normal short event search rollgap
@@ -55,7 +74,7 @@ HEL_WEIGHT = 0.2
 WEATHER_WEIGHT = 0.3
 
 # Scatter plot formatting parameters
-SE_TIMESCALE_ONE = 1e-4  # Subplot 1 timescale, 100 Microseconds
+SE_TIMESCALE_ONE = 5e-4  # Subplot 1 timescale, 500 Microseconds
 SE_TIMESCALE_TWO = 0.005  # Subplot 2 timescale, 5 milliseconds
 SE_TIMESCALE_THREE = 2  # Subplot 3 timescale, 2 seconds
 NAI_COLOR = 'b'  # Color for NaI scintillator dots

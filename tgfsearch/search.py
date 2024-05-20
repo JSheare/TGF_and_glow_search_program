@@ -27,6 +27,15 @@ from tgfsearch.events.shortevent import ShortEvent
 from tgfsearch.events.longevent import LongEvent
 
 
+# A helper class used to keep track of aligned traces
+class TraceInfo:
+    def __init__(self, trace_name, buff_no, times, energies):
+        self.trace_name = trace_name
+        self.buff_no = buff_no
+        self.times = times
+        self.energies = energies
+
+
 # Returns the correct detector object based on the parameters provided
 def get_detector(unit, date_str, mode_info=None, print_feedback=False):
     if mode_info is None:
@@ -45,6 +54,22 @@ def get_detector(unit, date_str, mode_info=None, print_feedback=False):
             raise ValueError(f"'{unit}' is not a valid detector.")
     else:
         raise ValueError(f"'{unit}' is not a valid detector.")
+
+
+# Plots the given list of traces
+def plot_traces(detector, scintillator, trace_names):
+    # Makes the trace plot path
+    plot_path = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/traces/'
+    tl.make_path(plot_path)
+    for trace_name in trace_names:
+        trace = detector.get_trace(scintillator, trace_name)
+        plot_name = trace_name.split(detector.import_loc)[-1][1:].split('.')[0]
+        plt.plot(trace['Seconds'], trace['pulse'])
+        plt.xlabel('Seconds')
+        plt.ylabel('Pulse Magnitude')
+        plt.title(plot_name)
+        plt.savefig(f'{plot_path}{plot_name}.png')
+        plt.clf()
 
 
 # Checks whether a short event is valid by passing it through several filters
@@ -195,10 +220,9 @@ def find_short_events(detector, modes, scintillator, rollgap, times, energies):
     return potential_events
 
 
-# Finds the list mode file(s) and trace(s) associated with a short event
-def find_se_files(detector, event, filelist_dict, trace_dict, times, count_scints=None):
+# Finds the list mode file(s) associated with a short event
+def find_se_files(detector, event, times, count_scints=None):
     event_lm_files = {}
-    event_traces = {}
     for i in range(event.start, event.stop):
         if count_scints is not None:
             scintillator = count_scints[i]
@@ -207,26 +231,59 @@ def find_se_files(detector, event, filelist_dict, trace_dict, times, count_scint
 
         if scintillator not in event_lm_files:
             event_time = times[i]
-            event_file = ''
-            event_trace = ''
-            lm_file_index = detector.find_lm_file_index(scintillator, event_time)
-            if lm_file_index != -1:
-                event_file = filelist_dict[scintillator][lm_file_index]
-                event_trace = detector.find_matching_trace_id(scintillator, event_time,
-                                                              trace_dict[scintillator], lm_file_index)
-
-            event_lm_files[scintillator] = event_file
-            event_traces[scintillator] = event_trace
+            event_lm_files[scintillator] = detector.find_lm_file(scintillator, event_time)
 
         # So that we don't loop through the whole event for no reason when not in combo mode
         if count_scints is None:
             break
 
-    return event_lm_files, event_traces
+    return event_lm_files
+
+
+# Finds the traces associated with a short event
+def find_se_traces(detector, event, trace_dict, times, count_scints=None):
+    event_traces = {}
+    for i in range(event.start, event.stop):
+        if count_scints is not None:
+            scintillator = count_scints[i]
+        else:
+            scintillator = event.scintillator
+
+        if scintillator not in event_traces:
+            event_time = times[i]
+            event_lm_file_data = detector.get_lm_file(scintillator, detector.find_lm_file(scintillator, event_time))
+            potential_matches = detector.find_matching_traces(scintillator, event_time,
+                                                              trace_list=trace_dict[scintillator])
+            trace_info = None
+            best_diff = float('inf')
+            for trace_name in potential_matches:
+                trace = detector.get_trace(scintillator, trace_name)
+                buff_no = trace['BufferNo'].iloc[0]
+                # Aligning the trace and checking how close it is to the event
+                try:  # In case trace isn't in the same file after all
+                    trace_times, trace_energies = tl.align_trace(trace, event_lm_file_data, buff_no)
+                    diff = abs(trace_times[0] - event_time)
+                    # The best match is whichever trace is closest to the event
+                    if diff < best_diff:
+                        best_diff = diff
+                        trace_info = TraceInfo(trace_name, buff_no, trace_times, trace_energies)
+
+                except ValueError:
+                    continue
+
+            if (trace_info is not None and len(np.where((trace_info.times >= times[event.start]) &
+                                                        (trace_info.times <= times[event.stop]))[0]) > 0):
+                event_traces[scintillator] = trace_info
+
+            # So that we don't loop through the whole event for no reason when not in combo mode
+            if count_scints is None:
+                break
+
+    return event_traces
 
 
 # Makes the scatter plot for a short event
-def make_se_scatterplot(detector, event, times, energies, count_scints):
+def make_se_scatterplot(detector, event, times, energies, wallclock, count_scints):
     # Subplot timescales
     timescales = [params.SE_TIMESCALE_ONE, params.SE_TIMESCALE_TWO, params.SE_TIMESCALE_THREE]
 
@@ -240,12 +297,12 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
     left_edge = 0 if event.start - spacer < 0 else event.start - spacer
     right_edge = (len(times) - 1) if event.stop + spacer > (len(times) - 1) else event.stop + spacer
     if count_scints is not None:
-        times_dict, energies_dict = tl.separate_data(times, energies, count_scints, left_edge, right_edge)
+        (times_dict,
+         energies_dict,
+         _) = tl.separate_data(times, energies, wallclock, count_scints, left_edge, right_edge)
     else:
         times_dict = {event.scintillator: times[left_edge:right_edge]}
         energies_dict = {event.scintillator: energies[left_edge:right_edge]}
-
-    event_times = times[event.start:event.stop]
 
     figure1 = plt.figure(figsize=[20, 11.0], dpi=150.)
     figure1.suptitle(f'{event.scintillator} Event {str(event.number)}, '
@@ -258,18 +315,25 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
     ax_list = [ax1, ax2, ax3]
     assert len(ax_list) == len(timescales)
 
+    event_times = times[event.start:event.stop]
     best_time = event_times[np.argmin(np.abs(event_times - np.roll(event_times, 1)))]
     for i in range(len(ax_list)):
         ts = timescales[i]
         ax = ax_list[i]
         ax.set_xlim(xmin=best_time - (ts / 2), xmax=best_time + (ts / 2))
 
-        dot_size = 5 if ts == timescales[0] else 3  # makes larger dots for top plot
+        dot_size = 5 if ts == params.SE_TIMESCALE_THREE else 3  # makes larger dots for top plot
         ax.set_yscale('log')
-        ax.set_ylim([0.5, 1e5])
+        ax.set_ylim([0.6, 1e5])
         for scintillator in times_dict:
+            # 0.6 to avoid annoying divide by zero warnings
             ax.scatter(times_dict[scintillator], energies_dict[scintillator] + 0.6,
                        s=dot_size, zorder=1, alpha=params.DOT_ALPHA, label=scintillator, color=colors[scintillator])
+
+            # Plotting traces on only the first subplot
+            if ts == params.SE_TIMESCALE_ONE and scintillator in event.traces:
+                ax.plot(event.traces[scintillator].times, event.traces[scintillator].energies + 0.6,
+                        zorder=-1, alpha=params.DOT_ALPHA, color=colors[scintillator])
 
         ax.set_xlabel(f'Time (Seconds, {ts}s total)')
         ax.set_ylabel('Energy Channel')
@@ -283,15 +347,18 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
     if count_scints is not None:
         plt.legend(loc='lower right')
 
-    # Adds the name of the relevant list mode data file to the scatter plot
+    # Adds the name of the relevant list mode file (and trace, if applicable) to the scatter plot
     if count_scints is None:
-        plt.title(f'Obtained from {event.lm_files[event.scintillator]}', fontsize=15, y=-0.4)
+        plt.title(f'Obtained from {event.lm_files[event.scintillator]}'
+                  + (f'\nand {event.traces[event.scintillator].trace_name}' if
+                     event.scintillator in event.traces else ''),
+                  fontsize=15, y=-0.4)
 
     # Saves the scatter plot
     # Note: with this code, if an event happens in that 200-300 seconds of the next day that are included in the
     # last file, the image will have the wrong date in its name (though the timestamp in the scatter plot title will
     # always be correct)
-    scatter_path = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/scatterplots/'
+    scatter_path = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/scatter plots/'
     tl.make_path(scatter_path)
     event_num_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.number)))
     rank_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.rank)))
@@ -311,8 +378,9 @@ def make_se_json(detector, event, times, energies, wallclock, count_scints):
     event_frame['energies'] = energies[event.start:event.stop]
     event_frame['count_scintillator'] = count_scints[event.start:event.stop] if count_scints is not None else (
             [event.scintillator] * event.length)
-    # Note: this column will be filled by the same string over and over again
-    event_frame['lm_file'] = ', '.join([event.lm_files[scintillator] for scintillator in event.lm_files])
+    event_frame['lm_file'] = [event.lm_files[scintillator] for scintillator in event_frame['count_scintillator']]
+    event_frame['trace_file'] = [(event.traces[scintillator].trace_name if scintillator in event.traces else '') for
+                                 scintillator in event_frame['count_scintillator']]
 
     # Saves the json file
     event_num_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.number)))
@@ -330,18 +398,23 @@ def short_event_search(detector, modes, prev_event_numbers=None):
     else:
         rollgap = params.NORMAL_ROLLGAP
 
-    # Making filelist dict. Basically just making this so that we don't have to keep calling
-    # detector.get_attribute() over and over again when trying to associate events with list mode files
-    if modes['allscints'] or modes['combo']:
-        filelist_dict = {scintillator: detector.get_attribute(scintillator, 'lm_filelist')
-                         for scintillator in detector}
-        trace_dict = {scintillator: detector.get_trace_ids(scintillator) for scintillator in detector}  # temp
-    else:
-        filelist_dict = {detector.default_scintillator: detector.get_attribute(
-            detector.default_scintillator, 'lm_filelist')}
-        trace_dict = {detector.default_scintillator: detector.get_trace_ids(detector.default_scintillator)}  # temp
-
     event_numbers = prev_event_numbers if prev_event_numbers is not None else {}
+
+    tl.print_logger('Filtering traces...', detector.log)
+    # Filtering traces and setting up trace_dict, which keeps track of filtered trace names
+    trace_dict = {}
+    for scintillator in detector:
+        if scintillator != detector.default_scintillator and not (modes['allscints'] or modes['combo']):
+            continue
+
+        trace_dict[scintillator] = tl.filter_traces(detector, scintillator)
+
+        # Making plots for the traces that passed through the filter
+        plot_traces(detector, scintillator, trace_dict[scintillator])
+
+    tl.print_logger('Done.', detector.log)
+    tl.print_logger('\n', detector.log)
+
     for i in range(len(detector.scint_list)):
         if detector.scint_list[i] != detector.default_scintillator and not modes['allscints']:
             continue
@@ -420,14 +493,16 @@ def short_event_search(detector, modes, prev_event_numbers=None):
                       f'Clumpiness: {event.clumpiness_subscore}, HEL: {event.hel_subscore}]\n',
                       file=detector.log)
 
-                # Finds the file(s) that the event occurred in and the event's trace(s)
-                event.lm_files, event.traces = find_se_files(detector, event, filelist_dict,
-                                                             trace_dict, times, count_scints)
+                # Finds the file(s) that the event occurred in
+                event.lm_files = find_se_files(detector, event, times, count_scints)
+
+                # Finds the trace(s) associated with the event and aligns them
+                event.traces = find_se_traces(detector, event, trace_dict, times, count_scints)
 
                 # Makes the scatter plot for the event
-                make_se_scatterplot(detector, event, times, energies, count_scints)
+                make_se_scatterplot(detector, event, times, energies, wallclock, count_scints)
 
-                # Makes a json file for the event
+                # Makes the json file for the event
                 make_se_json(detector, event, times, energies, wallclock, count_scints)
 
                 plots_made += 1
@@ -675,15 +750,16 @@ def find_long_events(modes, day_bins, hist_allday, mue, sigma):
 
 
 # Finds the list mode file(s) associated with a long event
-def find_le_files(detector, event, filelist_dict):
+def find_le_files(detector, event):
     lm_files = {}
-    for scintillator in filelist_dict:
-        event_file = ''
-        lm_file_index = detector.find_lm_file_index(scintillator, event.start_sec)
-        if lm_file_index != -1:
-            event_file = filelist_dict[scintillator][lm_file_index]
+    long_event_scintillators = detector.long_event_scint_list
+    for scintillator in detector.long_event_scint_list:
+        if not detector.data_present_in(scintillator):
+            long_event_scintillators = [detector.default_scintillator]
+            break
 
-        lm_files[scintillator] = event_file
+    for scintillator in long_event_scintillators:
+        lm_files[scintillator] = detector.find_lm_file(scintillator, event.start_sec)
 
     return lm_files
 
@@ -770,17 +846,6 @@ def long_event_search(detector, modes, times, existing_hist=None):
                     f'event files/long events/'
         tl.make_path(eventpath)
 
-        # Making filelist dict. Basically just making this so that we don't have to keep calling
-        # detector.get_attribute() over and over again when trying to associate events with list mode files
-        long_event_scintillators = detector.long_event_scint_list
-        for scintillator in detector.long_event_scint_list:
-            if not detector.data_present_in(scintillator):
-                long_event_scintillators = [detector.default_scintillator]
-                break
-
-        filelist_dict = {scintillator: detector.get_attribute(scintillator, 'lm_filelist')
-                         for scintillator in long_event_scintillators}
-
         files_made = 0
         filecount_switch = True
         for i in range(len(potential_glows)):
@@ -802,7 +867,7 @@ def long_event_search(detector, modes, times, existing_hist=None):
             event_file = open(f'{eventpath}{detector.date_str}_event{i + 1}_zscore'
                               f'{int(glow.highest_score)}.txt', 'w')
             print(info, file=event_file)
-            glow.lm_files = find_le_files(detector, glow, filelist_dict)
+            glow.lm_files = find_le_files(detector, glow)
             for scintillator in glow.lm_files:
                 print(f'{scintillator}: {glow.lm_files[scintillator]}', file=event_file)
 
@@ -815,7 +880,7 @@ def long_event_search(detector, modes, times, existing_hist=None):
         tl.print_logger('Done.', detector.log)
 
         # Sorts the glows in descending order depending on their highest z-scores
-        potential_glows = sorted(potential_glows, key=lambda x: x.highest_score)[::-1]
+        potential_glows = sorted(potential_glows, key=lambda x: -x.highest_score)  # Negative for descending order sort
 
         # Makes the histogram subplots
         ax_list = [ax2, ax3, ax4, ax5]
