@@ -31,7 +31,25 @@
 <td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Functions</strong></td></tr>
     
 <tr><td class="decor functions-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
-<td class="singlecolumn"><dl><dt><a name="-channel_to_mev"><strong>channel_to_mev</strong></a>(energy_array, channels, energies)</dt><dd><span class="code">Uses&nbsp;compton&nbsp;edges/photo&nbsp;peaks&nbsp;obtained&nbsp;from&nbsp;scintillator&nbsp;calibration&nbsp;to&nbsp;convert&nbsp;energy&nbsp;channels&nbsp;into&nbsp;MeV.<br>
+<td class="singlecolumn"><dl><dt><a name="-align_trace"><strong>align_trace</strong></a>(trace, lm_frame, buff_no=0, trigspot=None)</dt><dd><span class="code">Aligns&nbsp;the&nbsp;given&nbsp;trace&nbsp;with&nbsp;the&nbsp;given&nbsp;list&nbsp;mode&nbsp;data.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+trace&nbsp;:&nbsp;pandas.core.frame.DataFrame<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dataframe&nbsp;containing&nbsp;the&nbsp;trace&nbsp;data&nbsp;to&nbsp;be&nbsp;aligned.<br>
+lm_frame&nbsp;:&nbsp;pandas.core.frame.DataFrame<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dataframe&nbsp;containing&nbsp;the&nbsp;list&nbsp;mode&nbsp;data&nbsp;to&nbsp;be&nbsp;aligned&nbsp;against.<br>
+buff_no&nbsp;:&nbsp;int<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;The&nbsp;number&nbsp;of&nbsp;the&nbsp;trace&nbsp;buffer&nbsp;to&nbsp;be&nbsp;aligned&nbsp;(buffer&nbsp;zero&nbsp;by&nbsp;default).<br>
+trigspot&nbsp;:&nbsp;int<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;The&nbsp;location&nbsp;in&nbsp;the&nbsp;buffer&nbsp;where&nbsp;the&nbsp;trace&nbsp;was&nbsp;triggered&nbsp;(in&nbsp;units&nbsp;of&nbsp;samples).<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+tuple[numpy.ndarray,&nbsp;numpy.ndarray]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Two&nbsp;numpy&nbsp;arrays.&nbsp;The&nbsp;first&nbsp;contains&nbsp;the&nbsp;aligned&nbsp;trace&nbsp;times&nbsp;in&nbsp;seconds&nbsp;of&nbsp;day,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;second&nbsp;contains&nbsp;the&nbsp;bit-corrected&nbsp;trace&nbsp;pulse&nbsp;magnitude.</span></dd></dl>
+ <dl><dt><a name="-channel_to_mev"><strong>channel_to_mev</strong></a>(energy_array, channels, energies)</dt><dd><span class="code">Uses&nbsp;compton&nbsp;edges/photo&nbsp;peaks&nbsp;obtained&nbsp;from&nbsp;scintillator&nbsp;calibration&nbsp;to&nbsp;convert&nbsp;energy&nbsp;channels&nbsp;into&nbsp;MeV.<br>
 &nbsp;<br>
 Parameters<br>
 ----------<br>
@@ -122,6 +140,22 @@ str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;status&nbsp;for&nbsp;the&nbsp;date:&nbsp;'inside'&nbsp;if&nbsp;the&nbsp;date&nbsp;is&nbsp;inside&nbsp;dst,&nbsp;'outside'&nbsp;if&nbsp;out,&nbsp;or&nbsp;'beginning'/'end'&nbsp;for<br>
 &nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;boundaries.</span></dd></dl>
  <dl><dt><a name="-filter_files"><strong>filter_files</strong></a>(complete_filelist)</dt><dd><span class="code">Returns&nbsp;an&nbsp;ordered&nbsp;list&nbsp;of&nbsp;files&nbsp;with&nbsp;duplicate/invalid&nbsp;files&nbsp;filtered&nbsp;out.</span></dd></dl>
+ <dl><dt><a name="-filter_traces"><strong>filter_traces</strong></a>(detector, scintillator, trigspot=None)</dt><dd><span class="code">Returns&nbsp;a&nbsp;list&nbsp;of&nbsp;traces&nbsp;that&nbsp;are&nbsp;likely&nbsp;to&nbsp;be&nbsp;interesting&nbsp;for&nbsp;the&nbsp;given&nbsp;scintillator.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+detector&nbsp;:&nbsp;tgfsearch.detectors.detector.Detector<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Detector&nbsp;containing&nbsp;the&nbsp;traces.<br>
+scintillator&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;scintillator&nbsp;of&nbsp;interest.&nbsp;Allowed&nbsp;values&nbsp;(detector&nbsp;dependent):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'NaI',&nbsp;'SP',&nbsp;'MP',&nbsp;'LP'.<br>
+trigspot&nbsp;:&nbsp;int<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;The&nbsp;location&nbsp;in&nbsp;the&nbsp;buffer&nbsp;where&nbsp;the&nbsp;trace&nbsp;was&nbsp;triggered&nbsp;(in&nbsp;units&nbsp;of&nbsp;samples).<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;containing&nbsp;the&nbsp;names&nbsp;of&nbsp;traces&nbsp;that&nbsp;are&nbsp;likely&nbsp;to&nbsp;be&nbsp;interesting&nbsp;for&nbsp;the&nbsp;requested&nbsp;scintillator.</span></dd></dl>
  <dl><dt><a name="-full_date_to_short"><strong>full_date_to_short</strong></a>(full_date_str)</dt><dd><span class="code">Converts&nbsp;a&nbsp;date&nbsp;string&nbsp;of&nbsp;the&nbsp;form&nbsp;yyyy-mm-dd&nbsp;to&nbsp;the&nbsp;form&nbsp;yymmdd.</span></dd></dl>
  <dl><dt><a name="-get_first_sec"><strong>get_first_sec</strong></a>(date_str)</dt><dd><span class="code">Converts&nbsp;the&nbsp;given&nbsp;date&nbsp;string&nbsp;(in&nbsp;yymmdd&nbsp;format)&nbsp;to&nbsp;its&nbsp;first&nbsp;second&nbsp;in&nbsp;EPOCH&nbsp;time.</span></dd></dl>
  <dl><dt><a name="-get_weather_conditions"><strong>get_weather_conditions</strong></a>(detector, weather_cache, full_date_str, event_time)</dt><dd><span class="code">Scrapes&nbsp;weather&nbsp;underground&nbsp;and&nbsp;returns&nbsp;the&nbsp;weather&nbsp;at&nbsp;the&nbsp;approximate&nbsp;time&nbsp;of&nbsp;an&nbsp;event.<br>
@@ -142,6 +176,19 @@ Returns<br>
 int<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;score&nbsp;corresponding&nbsp;to&nbsp;the&nbsp;weather&nbsp;conditions&nbsp;around&nbsp;the&nbsp;time&nbsp;of&nbsp;the&nbsp;event.&nbsp;See&nbsp;the&nbsp;function<br>
 &nbsp;&nbsp;&nbsp;&nbsp;weather_from_score&nbsp;for&nbsp;a&nbsp;summary&nbsp;of&nbsp;what&nbsp;the&nbsp;scores&nbsp;mean.</span></dd></dl>
+ <dl><dt><a name="-is_good_trace"><strong>is_good_trace</strong></a>(trace, trigspot=None)</dt><dd><span class="code">Returns&nbsp;True&nbsp;if&nbsp;the&nbsp;given&nbsp;trace&nbsp;is&nbsp;likely&nbsp;to&nbsp;be&nbsp;interesting&nbsp;and&nbsp;False&nbsp;otherwise.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+trace&nbsp;:&nbsp;pandas.core.frame.DataFrame<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dataframe&nbsp;containing&nbsp;the&nbsp;trace&nbsp;data&nbsp;to&nbsp;be&nbsp;aligned.<br>
+trigspot&nbsp;:&nbsp;int<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;The&nbsp;location&nbsp;in&nbsp;the&nbsp;buffer&nbsp;where&nbsp;the&nbsp;trace&nbsp;was&nbsp;triggered&nbsp;(in&nbsp;units&nbsp;of&nbsp;samples).<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;if&nbsp;the&nbsp;given&nbsp;trace&nbsp;is&nbsp;likely&nbsp;to&nbsp;be&nbsp;interesting,&nbsp;False&nbsp;otherwise.</span></dd></dl>
  <dl><dt><a name="-make_date_list"><strong>make_date_list</strong></a>(first_date, second_date)</dt><dd><span class="code">Makes&nbsp;a&nbsp;list&nbsp;of&nbsp;dates&nbsp;from&nbsp;first_date&nbsp;to&nbsp;second_date&nbsp;(inclusive).<br>
 &nbsp;<br>
 Parameters<br>
@@ -221,32 +268,29 @@ Returns<br>
 -------<br>
 pandas.core.frame.DataFrame<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;pandas&nbsp;dataframe&nbsp;with&nbsp;weather&nbsp;information&nbsp;for&nbsp;the&nbsp;specified&nbsp;day.</span></dd></dl>
- <dl><dt><a name="-separate_data"><strong>separate_data</strong></a>(times, energies, count_scints, start, stop)</dt><dd><span class="code">Separates&nbsp;combined&nbsp;data&nbsp;from&nbsp;multiple&nbsp;scintillators&nbsp;into&nbsp;separate&nbsp;data&nbsp;for&nbsp;each&nbsp;scintillator.<br>
+ <dl><dt><a name="-separate_data"><strong>separate_data</strong></a>(data, count_scints, start=None, stop=None)</dt><dd><span class="code">Separates&nbsp;combined&nbsp;data&nbsp;from&nbsp;multiple&nbsp;scintillators&nbsp;into&nbsp;separate&nbsp;data&nbsp;for&nbsp;each&nbsp;scintillator.<br>
 &nbsp;<br>
 Parameters<br>
 ----------<br>
-times&nbsp;:&nbsp;numpy.ndarray<br>
-&nbsp;&nbsp;&nbsp;&nbsp;An&nbsp;array&nbsp;containing&nbsp;the&nbsp;combined&nbsp;second-of-day&nbsp;times&nbsp;for&nbsp;multiple&nbsp;scintillators.<br>
-energies&nbsp;:&nbsp;numpy.ndarray<br>
-&nbsp;&nbsp;&nbsp;&nbsp;An&nbsp;array&nbsp;containing&nbsp;the&nbsp;combined&nbsp;energies&nbsp;for&nbsp;multiple&nbsp;scintillators.<br>
+data&nbsp;:&nbsp;numpy.ndarray<br>
+&nbsp;&nbsp;&nbsp;&nbsp;An&nbsp;array&nbsp;of&nbsp;data&nbsp;to&nbsp;be&nbsp;separated.<br>
 count_scints&nbsp;:&nbsp;numpy.ndarray<br>
 &nbsp;&nbsp;&nbsp;&nbsp;An&nbsp;array&nbsp;containing&nbsp;scintillator&nbsp;names.&nbsp;Each&nbsp;entry&nbsp;corresponds&nbsp;to&nbsp;the&nbsp;scintillator<br>
-&nbsp;&nbsp;&nbsp;&nbsp;that&nbsp;its&nbsp;corresponding&nbsp;count&nbsp;originated&nbsp;from.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;that&nbsp;its&nbsp;corresponding&nbsp;data&nbsp;point&nbsp;originated&nbsp;from.<br>
 start&nbsp;:&nbsp;int<br>
-&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;beginning&nbsp;of&nbsp;the&nbsp;range&nbsp;to&nbsp;separate.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;The&nbsp;beginning&nbsp;of&nbsp;the&nbsp;range&nbsp;to&nbsp;separate.&nbsp;If&nbsp;not&nbsp;provided,&nbsp;data&nbsp;will&nbsp;be&nbsp;separated&nbsp;starting&nbsp;at&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;beginning&nbsp;of&nbsp;the&nbsp;data&nbsp;array.<br>
 stop&nbsp;:&nbsp;int<br>
-&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;end&nbsp;of&nbsp;the&nbsp;range&nbsp;to&nbsp;separate.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;The&nbsp;end&nbsp;of&nbsp;the&nbsp;range&nbsp;to&nbsp;separate.&nbsp;If&nbsp;not&nbsp;provided,&nbsp;data&nbsp;will&nbsp;be&nbsp;separated&nbsp;to&nbsp;the&nbsp;end&nbsp;of&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;array.<br>
 &nbsp;<br>
 Returns<br>
 -------<br>
-tuple[dict,&nbsp;dict]<br>
-&nbsp;&nbsp;&nbsp;&nbsp;Two&nbsp;dictionaries:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;time_dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;arrays&nbsp;of&nbsp;count&nbsp;times&nbsp;for&nbsp;each&nbsp;scintillator&nbsp;on&nbsp;the&nbsp;specified&nbsp;range.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;energy_dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;arrays&nbsp;of&nbsp;count&nbsp;energies&nbsp;for&nbsp;each&nbsp;scintillator&nbsp;on&nbsp;the&nbsp;specified&nbsp;range.</span></dd></dl>
+dict<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;with&nbsp;separated&nbsp;data&nbsp;for&nbsp;each&nbsp;scintillator&nbsp;in&nbsp;count_scints.</span></dd></dl>
  <dl><dt><a name="-separate_files"><strong>separate_files</strong></a>(filelist)</dt><dd><span class="code">Returns&nbsp;a&nbsp;pair&nbsp;of&nbsp;ordered&nbsp;lists:&nbsp;one&nbsp;with&nbsp;list&nbsp;mode&nbsp;files,&nbsp;the&nbsp;other&nbsp;with&nbsp;trace&nbsp;files.</span></dd></dl>
  <dl><dt><a name="-short_to_full_date"><strong>short_to_full_date</strong></a>(date_str)</dt><dd><span class="code">Converts&nbsp;a&nbsp;date&nbsp;string&nbsp;of&nbsp;the&nbsp;form&nbsp;yymmdd&nbsp;to&nbsp;the&nbsp;form&nbsp;yyyy-mm-dd.</span></dd></dl>
+ <dl><dt><a name="-trace_to_counts"><strong>trace_to_counts</strong></a>(trace_energies)</dt><dd><span class="code">Simulates&nbsp;the&nbsp;eMorpho&nbsp;response&nbsp;to&nbsp;trace&nbsp;data&nbsp;and&nbsp;returns&nbsp;the&nbsp;results.</span></dd></dl>
  <dl><dt><a name="-unpickle_chunk"><strong>unpickle_chunk</strong></a>(chunk_path)</dt><dd><span class="code">Unpickles&nbsp;and&nbsp;loads&nbsp;daily&nbsp;chunks&nbsp;for&nbsp;the&nbsp;program's&nbsp;low&nbsp;memory&nbsp;mode.</span></dd></dl>
  <dl><dt><a name="-unpickle_detector"><strong>unpickle_detector</strong></a>(pickle_path, mode_info=None)</dt><dd><span class="code">Unpickles&nbsp;Detectors.<br>
 &nbsp;<br>
