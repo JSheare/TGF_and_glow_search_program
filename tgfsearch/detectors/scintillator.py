@@ -27,7 +27,7 @@ class Scintillator:
         A list containing the energies of Compton edges/photo peaks used for calibration.
     lm_filelist : list
         A list of list mode files for the day.
-    lm_filetime_extrema : list
+    lm_file_ranges : list
         A list of lists. Each sublist contains a pair of numbers corresponding to
         the first and last second in each list mode file.
     lm_file_indices : dict
@@ -49,7 +49,7 @@ class Scintillator:
         self.calibration_energies = []
         self.calibration_bins = []
         self.lm_filelist = []
-        self.lm_filetime_extrema = []
+        self.lm_file_ranges = []
         self.lm_file_indices = {}
         self.trace_filelist = []
         self.traces = {}
@@ -63,47 +63,74 @@ class Scintillator:
         return self.__str__()
 
     def __bool__(self):
-        # Using energy as an arbitrary check here. Time or wc would've worked too.
-        return True if 'energy' in self.lm_frame and len(self.lm_frame['energy']) > 0 else False
+        return self.data_present()
 
-    def get_attribute(self, attribute):
-        """Returns the requested attribute."""
-        if attribute in self.lm_frame:
-            return self.lm_frame[attribute].to_numpy()
-        elif hasattr(self, attribute):
-            return copy.deepcopy(getattr(self, attribute))
-
+    def data_present(self, data_type='lm'):
+        if data_type == 'lm':
+            # Using energy as an arbitrary check here. Time or wc would've worked too.
+            return True if 'energy' in self.lm_frame and len(self.lm_frame['energy']) > 0 else False
+        elif data_type == 'trace':
+            return True if len(self.traces) > 0 else False
         else:
-            raise ValueError(f"'{attribute}' is either not a valid attribute or data hasn't been imported.")
+            raise ValueError(f"'{data_type}' is not a valid data type.")
 
-    def set_attribute(self, attribute, info):
-        """Updates the requested attribute."""
-        if attribute in self.lm_frame:
-            info_type = type(info)
-            if info_type == np.ndarray or info_type == list:
-                if len(info) == len(self.lm_frame[attribute]):
-                    self.lm_frame[attribute] = copy.deepcopy(info)
-                else:
-                    raise ValueError(f'length of info ({len(info)}) does not match the number '
-                                     f'of scintillator frame indices ({len(self.lm_frame[attribute])}).')
-
+    def get_attribute(self, attribute, deepcopy=True):
+        """Returns the requested attribute."""
+        if hasattr(self, attribute):
+            if deepcopy:
+                return copy.deepcopy(getattr(self, attribute))
             else:
-                raise TypeError(f"'{attribute}' must be a numpy array or list, not '{info_type.__name__}'.")
+                return getattr(self, attribute)
+        else:
+            raise ValueError(f"'{attribute}' is not a valid attribute.")
 
-        elif hasattr(self, attribute):
+    def set_attribute(self, attribute, info, deepcopy=True):
+        """Updates the requested attribute."""
+        if hasattr(self, attribute):
             attribute_type = type(getattr(self, attribute))
             info_type = type(info)
             if info_type == attribute_type:
                 if attribute == 'lm_filelist':
                     info = tl.filter_files(info)  # To ensure that find_lm_file_index works properly
 
-                setattr(self, attribute, copy.deepcopy(info))
+                if deepcopy:
+                    setattr(self, attribute, copy.deepcopy(info))
+                else:
+                    setattr(self, attribute, info)
+
             else:
                 raise TypeError(f"'{attribute}' must be of type '{attribute_type.__name__}', "
                                 f"not '{info_type.__name__}'.")
 
         else:
-            raise ValueError(f"'{attribute}' is either not a valid attribute or data hasn't been imported.")
+            raise ValueError(f"'{attribute}' is not a valid attribute.")
+
+    def get_lm_data(self, column, file_name=None):
+        """Returns a single column of list mode data as a numpy array."""
+        if file_name is None:
+            frame = self.lm_frame
+        else:
+            frame = self.get_lm_file(file_name, deepcopy=False)
+
+        if column in frame:
+            return frame[column].to_numpy()
+        else:
+            raise ValueError(f"'{column}' is either not a valid column or data hasn't been imported.")
+
+    def set_lm_data(self, column, new_data, file_name=None):
+        """Sets a single column of list mode data to the new data specified."""
+        if file_name is None:
+            frame = self.lm_frame
+        else:
+            frame = self.get_lm_file(file_name, deepcopy=False)
+
+        if len(frame) != len(new_data):
+            raise ValueError(f"length of data ({len(new_data)}) doesn't match size of frame ({len(frame)}).")
+
+        if column in frame:
+            frame[column] = new_data
+        else:
+            raise ValueError(f"'{column}' is either not a valid column or data hasn't been imported.")
 
     def find_lm_file_index(self, count_time):
         """Returns the index of the list mode file that the given count occurred in."""
@@ -113,12 +140,12 @@ class Scintillator:
 
         # Binary search of list mode file ranges
         low = 0
-        high = len(self.lm_filetime_extrema) - 1
+        high = len(self.lm_file_ranges) - 1
         while low <= high:
             mid = low + (high - low) // 2
-            if self.lm_filetime_extrema[mid][0] <= count_time <= self.lm_filetime_extrema[mid][1]:
+            if self.lm_file_ranges[mid][0] <= count_time <= self.lm_file_ranges[mid][1]:
                 return mid
-            elif self.lm_filetime_extrema[mid][0] > count_time:
+            elif self.lm_file_ranges[mid][0] > count_time:
                 high = mid - 1
             else:
                 low = mid + 1
@@ -133,18 +160,26 @@ class Scintillator:
         else:
             return ''
 
-    def get_lm_file(self, file_name):
-        """Returns a dataframe containing the list mode data for the specified file."""
+    def get_lm_file(self, file_name, deepcopy=True):
+        """Returns the list mode data for the specified list mode file."""
         if file_name in self.lm_file_indices:
             indices = self.lm_file_indices[file_name]
-            return self.lm_frame[indices[0]:indices[1]]
+            if deepcopy:
+                return self.lm_frame[indices[0]:indices[1]].copy(deep=True)
+            else:
+                return self.lm_frame[indices[0]:indices[1]]
+
         else:
             raise ValueError(f"no file '{file_name}' for scintillator '{self.name}'.")
 
-    def get_trace(self, trace_name):
+    def get_trace(self, trace_name, deepcopy=True):
         """Returns trace data for the given time id."""
         if trace_name in self.traces:
-            return self.traces[trace_name].copy(deep=True)
+            if deepcopy:
+                return self.traces[trace_name].copy(deep=True)
+            else:
+                return self.traces[trace_name]
+
         else:
             raise ValueError(f"No trace with name '{trace_name}' for scintillator '{self.name}'.")
 

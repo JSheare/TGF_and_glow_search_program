@@ -633,9 +633,9 @@ def combine_data(detector):
     count_scints = []
     for scintillator in detector:
         if detector.data_present_in(scintillator):
-            times.append(detector.get_attribute(scintillator, 'time'))
-            energies.append(detector.get_attribute(scintillator, 'energy'))
-            wallclock.append(detector.get_attribute(scintillator, 'wc'))
+            times.append(detector.get_lm_data(scintillator, 'time'))
+            energies.append(detector.get_lm_data(scintillator, 'energy'))
+            wallclock.append(detector.get_lm_data(scintillator, 'wc'))
             count_scints.append([scintillator] * len(times[-1]))
 
     times = np.concatenate(times)
@@ -651,62 +651,54 @@ def combine_data(detector):
     return times, energies, wallclock, count_scints
 
 
-def separate_data(times, energies, wallclock, count_scints, start, stop):
+def separate_data(data, count_scints, start=None, stop=None):
     """Separates combined data from multiple scintillators into separate data for each scintillator.
 
     Parameters
     ----------
-    times : numpy.ndarray
-        An array containing the combined second-of-day times for multiple scintillators.
-    energies : numpy.ndarray
-        An array containing the combined energies for multiple scintillators.
-    wallclock : numpy.ndarray
-        An array containing the combined wallclock times for multiple scintillators
+    data : numpy.ndarray
+        An array of data to be separated.
     count_scints : numpy.ndarray
         An array containing scintillator names. Each entry corresponds to the scintillator
-        that its corresponding count originated from.
+        that its corresponding data point originated from.
     start : int
-        The beginning of the range to separate.
+        Optional. The beginning of the range to separate. If not provided, data will be separated starting at the
+        beginning of the data array.
     stop : int
-        The end of the range to separate.
+        Optional. The end of the range to separate. If not provided, data will be separated to the end of the
+        data array.
 
     Returns
     -------
-    tuple[dict, dict]
-        Two dictionaries:
-        time_dict
-            A dictionary containing arrays of count times for each scintillator on the specified range.
-        energy_dict
-            A dictionary containing arrays of count energies for each scintillator on the specified range.
+    dict
+        A dictionary with separated data for each scintillator in count_scints.
 
     """
 
-    time_dict = dict()
-    energy_dict = dict()
-    wallclock_dict = dict()
+    if start is None:
+        start = 0
+
+    if stop is None:
+        stop = len(data)
+
+    data_dict = dict()
     for i in range(start, stop):
         scintillator = count_scints[i]
-        if scintillator not in time_dict:
-            time_dict[scintillator] = [times[i]]
-            energy_dict[scintillator] = [energies[i]]
-            wallclock_dict[scintillator] = [wallclock[i]]
+        if scintillator not in data_dict:
+            data_dict[scintillator] = [data[i]]
         else:
-            time_dict[scintillator].append(times[i])
-            energy_dict[scintillator].append(energies[i])
-            wallclock_dict[scintillator].append(wallclock[i])
+            data_dict[scintillator].append(data[i])
 
     # Converting back to numpy arrays
-    for scintillator in time_dict:
-        times = time_dict[scintillator]
-        energies = energy_dict[scintillator]
-        time_dict[scintillator] = np.array(times)
-        energy_dict[scintillator] = np.array(energies)
+    for scintillator in data_dict:
+        separated_data = data_dict[scintillator]
+        data_dict[scintillator] = np.array(separated_data)
 
-    return time_dict, energy_dict, wallclock_dict
+    return data_dict
 
 
 def is_good_trace(trace, trigspot=None):
-    """Returns True if the given trace is likely to be interesting, False otherwise.
+    """Returns True if the given trace is likely to be interesting and False otherwise.
 
     Parameters
     ----------
@@ -784,7 +776,7 @@ def filter_traces(detector, scintillator, trigspot=None):
     good_traces = []
     trace_names = detector.get_trace_names(scintillator)
     for trace_name in trace_names:
-        if is_good_trace(detector.get_trace(scintillator, trace_name), trigspot):
+        if is_good_trace(detector.get_trace(scintillator, trace_name, deepcopy=False), trigspot):
             good_traces.append(trace_name)
 
     return good_traces

@@ -56,13 +56,42 @@ def get_detector(unit, date_str, mode_info=None, print_feedback=False):
         raise ValueError(f"'{unit}' is not a valid detector.")
 
 
+# Makes the modes dict used by many of the program's functions
+def get_modes(mode_info):
+    modes = dict()
+    # Modes for skipping over certain algorithms (mostly to speed up testing)
+    modes['skcali'] = True if 'skcali' in mode_info else False  # Skip detector calibration
+    modes['skshort'] = True if 'skshort' in mode_info else False  # Skip short event search
+    modes['skglow'] = True if 'skglow' in mode_info else False  # SKip long event search
+
+    # Aircraft mode
+    modes['aircraft'] = True if 'aircraft' in mode_info else False
+
+    # Pickle mode
+    modes['pickle'] = True if 'pickle' in mode_info else False
+
+    # All scintillators mode (all the scintillators will be checked by the short event search algorithm)
+    modes['allscints'] = True if 'allscints' in mode_info else False
+
+    # Combo mode (all scintillator data is combined into one set of arrays and examined by the short event search algo)
+    modes['combo'] = True if 'combo' in mode_info else False
+
+    # GUI mode (running script from gui)
+    modes['gui'] = True if 'gui' in mode_info else False
+
+    # Template mode (make LP template)
+    modes['template'] = True if 'template' in mode_info else False
+
+    return modes
+
+
 # Plots the given list of traces
 def plot_traces(detector, scintillator, trace_names):
     # Makes the trace plot path
     plot_path = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/traces/'
     tl.make_path(plot_path)
     for trace_name in trace_names:
-        trace = detector.get_trace(scintillator, trace_name)
+        trace = detector.get_trace(scintillator, trace_name, deepcopy=False)
         plot_name = trace_name.split(detector.import_loc)[-1][1:].split('.')[0]
         plt.plot(trace['Seconds'], trace['pulse'])
         plt.xlabel('Seconds')
@@ -283,7 +312,7 @@ def find_se_traces(detector, event, trace_dict, times, count_scints=None):
 
 
 # Makes the scatter plot for a short event
-def make_se_scatterplot(detector, event, times, energies, wallclock, count_scints):
+def make_se_scatterplot(detector, event, times, energies, count_scints):
     # Subplot timescales
     timescales = [params.SE_TIMESCALE_ONE, params.SE_TIMESCALE_TWO, params.SE_TIMESCALE_THREE]
 
@@ -297,9 +326,8 @@ def make_se_scatterplot(detector, event, times, energies, wallclock, count_scint
     left_edge = 0 if event.start - spacer < 0 else event.start - spacer
     right_edge = (len(times) - 1) if event.stop + spacer > (len(times) - 1) else event.stop + spacer
     if count_scints is not None:
-        (times_dict,
-         energies_dict,
-         _) = tl.separate_data(times, energies, wallclock, count_scints, left_edge, right_edge)
+        times_dict = tl.separate_data(times, count_scints, left_edge, right_edge)
+        energies_dict = tl.separate_data(energies, count_scints, left_edge, right_edge)
     else:
         times_dict = {event.scintillator: times[left_edge:right_edge]}
         energies_dict = {event.scintillator: energies[left_edge:right_edge]}
@@ -433,9 +461,9 @@ def short_event_search(detector, modes, prev_event_numbers=None):
             scintillator = detector.scint_list[i]
             tl.print_logger(f'Searching eRC {detector.get_attribute(scintillator, "eRC")} '
                             f'({scintillator})...', detector.log)
-            times = detector.get_attribute(scintillator, 'time')
-            energies = detector.get_attribute(scintillator, 'energy')
-            wallclock = detector.get_attribute(scintillator, 'wc')
+            times = detector.get_lm_data(scintillator, 'time')
+            energies = detector.get_lm_data(scintillator, 'energy')
+            wallclock = detector.get_lm_data(scintillator, 'wc')
             count_scints = None
 
         if detector.processed:
@@ -500,7 +528,7 @@ def short_event_search(detector, modes, prev_event_numbers=None):
                 event.traces = find_se_traces(detector, event, trace_dict, times, count_scints)
 
                 # Makes the scatter plot for the event
-                make_se_scatterplot(detector, event, times, energies, wallclock, count_scints)
+                make_se_scatterplot(detector, event, times, energies, count_scints)
 
                 # Makes the json file for the event
                 make_se_json(detector, event, times, energies, wallclock, count_scints)
@@ -532,34 +560,26 @@ def long_event_cutoff(detector, modes, chunk=None):
             long_event_scintillators = [operating_obj.default_scintillator]
             break
 
-    times = np.array([])
-    energies = np.array([])
+    times = []
+    energies = []
     # Checks to see if scintillators have all been calibrated. If one or more aren't, no counts are cut out
     all_calibrated = True
-    for i in range(len(long_event_scintillators)):
-        scintillator = long_event_scintillators[i]
+    for scintillator in long_event_scintillators:
         calibration_bins = detector.get_attribute(scintillator, 'calibration_bins')
         calibration_energies = detector.get_attribute(scintillator, 'calibration_energies')
         existing_calibration = True if len(calibration_bins) == 2 else False
         if not existing_calibration:
             all_calibrated = False
 
-        if i == 0:
-            times = operating_obj.get_attribute(scintillator, 'time')
-            if modes['skcali'] or not existing_calibration:
-                energies = operating_obj.get_attribute(scintillator, 'energy')
-            else:
-                energies = tl.channel_to_mev(operating_obj.get_attribute(scintillator, 'energy'),
-                                             calibration_bins, calibration_energies)
+        times.append(operating_obj.get_lm_data(scintillator, 'time'))
+        if modes['skcali'] or not existing_calibration:
+            energies.append(operating_obj.get_lm_data(scintillator, 'energy'))
         else:
-            times = np.append(times, operating_obj.get_attribute(scintillator, 'time'))
-            if modes['skcali'] or not existing_calibration:
-                energies = np.append(energies, operating_obj.get_attribute(scintillator, 'energy'))
-            else:
-                energies = np.append(energies,
-                                     tl.channel_to_mev(operating_obj.get_attribute(scintillator, 'energy'),
-                                                       calibration_bins, calibration_energies))
+            energies.append(tl.channel_to_mev(operating_obj.get_lm_data(scintillator, 'energy'),
+                                              calibration_bins, calibration_energies))
 
+    times = np.concatenate(times)
+    energies = np.concatenate(energies)
     # Removes entries that are below a certain cutoff energy
     if not all_calibrated or modes['skcali']:
         print('Missing calibration(s), beware radon washout!',
@@ -954,29 +974,7 @@ def main():
 
 # Main program function
 def program(first_date, second_date, unit, mode_info):
-    modes = dict()
-    # Modes for skipping over certain algorithms (mostly to speed up testing)
-    modes['skcali'] = True if 'skcali' in mode_info else False  # Skip detector calibration
-    modes['skshort'] = True if 'skshort' in mode_info else False  # Skip short event search
-    modes['skglow'] = True if 'skglow' in mode_info else False  # SKip long event search
-
-    # Aircraft mode
-    modes['aircraft'] = True if 'aircraft' in mode_info else False
-
-    # Pickle mode
-    modes['pickle'] = True if 'pickle' in mode_info else False
-
-    # All scintillators mode (all the scintillators will be checked by the short event search algorithm)
-    modes['allscints'] = True if 'allscints' in mode_info else False
-
-    # Combo mode (all scintillator data is combined into one set of arrays and examined by the short event search algo)
-    modes['combo'] = True if 'combo' in mode_info else False
-
-    # GUI mode (running script from gui)
-    modes['gui'] = True if 'gui' in mode_info else False
-
-    # Template mode (make LP template)
-    modes['template'] = True if 'template' in mode_info else False
+    modes = get_modes(mode_info)
 
     # Makes a list of all the dates on the requested range
     requested_dates = tl.make_date_list(first_date, second_date)
@@ -1079,9 +1077,9 @@ def program(first_date, second_date, unit, mode_info):
                 total_file_size = detector.calculate_fileset_size()
                 for scintillator in detector:
                     # Clears leftover data (just to be sure)
-                    detector.set_multiple_attributes(scintillator,
-                                                     ['lm_frame', 'lm_filetime_extrema', 'traces'],
-                                                     [pd.DataFrame(), [], {}])
+                    detector.set_attribute(scintillator, 'lm_frame', pd.DataFrame(), deepcopy=False)
+                    detector.set_attribute(scintillator, 'lm_file_ranges', [], deepcopy=False)
+                    detector.set_attribute(scintillator, 'traces', {}, deepcopy=False)
 
                 gc.collect()
 
@@ -1116,8 +1114,8 @@ def program(first_date, second_date, unit, mode_info):
                     trace_filelist_chunks = divide_list(detector.get_attribute(scintillator, 'trace_filelist'),
                                                         num_chunks)
                     for chunk in chunk_list:
-                        chunk.set_attribute(scintillator, 'lm_filelist', next(lm_filelist_chunks))
-                        chunk.set_attribute(scintillator, 'trace_filelist', next(trace_filelist_chunks))
+                        chunk.set_attribute(scintillator, 'lm_filelist', next(lm_filelist_chunks), deepcopy=False)
+                        chunk.set_attribute(scintillator, 'trace_filelist', next(trace_filelist_chunks), deepcopy=False)
 
                 # Imports data to each chunk and then pickles the chunks (and checks that data is actually present)
                 print('Importing data...')
@@ -1152,9 +1150,9 @@ def program(first_date, second_date, unit, mode_info):
 
                         # Makes a full list of filetime extrema for long event search
                         for scintillator in chunk:
-                            extrema = detector.get_attribute(scintillator, 'lm_filetime_extrema')
-                            extrema += chunk.get_attribute(scintillator, 'lm_filetime_extrema')
-                            detector.set_attribute(scintillator, 'lm_filetime_extrema', extrema)
+                            extrema = detector.get_attribute(scintillator, 'lm_file_ranges')
+                            extrema += chunk.get_attribute(scintillator, 'lm_file_ranges')
+                            detector.set_attribute(scintillator, 'lm_file_ranges', extrema)
 
                         # Updates passtime
                         passtime_dict = chunk.get_passtime()

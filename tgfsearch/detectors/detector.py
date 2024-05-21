@@ -71,13 +71,12 @@ class Detector:
     def __init__(self, unit, date_str, mode_info, print_feedback=False):
         # Basic information
         self.unit = unit.upper()
-        self.date_str = date_str  # In format yymmdd
+        self.date_str = date_str  # yymmdd
         self.mode_info = mode_info
         self.print_feedback = print_feedback
         self.log = None
         self.first_sec = tl.get_first_sec(self.date_str)
-        # In format yyyy-mm-dd
-        self.full_date_str = dt.datetime.utcfromtimestamp(int(self.first_sec)).strftime('%Y-%m-%d')
+        self.full_date_str = dt.datetime.utcfromtimestamp(int(self.first_sec)).strftime('%Y-%m-%d')  # yyyy-mm-dd
         self.location = None
         self.default_scintillator = 'LP'  # Don't change this unless you have a really good reason
 
@@ -113,7 +112,7 @@ class Detector:
         return default_string + f' Has data = {has_data}' + data_string
 
     def __iter__(self):
-        """Iterator dunder. Returns a generator that yields the detector's scintillator names."""
+        """Iterator dunder. Returns a generator that yields the Detector's scintillator names."""
         for scintillator in self.scint_list:
             yield scintillator
 
@@ -242,7 +241,7 @@ class Detector:
 
         return True if name.upper() == self.unit else False
 
-    def data_present_in(self, scintillator):
+    def data_present_in(self, scintillator, data_type='lm'):
         """Returns True if data is present for the specified scintillator and False otherwise.
 
         Parameters
@@ -250,6 +249,9 @@ class Detector:
         scintillator : str
             The scintillator's name. Allowed values (detector dependent):
             'NaI', 'SP', 'MP', 'LP'.
+        data_type : str
+            Optional. The type of data to check for. Use 'lm' to check for list mode data and 'trace' to check
+            for trace data. Checks for list mode data by default.
 
         Returns
         -------
@@ -259,11 +261,11 @@ class Detector:
         """
 
         if scintillator in self._scintillators:
-            return bool(self._scintillators[scintillator])
+            return self._scintillators[scintillator].data_present(data_type)
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
-    def get_attribute(self, scintillator, attribute):
+    def get_attribute(self, scintillator, attribute, deepcopy=True):
         """Returns the requested attribute for a particular scintillator.
 
         Parameters
@@ -273,24 +275,25 @@ class Detector:
             'NaI', 'SP', 'MP', 'LP'.
         attribute : str
             The name of the attribute of interest.
+        deepcopy : bool
+            Optional. If True, a deepcopy of the requested attribute will be returned. True by default.
 
         Returns
         -------
         str || list || numpy.ndarray || dict || pandas.core.frame.DataFrame
-            String if 'eRC' is requested; list if 'lm_filelist', 'calibration', or 'lm_filetime_extrema' is requested;
+            String if 'eRC' is requested; list if 'lm_filelist', 'calibration', or 'lm_file_ranges' is requested;
             numpy array  if 'time', 'energy', or 'wc' is requested; dictionary if 'passtime' is requested; dataframe
             if 'lm_frame' is requested, etc.
 
         """
 
         if scintillator in self._scintillators:
-            medium = self._scintillators[scintillator]
-            return medium.get_attribute(attribute)
+            return self._scintillators[scintillator].get_attribute(attribute, deepcopy)
 
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
-    def set_attribute(self, scintillator, attribute, new_info):
+    def set_attribute(self, scintillator, attribute, new_info, deepcopy=True):
         """Updates the requested attribute for a particular scintillator.
         Note: new info must be of the same type as the old.
 
@@ -303,35 +306,64 @@ class Detector:
             The name of the attribute of interest.
         new_info : any
             The new information for the requested attribute.
+        deepcopy : bool
+            Optional. If True, the requested attribute will be set to a deepcopy of new_info. True by default.
 
         """
 
         if scintillator in self._scintillators:
-            self._scintillators[scintillator].set_attribute(attribute, new_info)
+            self._scintillators[scintillator].set_attribute(attribute, new_info, deepcopy)
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
-    def set_multiple_attributes(self, scintillator, attribute_list, new_info_list):
-        """Updates multiple requested attributes for a particular scintillator.
-        Note: new info for each attribute must be of the same type as the old.
+    def get_lm_data(self, scintillator, column, file_name=None):
+        """Returns a single column of list mode data as a numpy array.
 
         Parameters
         ----------
         scintillator : str
             The name of the scintillator of interest. Allowed values (detector dependent):
             'NaI', 'SP', 'MP', 'LP'.
-        attribute_list : list
-            The names of the attributes of interest.
-        new_info_list : list
-            A list of new information for each requested attribute.
+        column : str
+            The column of interest.
+        file_name : str
+            Optional. The name of the file to get data for. If not specified,
+            data will be retrieved for the whole day.
+
+        Returns
+        -------
+        numpy.ndarray
+            A numpy array containing the requested data column.
 
         """
 
-        if len(attribute_list) == len(new_info_list):
-            for i in range(len(attribute_list)):
-                self.set_attribute(scintillator, attribute_list[i], new_info_list[i])
+        if scintillator in self._scintillators:
+            return self._scintillators[scintillator].get_lm_data(column, file_name)
         else:
-            raise ValueError('attribute_list and new_info_list must be of the same length.')
+            raise ValueError(f"'{scintillator}' is not a valid scintillator.")
+
+    def set_lm_data(self, scintillator, column, new_data, file_name=None):
+        """Sets a single column of list mode data to the new data specified.
+
+        Parameters
+        ----------
+        scintillator : str
+            The name of the scintillator of interest. Allowed values (detector dependent):
+            'NaI', 'SP', 'MP', 'LP'.
+        column : str
+            The column of interest.
+        new_data : numpy.ndarray
+            A numpy array containing the new data.
+        file_name : str
+            Optional. The name of the file to set data for. If not specified,
+            data will be set for the whole day.
+
+        """
+
+        if scintillator in self._scintillators:
+            return self._scintillators[scintillator].set_lm_data(column, new_data, file_name)
+        else:
+            raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
     def find_lm_file_index(self, scintillator, count_time):
         """Returns the index of the list mode file that the given count occurred in.
@@ -381,8 +413,8 @@ class Detector:
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
-    def get_lm_file(self, scintillator, file_name):
-        """Returns a dataframe containing the list mode data for the specified file.
+    def get_lm_file(self, scintillator, file_name, deepcopy=True):
+        """Returns the list mode data for the specified list mode file.
 
         Parameters
         ----------
@@ -392,6 +424,8 @@ class Detector:
         file_name : str
             The name of the file that data is being requested for. Note that this must be the *full* name of the file,
             including the path from the root directory.
+        deepcopy : bool
+            Optional. If True, a deepcopy of the file frame will be returned. True by default.
 
         Returns
         -------
@@ -401,11 +435,11 @@ class Detector:
         """
 
         if scintillator in self._scintillators:
-            return self._scintillators[scintillator].get_lm_file(file_name)
+            return self._scintillators[scintillator].get_lm_file(file_name, deepcopy)
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
-    def get_trace(self, scintillator, trace_name):
+    def get_trace(self, scintillator, trace_name, deepcopy=True):
         """Returns the trace data for the given scintillator and trace name.
 
         Parameters
@@ -415,6 +449,8 @@ class Detector:
             'NaI', 'SP', 'MP', 'LP'.
         trace_name : str
             The name of the trace file.
+        deepcopy : bool
+            Optional. If True, a deepcopy of the trace frame will be returned. True by default.
 
         Returns
         -------
@@ -424,12 +460,12 @@ class Detector:
         """
 
         if scintillator in self._scintillators:
-            return self._scintillators[scintillator].get_trace(trace_name)
+            return self._scintillators[scintillator].get_trace(trace_name, deepcopy)
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
     def get_trace_names(self, scintillator):
-        """Returns a list of names for traces that are currently being stored.
+        """Returns a list of names of the traces that are currently being stored.
 
         Parameters
         ----------
@@ -440,7 +476,7 @@ class Detector:
         Returns
         -------
         list
-            A list of names for traces that are currently being stored.
+            A list of names of the traces that are currently being stored.
 
         """
 
@@ -533,7 +569,7 @@ class Detector:
             return
 
         file_frames = []
-        filetime_extrema = []
+        file_ranges = []
         file_indices = {}
         file_time_gaps = []
         prev_second = 0
@@ -576,7 +612,7 @@ class Detector:
 
                     continue
 
-                self.set_attribute(scintillator, 'passtime', passtime)
+                self.set_attribute(scintillator, 'passtime', passtime, deepcopy=False)
                 if 'energies' in data.columns:
                     data.rename(columns={'energies': 'energy'}, inplace=True)
 
@@ -589,7 +625,7 @@ class Detector:
             file_time_gap = first_second - prev_second if files_imported > 0 else 0.0
             file_time_gaps.append(file_time_gap)
             prev_second = last_second
-            filetime_extrema.append([first_second, last_second])
+            file_ranges.append([first_second, last_second])
             file_frames.append(data)
             if self.log is not None:
                 print(f'{file}|True|{file_time_gap}', file=self.log)
@@ -620,14 +656,14 @@ class Detector:
                 all_data['time'] = times
 
             # Doing it for the file time extrema too
-            for k in range(1, int(len(filetime_extrema) / 8)):  # Last eighth of the files
+            for k in range(1, int(len(file_ranges) / 8)):  # Last eighth of the files
                 for j in range(2):
-                    if filetime_extrema[-k][j] < 500:  # Extrema belonging to the next day will always be < 500
-                        filetime_extrema[-k][j] += params.SEC_PER_DAY
+                    if file_ranges[-k][j] < 500:  # Extrema belonging to the next day will always be < 500
+                        file_ranges[-k][j] += params.SEC_PER_DAY
 
-            self.set_multiple_attributes(scintillator,
-                                         ['lm_frame', 'lm_filetime_extrema', 'lm_file_indices'],
-                                         [all_data, filetime_extrema, file_indices])
+            self.set_attribute(scintillator, 'lm_frame', all_data, deepcopy=False)
+            self.set_attribute(scintillator, 'lm_file_ranges', file_ranges, deepcopy=False)
+            self.set_attribute(scintillator, 'lm_file_indices', file_indices, deepcopy=False)
 
             if self.log is not None:
                 print('\n', file=self.log)
@@ -696,7 +732,7 @@ class Detector:
 
         # Storing the traces
         if len(traces) > 0:
-            self.set_attribute(scintillator, 'traces', traces)
+            self.set_attribute(scintillator, 'traces', traces, deepcopy=False)
 
         if self.log is not None:
             print('\n', file=self.log)
@@ -734,9 +770,11 @@ class Detector:
                                                   f'/{self.file_form(eRC)}'.replace('\\', '/'))
 
                 lm_filelist, trace_filelist = tl.separate_files(tl.filter_files(complete_filelist))
-                self.set_attribute(scintillator, 'lm_filelist', lm_filelist)
+                if import_lm:
+                    self.set_attribute(scintillator, 'lm_filelist', lm_filelist, deepcopy=False)
+
                 if import_traces:
-                    self.set_attribute(scintillator, 'trace_filelist', trace_filelist)
+                    self.set_attribute(scintillator, 'trace_filelist', trace_filelist, deepcopy=False)
 
         # Checks to see if the necessary files for a full search are present
         if not ignore_missing and len(self.get_attribute(self.default_scintillator, 'lm_filelist')) == 0:
@@ -802,7 +840,7 @@ class Detector:
 
         energy_bins = np.arange(0.0, bin_range, bin_size)
         for scintillator in self._scintillators:
-            energies = self.get_attribute(scintillator, 'energy')
+            energies = self.get_lm_data(scintillator, 'energy')
             chunk_hist, bin_edges = np.histogram(energies, bins=energy_bins)
             if len(existing_spectra_dict[scintillator]) == 0:
                 existing_spectra_dict[scintillator] = chunk_hist
@@ -816,7 +854,7 @@ class Detector:
         if existing_spectra is not None:
             energy_hist = existing_spectra[scintillator]
         else:
-            energies = self.get_attribute(scintillator, 'energy')
+            energies = self.get_lm_data(scintillator, 'energy')
             energy_hist, _ = np.histogram(energies, bins=energy_bins)
 
         return energy_hist
@@ -946,8 +984,8 @@ class Detector:
             for i in range(2):
                 print(f'{calibration_bins[i]} V = {calibration_energies[i]} MeV', file=spectra_conversions)
 
-            self.set_attribute('NaI', 'calibration_energies', calibration_energies)
-            self.set_attribute('NaI', 'calibration_bins', calibration_bins)
+            self.set_attribute('NaI', 'calibration_energies', calibration_energies, deepcopy=False)
+            self.set_attribute('NaI', 'calibration_bins', calibration_bins, deepcopy=False)
         else:
             if self.log is not None:
                 print('Cannot calibrate NaI (missing peaks)...', file=self.log)
@@ -982,8 +1020,8 @@ class Detector:
             for i in range(2):
                 print(f'{calibration_bins[i]} V = {calibration_energies[i]} MeV', file=spectra_conversions)
 
-            self.set_attribute('LP', 'calibration_energies', calibration_energies)
-            self.set_attribute('LP', 'calibration_bins', calibration_bins)
+            self.set_attribute('LP', 'calibration_energies', calibration_energies, deepcopy=False)
+            self.set_attribute('LP', 'calibration_bins', calibration_bins, deepcopy=False)
 
         return flagged_indices
 
