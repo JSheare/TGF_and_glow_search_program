@@ -92,7 +92,7 @@ def plot_traces(detector, scintillator, trace_names):
     tl.make_path(plot_path)
     for trace_name in trace_names:
         trace = detector.get_trace(scintillator, trace_name, deepcopy=False)
-        plot_name = trace_name.split(detector.import_loc)[-1][1:].split('.')[0]
+        plot_name = 'eRC' + trace_name.split('eRC')[-1][1:].split('.')[0]
         plt.plot(trace['Seconds'], trace['pulse'])
         plt.xlabel('Seconds')
         plt.ylabel('Pulse Magnitude')
@@ -1074,12 +1074,9 @@ def program(first_date, second_date, unit, mode_info):
                 tl.print_logger('Not enough memory. Entering low memory mode...', detector.log)
                 tl.print_logger('\n', detector.log)
                 # Measures the total combined size of all the data files
-                total_file_size = detector.calculate_fileset_size()
-                for scintillator in detector:
-                    # Clears leftover data (just to be sure)
-                    detector.set_attribute(scintillator, 'lm_frame', pd.DataFrame(), deepcopy=False)
-                    detector.set_attribute(scintillator, 'lm_file_ranges', [], deepcopy=False)
-                    detector.set_attribute(scintillator, 'traces', {}, deepcopy=False)
+                total_file_size = detector.get_fileset_size()
+                # Clears leftover data (just to be sure)
+                detector.clear(clear_filelists=False)
 
                 gc.collect()
 
@@ -1129,12 +1126,15 @@ def program(first_date, second_date, unit, mode_info):
                     chunk_path_list = pickled_chunk_paths
                 else:
                     # Keeps timings consistent between chunks
-                    passtime = chunk_list[0].get_attribute(chunk_scint_list[0], 'passtime')
-                    passtime_dict = {scint: passtime.copy() for scint in chunk_scint_list}
+                    passtime_dict = {scintillator: chunk_list[0].get_attribute(scintillator, 'passtime', deepcopy=True)
+                                     for scintillator in chunk_scint_list}
 
                     for chunk in chunk_list:
                         # Updates chunk to include previous chunk's passtime
-                        chunk.set_passtime(passtime_dict)
+                        if chunk != chunk_list[0]:
+                            for scintillator in chunk:
+                                chunk.set_attribute(scintillator, 'passtime', passtime_dict[scintillator],
+                                                    deepcopy=True)
 
                         tl.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
                         chunk.import_data(existing_filelists=True, ignore_missing=False)
@@ -1149,13 +1149,14 @@ def program(first_date, second_date, unit, mode_info):
                             raise FileNotFoundError('data missing for one or more scintillators.')
 
                         # Makes a full list of filetime extrema for long event search
+                        # Also updates passtime_dict for the next chunk
                         for scintillator in chunk:
                             extrema = detector.get_attribute(scintillator, 'lm_file_ranges')
                             extrema += chunk.get_attribute(scintillator, 'lm_file_ranges')
                             detector.set_attribute(scintillator, 'lm_file_ranges', extrema)
-
-                        # Updates passtime
-                        passtime_dict = chunk.get_passtime()
+                            if chunk != chunk_list[-1]:
+                                passtime_dict[scintillator] = chunk.get_attribute(scintillator, 'passtime',
+                                                                                  deepcopy=True)
 
                         # Pickle chunk and add its path to the list
                         chunk_path_list.append(tl.pickle_chunk(chunk, f'chunk{chunk_num}'))
@@ -1174,10 +1175,20 @@ def program(first_date, second_date, unit, mode_info):
                 if not modes['skcali']:
                     print('\n')
                     tl.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
+                    # Keeps track of spectra contributions for each chunk
                     existing_spectra = {scintillator: np.array([]) for scintillator in chunk_scint_list}
+                    energy_bins = np.arange(0.0, detector.calibration_params['bin_range'],
+                                            detector.calibration_params['bin_size'])
                     for chunk_path in chunk_path_list:
                         chunk = tl.unpickle_chunk(chunk_path)
-                        existing_spectra = chunk.make_spectra_hist(existing_spectra)
+                        for scintillator in chunk_scint_list:
+                            energies = chunk.get_lm_data(scintillator, 'energy')
+                            chunk_hist, _ = np.histogram(energies, bins=energy_bins)
+                            if len(existing_spectra[scintillator] == 0):
+                                existing_spectra = chunk_hist
+                            else:
+                                existing_spectra[scintillator] = existing_spectra[scintillator] + chunk_hist
+
                         del chunk
 
                     # Calling the calibration algorithm

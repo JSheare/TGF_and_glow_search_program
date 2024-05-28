@@ -366,7 +366,7 @@ class Detector:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
     def find_lm_file_index(self, scintillator, count_time):
-        """Returns the index of the list mode file that the given count occurred in.
+        """Helper function. Returns the index of the list mode file that the given count occurred in.
 
         Parameters
         ----------
@@ -511,37 +511,7 @@ class Detector:
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
-    def get_passtime(self):
-        """Returns a dictionary containing the passtime attributes for each of the Detector's scintillators.
-
-        Returns
-        ----------
-        dict
-            A dictionary containing the passtime dictionaries for each of the Detector's scintillators.
-
-        """
-
-        passtime_dict = {}
-        for scintillator in self._scintillators:
-            passtime = self.get_attribute(scintillator, 'passtime')
-            passtime_dict[scintillator] = passtime
-
-        return passtime_dict
-
-    def set_passtime(self, passtime_dict):
-        """Updates the passtime attributes for each of the Detector's scintillators.
-
-        Parameters
-        ----------
-        passtime_dict : dict
-            A dictionary containing the passtime dictionaries for each of the Detector's scintillators.
-
-        """
-
-        for scintillator in self._scintillators:
-            self.set_attribute(scintillator, 'passtime', passtime_dict[scintillator])
-
-    def calculate_fileset_size(self):
+    def get_fileset_size(self):
         """Returns the total size (in bytes) of all the currently listed files for the day."""
         total_file_size = 0
         for scintillator in self._scintillators:
@@ -554,6 +524,18 @@ class Detector:
                 total_file_size += os.path.getsize(file)
 
         return total_file_size
+
+    def clear(self, clear_filelists=True):
+        """Clears all data currently stored in the Detector.
+
+        Parameters
+        ----------
+        clear_filelists : bool
+            Optional. If True, lists of files stored in the detector will be also be cleared. True by default.
+
+        """
+        for scintillator in self._scintillators:
+            self._scintillators[scintillator].clear(clear_filelists)
 
     def _import_lm_data(self, scintillator, gui):
         """Imports list mode data for the given scintillator."""
@@ -796,7 +778,7 @@ class Detector:
             raise FileNotFoundError(f'missing data files for default scintillator ({self.default_scintillator}).')
 
         # Determines whether there is enough free memory to load the entire dataset
-        total_file_size = self.calculate_fileset_size()
+        total_file_size = self.get_fileset_size()
         available_memory = psutil.virtual_memory()[1] * params.TOTAL_MEMORY_ALLOWANCE_FRAC
         if (params.OPERATING_MEMORY_ALLOWANCE + total_file_size) > available_memory:
             raise MemoryError('not enough free memory to hold complete dataset.')
@@ -817,37 +799,6 @@ class Detector:
             # Importing trace data
             if import_traces:
                 self._import_trace_data(scintillator, gui)
-
-    def make_spectra_hist(self, existing_spectra_dict):
-        """Mainly meant as a helper for the search program's low memory mode. Makes the energy spectra histograms for
-        a chunk of the day (no calibration). Returns the histograms in a dictionary.
-
-        Parameters
-        ----------
-        existing_spectra_dict : dict
-            A dictionary containing energy spectra histograms for previous chunks of the day.
-
-        Returns
-        -------
-        dict
-            An updated version of existing_spectra_dict featuring the chunk's contribution to the energy
-            spectra histograms.
-
-        """
-
-        bin_range = self.calibration_params['bin_range']
-        bin_size = self.calibration_params['bin_size']
-
-        energy_bins = np.arange(0.0, bin_range, bin_size)
-        for scintillator in self._scintillators:
-            energies = self.get_lm_data(scintillator, 'energy')
-            chunk_hist, bin_edges = np.histogram(energies, bins=energy_bins)
-            if len(existing_spectra_dict[scintillator]) == 0:
-                existing_spectra_dict[scintillator] = chunk_hist
-            else:
-                existing_spectra_dict[scintillator] = existing_spectra_dict[scintillator] + chunk_hist
-
-        return existing_spectra_dict
 
     def _generate_hist(self, energy_bins, scintillator, existing_spectra=None):
         """Returns the energy spectra histogram for the requested scintillator."""

@@ -111,8 +111,6 @@ with&nbsp;some&nbsp;info&nbsp;about&nbsp;which&nbsp;scintillators&nbsp;have&nbsp
 
 <dl><dt><a name="Detector-__str__"><strong>__str__</strong></a>(self)</dt><dd><span class="code">String&nbsp;casting&nbsp;overload.&nbsp;Returns&nbsp;a&nbsp;string&nbsp;of&nbsp;the&nbsp;form&nbsp;'<a href="#Detector">Detector</a>(unit,&nbsp;first_sec,&nbsp;mode_info)'.</span></dd></dl>
 
-<dl><dt><a name="Detector-calculate_fileset_size"><strong>calculate_fileset_size</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;the&nbsp;total&nbsp;size&nbsp;(in&nbsp;bytes)&nbsp;of&nbsp;all&nbsp;the&nbsp;currently&nbsp;listed&nbsp;files&nbsp;for&nbsp;the&nbsp;day.</span></dd></dl>
-
 <dl><dt><a name="Detector-calibrate"><strong>calibrate</strong></a>(self, existing_spectra=None, plot_spectra=False, make_template=False)</dt><dd><span class="code">Makes&nbsp;energy&nbsp;spectra&nbsp;histograms&nbsp;and&nbsp;calibrates&nbsp;the&nbsp;large&nbsp;plastic&nbsp;and&nbsp;sodium&nbsp;iodide&nbsp;scintillators.<br>
 &nbsp;<br>
 Parameters<br>
@@ -129,6 +127,13 @@ changes&nbsp;the&nbsp;import&nbsp;and&nbsp;export&nbsp;directories&nbsp;if&nbsp;
 
 <dl><dt><a name="Detector-check_processed"><strong>check_processed</strong></a>(self)</dt><dd><span class="code">Checks&nbsp;to&nbsp;see&nbsp;if&nbsp;'processed'&nbsp;is&nbsp;one&nbsp;of&nbsp;the&nbsp;user-specified&nbsp;modes,&nbsp;and&nbsp;sets&nbsp;the&nbsp;processed&nbsp;flag&nbsp;to&nbsp;true.<br>
 Raises&nbsp;a&nbsp;ValueError&nbsp;if&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;isn't&nbsp;Godot.</span></dd></dl>
+
+<dl><dt><a name="Detector-clear"><strong>clear</strong></a>(self, clear_filelists=True)</dt><dd><span class="code">Clears&nbsp;all&nbsp;data&nbsp;currently&nbsp;stored&nbsp;in&nbsp;the&nbsp;<a href="#Detector">Detector</a>.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+clear_filelists&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;lists&nbsp;of&nbsp;files&nbsp;stored&nbsp;in&nbsp;the&nbsp;detector&nbsp;will&nbsp;be&nbsp;also&nbsp;be&nbsp;cleared.&nbsp;True&nbsp;by&nbsp;default.</span></dd></dl>
 
 <dl><dt><a name="Detector-data_present_in"><strong>data_present_in</strong></a>(self, scintillator, data_type='lm')</dt><dd><span class="code">Returns&nbsp;True&nbsp;if&nbsp;data&nbsp;is&nbsp;present&nbsp;for&nbsp;the&nbsp;specified&nbsp;scintillator&nbsp;and&nbsp;False&nbsp;otherwise.<br>
 &nbsp;<br>
@@ -164,7 +169,7 @@ str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;list&nbsp;mode&nbsp;file&nbsp;that&nbsp;the&nbsp;given&nbsp;count&nbsp;occurred&nbsp;in.&nbsp;Returns&nbsp;an&nbsp;empty&nbsp;string&nbsp;if&nbsp;the&nbsp;count<br>
 &nbsp;&nbsp;&nbsp;&nbsp;isn't&nbsp;in&nbsp;any&nbsp;of&nbsp;the&nbsp;files.</span></dd></dl>
 
-<dl><dt><a name="Detector-find_lm_file_index"><strong>find_lm_file_index</strong></a>(self, scintillator, count_time)</dt><dd><span class="code">Returns&nbsp;the&nbsp;index&nbsp;of&nbsp;the&nbsp;list&nbsp;mode&nbsp;file&nbsp;that&nbsp;the&nbsp;given&nbsp;count&nbsp;occurred&nbsp;in.<br>
+<dl><dt><a name="Detector-find_lm_file_index"><strong>find_lm_file_index</strong></a>(self, scintillator, count_time)</dt><dd><span class="code">Helper&nbsp;function.&nbsp;Returns&nbsp;the&nbsp;index&nbsp;of&nbsp;the&nbsp;list&nbsp;mode&nbsp;file&nbsp;that&nbsp;the&nbsp;given&nbsp;count&nbsp;occurred&nbsp;in.<br>
 &nbsp;<br>
 Parameters<br>
 ----------<br>
@@ -217,6 +222,8 @@ str&nbsp;||&nbsp;list&nbsp;||&nbsp;numpy.ndarray&nbsp;||&nbsp;dict&nbsp;||&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;numpy&nbsp;array&nbsp;&nbsp;if&nbsp;'time',&nbsp;'energy',&nbsp;or&nbsp;'wc'&nbsp;is&nbsp;requested;&nbsp;dictionary&nbsp;if&nbsp;'passtime'&nbsp;is&nbsp;requested;&nbsp;dataframe<br>
 &nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;'lm_frame'&nbsp;is&nbsp;requested,&nbsp;etc.</span></dd></dl>
 
+<dl><dt><a name="Detector-get_fileset_size"><strong>get_fileset_size</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;the&nbsp;total&nbsp;size&nbsp;(in&nbsp;bytes)&nbsp;of&nbsp;all&nbsp;the&nbsp;currently&nbsp;listed&nbsp;files&nbsp;for&nbsp;the&nbsp;day.</span></dd></dl>
+
 <dl><dt><a name="Detector-get_import_loc"><strong>get_import_loc</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;the&nbsp;directory&nbsp;where&nbsp;data&nbsp;will&nbsp;be&nbsp;imported&nbsp;from.<br>
 &nbsp;<br>
 Returns<br>
@@ -261,13 +268,6 @@ pandas.core.frame.DataFrame<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dataframe&nbsp;with&nbsp;the&nbsp;data&nbsp;for&nbsp;the&nbsp;requested&nbsp;list&nbsp;mode&nbsp;file.</span></dd></dl>
 
 <dl><dt><a name="Detector-get_location"><strong>get_location</strong></a>(self, deployment_file_loc)</dt><dd><span class="code">Returns&nbsp;a&nbsp;dictionary&nbsp;full&nbsp;of&nbsp;location&nbsp;information&nbsp;for&nbsp;the&nbsp;detector&nbsp;on&nbsp;its&nbsp;specified&nbsp;date.</span></dd></dl>
-
-<dl><dt><a name="Detector-get_passtime"><strong>get_passtime</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;a&nbsp;dictionary&nbsp;containing&nbsp;the&nbsp;passtime&nbsp;attributes&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;<a href="#Detector">Detector</a>'s&nbsp;scintillators.<br>
-&nbsp;<br>
-Returns<br>
-----------<br>
-dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;the&nbsp;passtime&nbsp;dictionaries&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;<a href="#Detector">Detector</a>'s&nbsp;scintillators.</span></dd></dl>
 
 <dl><dt><a name="Detector-get_results_loc"><strong>get_results_loc</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;the&nbsp;directory&nbsp;where&nbsp;all&nbsp;results&nbsp;will&nbsp;be&nbsp;stored.<br>
 &nbsp;<br>
@@ -332,20 +332,6 @@ Returns<br>
 bool<br>
 &nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;if&nbsp;the&nbsp;name&nbsp;matches&nbsp;the&nbsp;name&nbsp;of&nbsp;the&nbsp;<a href="#Detector">Detector</a>,&nbsp;False&nbsp;otherwise.</span></dd></dl>
 
-<dl><dt><a name="Detector-make_spectra_hist"><strong>make_spectra_hist</strong></a>(self, existing_spectra_dict)</dt><dd><span class="code">Mainly&nbsp;meant&nbsp;as&nbsp;a&nbsp;helper&nbsp;for&nbsp;the&nbsp;search&nbsp;program's&nbsp;low&nbsp;memory&nbsp;mode.&nbsp;Makes&nbsp;the&nbsp;energy&nbsp;spectra&nbsp;histograms&nbsp;for<br>
-a&nbsp;chunk&nbsp;of&nbsp;the&nbsp;day&nbsp;(no&nbsp;calibration).&nbsp;Returns&nbsp;the&nbsp;histograms&nbsp;in&nbsp;a&nbsp;dictionary.<br>
-&nbsp;<br>
-Parameters<br>
-----------<br>
-existing_spectra_dict&nbsp;:&nbsp;dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;energy&nbsp;spectra&nbsp;histograms&nbsp;for&nbsp;previous&nbsp;chunks&nbsp;of&nbsp;the&nbsp;day.<br>
-&nbsp;<br>
-Returns<br>
--------<br>
-dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;An&nbsp;updated&nbsp;version&nbsp;of&nbsp;existing_spectra_dict&nbsp;featuring&nbsp;the&nbsp;chunk's&nbsp;contribution&nbsp;to&nbsp;the&nbsp;energy<br>
-&nbsp;&nbsp;&nbsp;&nbsp;spectra&nbsp;histograms.</span></dd></dl>
-
 <dl><dt><a name="Detector-set_attribute"><strong>set_attribute</strong></a>(self, scintillator, attribute, new_info, deepcopy=True)</dt><dd><span class="code">Updates&nbsp;the&nbsp;requested&nbsp;attribute&nbsp;for&nbsp;a&nbsp;particular&nbsp;scintillator.<br>
 Note:&nbsp;new&nbsp;info&nbsp;must&nbsp;be&nbsp;of&nbsp;the&nbsp;same&nbsp;type&nbsp;as&nbsp;the&nbsp;old.<br>
 &nbsp;<br>
@@ -382,13 +368,6 @@ new_data&nbsp;:&nbsp;numpy.ndarray<br>
 file_name&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;file&nbsp;to&nbsp;set&nbsp;data&nbsp;for.&nbsp;If&nbsp;not&nbsp;specified,<br>
 &nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;will&nbsp;be&nbsp;set&nbsp;for&nbsp;the&nbsp;whole&nbsp;day.</span></dd></dl>
-
-<dl><dt><a name="Detector-set_passtime"><strong>set_passtime</strong></a>(self, passtime_dict)</dt><dd><span class="code">Updates&nbsp;the&nbsp;passtime&nbsp;attributes&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;<a href="#Detector">Detector</a>'s&nbsp;scintillators.<br>
-&nbsp;<br>
-Parameters<br>
-----------<br>
-passtime_dict&nbsp;:&nbsp;dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;the&nbsp;passtime&nbsp;dictionaries&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;<a href="#Detector">Detector</a>'s&nbsp;scintillators.</span></dd></dl>
 
 <dl><dt><a name="Detector-set_results_loc"><strong>set_results_loc</strong></a>(self, loc)</dt><dd><span class="code">Sets&nbsp;the&nbsp;directory&nbsp;where&nbsp;all&nbsp;results&nbsp;will&nbsp;be&nbsp;stored.<br>
 &nbsp;<br>

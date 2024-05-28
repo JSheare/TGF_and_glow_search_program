@@ -140,7 +140,7 @@ str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;status&nbsp;for&nbsp;the&nbsp;date:&nbsp;'inside'&nbsp;if&nbsp;the&nbsp;date&nbsp;is&nbsp;inside&nbsp;dst,&nbsp;'outside'&nbsp;if&nbsp;out,&nbsp;or&nbsp;'beginning'/'end'&nbsp;for<br>
 &nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;boundaries.</span></dd></dl>
  <dl><dt><a name="-filter_files"><strong>filter_files</strong></a>(complete_filelist)</dt><dd><span class="code">Returns&nbsp;an&nbsp;ordered&nbsp;list&nbsp;of&nbsp;files&nbsp;with&nbsp;duplicate/invalid&nbsp;files&nbsp;filtered&nbsp;out.</span></dd></dl>
- <dl><dt><a name="-filter_traces"><strong>filter_traces</strong></a>(detector, scintillator, trigspot=None)</dt><dd><span class="code">Returns&nbsp;a&nbsp;list&nbsp;of&nbsp;traces&nbsp;that&nbsp;are&nbsp;likely&nbsp;to&nbsp;be&nbsp;interesting&nbsp;for&nbsp;the&nbsp;given&nbsp;scintillator.<br>
+ <dl><dt><a name="-filter_traces"><strong>filter_traces</strong></a>(detector, scintillator)</dt><dd><span class="code">Returns&nbsp;a&nbsp;list&nbsp;of&nbsp;traces&nbsp;that&nbsp;are&nbsp;likely&nbsp;to&nbsp;be&nbsp;interesting&nbsp;for&nbsp;the&nbsp;given&nbsp;scintillator.<br>
 &nbsp;<br>
 Parameters<br>
 ----------<br>
@@ -149,8 +149,6 @@ detector&nbsp;:&nbsp;tgfsearch.detectors.detector.Detector<br>
 scintillator&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;scintillator&nbsp;of&nbsp;interest.&nbsp;Allowed&nbsp;values&nbsp;(detector&nbsp;dependent):<br>
 &nbsp;&nbsp;&nbsp;&nbsp;'NaI',&nbsp;'SP',&nbsp;'MP',&nbsp;'LP'.<br>
-trigspot&nbsp;:&nbsp;int<br>
-&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;The&nbsp;location&nbsp;in&nbsp;the&nbsp;buffer&nbsp;where&nbsp;the&nbsp;trace&nbsp;was&nbsp;triggered&nbsp;(in&nbsp;units&nbsp;of&nbsp;samples).<br>
 &nbsp;<br>
 Returns<br>
 -------<br>
@@ -176,14 +174,12 @@ Returns<br>
 int<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;score&nbsp;corresponding&nbsp;to&nbsp;the&nbsp;weather&nbsp;conditions&nbsp;around&nbsp;the&nbsp;time&nbsp;of&nbsp;the&nbsp;event.&nbsp;See&nbsp;the&nbsp;function<br>
 &nbsp;&nbsp;&nbsp;&nbsp;weather_from_score&nbsp;for&nbsp;a&nbsp;summary&nbsp;of&nbsp;what&nbsp;the&nbsp;scores&nbsp;mean.</span></dd></dl>
- <dl><dt><a name="-is_good_trace"><strong>is_good_trace</strong></a>(trace, trigspot=None)</dt><dd><span class="code">Returns&nbsp;True&nbsp;if&nbsp;the&nbsp;given&nbsp;trace&nbsp;is&nbsp;likely&nbsp;to&nbsp;be&nbsp;interesting&nbsp;and&nbsp;False&nbsp;otherwise.<br>
+ <dl><dt><a name="-is_good_trace"><strong>is_good_trace</strong></a>(trace)</dt><dd><span class="code">Returns&nbsp;True&nbsp;if&nbsp;the&nbsp;given&nbsp;trace&nbsp;is&nbsp;likely&nbsp;to&nbsp;be&nbsp;interesting&nbsp;and&nbsp;False&nbsp;otherwise.<br>
 &nbsp;<br>
 Parameters<br>
 ----------<br>
 trace&nbsp;:&nbsp;pandas.core.frame.DataFrame<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dataframe&nbsp;containing&nbsp;the&nbsp;trace&nbsp;data&nbsp;to&nbsp;be&nbsp;aligned.<br>
-trigspot&nbsp;:&nbsp;int<br>
-&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;The&nbsp;location&nbsp;in&nbsp;the&nbsp;buffer&nbsp;where&nbsp;the&nbsp;trace&nbsp;was&nbsp;triggered&nbsp;(in&nbsp;units&nbsp;of&nbsp;samples).<br>
 &nbsp;<br>
 Returns<br>
 -------<br>
