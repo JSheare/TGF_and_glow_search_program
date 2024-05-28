@@ -118,24 +118,24 @@ The program has several 'modes' that give it enhanced functionality. Here's a li
 <br/>
 #### **'combo' Mode:**
 This mode instructs the program to combine data from all available scintillators when looking for TGFs.
-To use the program in this mode, enter a command the same way as above but add the word 'combo' to the end:
+To use the program in this mode, enter a command the same way as above but add the flag '--combo' to the end:
 
-    tgf-search-cl yymmdd yymmdd detector combo
+    tgf-search-cl yymmdd yymmdd detector --combo
 
 #### **'allscints' Mode:**
 This mode tells the program to run the short event search algorithm on all the scintillators 
 (by default the program only searches the large plastic scintillator).
-To run the program in this mode, run the program the same as above but add the word 'plastics' to the end:
+To run the program in this mode, run the program the same as above but add the flag '--plastics' to the end:
 
-    tgf-search-cl yymmdd yymmdd detector allscints
+    tgf-search-cl yymmdd yymmdd detector --allscints
 
 #### **'template' Mode:**
 In order to accurately calibrate the large plastic scintillator, the program needs a template. 
 New templates must be made for each new detector location, and this mode allows you to make the template.
 <br/>
-To run the program in this mode, run the program the same as above but add the word 'template' to the end:
+To run the program in this mode, run the program the same as above but add the flag '--template' to the end:
 
-    tgf-search-cl yymmdd yymmdd detector template
+    tgf-search-cl yymmdd yymmdd detector --template
 
 To make templates, follow the instructions given by the program to adjust the vertical lines to match the locations of
 the compton shoulders. A picture of what the template should look like is located in the program's GitHub repository:
@@ -146,48 +146,48 @@ If the detector you are searching was deployed to an aircraft during the search 
 to use. It adds a special check to the short event search algorithm that filters out false alarms caused by cosmic rays.
 It's recommended that the mode 'skcali' is used in conjunction with this.
 </br>
-To run the program in this mode, run the program the same as above but add the word 'aircraft' to the end:
+To run the program in this mode, run the program the same as above but add the flag '--aircraft' to the end:
 
-    tgf-search-cl yymmdd yymmdd detector aircraft
+    tgf-search-cl yymmdd yymmdd detector --aircraft
 
 #### **'processed' Mode:**
 In this mode (which is only available for GODOT) the program will search processed data instead of raw data. Note that
 this mode is largely deprecated and that processed data must exist for your specified search range for it to work 
 properly.
 </br>
-To run the program in this mode, run the program the same as above but add the word 'processed' to the end:
+To run the program in this mode, run the program the same as above but add the flag '-p' to the end:
 
-    tgf-search-cl yymmdd yymmdd detector processed
+    tgf-search-cl yymmdd yymmdd detector -p
 
 #### **'custom' Mode:**
 This mode can be used to specify custom data import and result export locations. To use it, enter a command
 of the following form:
 
-    tgf-search-cl yymmdd yymmdd detector custom import_directory export_directory
+    tgf-search-cl yymmdd yymmdd detector -c import_directory export_directory
 
 Note: if you don't wish to specify one of the directories, simply use the word 'none' instead. Here's an example
 where we omit a custom import directory:
 
-    tgf-search-cl yymmdd yymmdd detector custom none export_directory
+    tgf-search-cl yymmdd yymmdd detector -c none export_directory
 
 #### **Other Things to Know:**
 It is possible to use as many of these modes in tandem as the user needs 
 <br/>
 (i.e. commands like this are possible):
 
-    tgf-search-cl yymmdd yymmdd detector custom allscints template
+    tgf-search-cl yymmdd yymmdd detector -c --allscints --template
 
 ### **Additional (developer) modes:**
 The program also includes several bonus modes that are largely intended for developer use; 
 they include:
-- **'skcali' Mode** - Skips the scintillator calibration algorithm.
+- **'skcali' Mode** - Skips the scintillator calibration algorithm. Flag: --skcali
 
 
-- **'skshort' Mode** - Skips the short event search algorithm.
+- **'skshort' Mode** - Skips the short event search algorithm. Flag: --skshort
 
 
-- **'skglow' mode** - Skips the long event search algorithm.
+- **'skglow' mode** - Skips the long event search algorithm. Flag: --skglow
 
 
 - **'pickle' mode** - Serializes and saves the detector object for later use OR imports an 
-  already-serialized detector object
+  already-serialized detector object. Flag: --pickle

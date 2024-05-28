@@ -60,27 +60,27 @@ def get_detector(unit, date_str, mode_info=None, print_feedback=False):
 def get_modes(mode_info):
     modes = dict()
     # Modes for skipping over certain algorithms (mostly to speed up testing)
-    modes['skcali'] = True if 'skcali' in mode_info else False  # Skip detector calibration
-    modes['skshort'] = True if 'skshort' in mode_info else False  # Skip short event search
-    modes['skglow'] = True if 'skglow' in mode_info else False  # SKip long event search
+    modes['skcali'] = True if '--skcali' in mode_info else False  # Skip detector calibration
+    modes['skshort'] = True if '--skshort' in mode_info else False  # Skip short event search
+    modes['skglow'] = True if '--skglow' in mode_info else False  # SKip long event search
 
     # Aircraft mode
-    modes['aircraft'] = True if 'aircraft' in mode_info else False
+    modes['aircraft'] = True if '--aircraft' in mode_info else False
 
     # Pickle mode
-    modes['pickle'] = True if 'pickle' in mode_info else False
+    modes['pickle'] = True if '--pickle' in mode_info else False
 
     # All scintillators mode (all the scintillators will be checked by the short event search algorithm)
-    modes['allscints'] = True if 'allscints' in mode_info else False
+    modes['allscints'] = True if '--allscints' in mode_info else False
 
     # Combo mode (all scintillator data is combined into one set of arrays and examined by the short event search algo)
-    modes['combo'] = True if 'combo' in mode_info else False
+    modes['combo'] = True if '--combo' in mode_info else False
 
     # GUI mode (running script from gui)
-    modes['gui'] = True if 'gui' in mode_info else False
+    modes['gui'] = True if '-g' in mode_info else False
 
     # Template mode (make LP template)
-    modes['template'] = True if 'template' in mode_info else False
+    modes['template'] = True if '--template' in mode_info else False
 
     return modes
 

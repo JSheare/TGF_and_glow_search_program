@@ -145,7 +145,7 @@ def enqueue(gui, search_queue, program_modes):
     detector = gui.nametowidget('detector_entrybox').get()
     # If the search command is valid, constructs the command and adds it to the queue
     if is_valid_search(first_date, second_date, detector):
-        command = [first_date, second_date, detector.upper(), 'gui']
+        command = [first_date, second_date, detector.upper(), '-g']
         for mode in program_modes:
             command.append(mode)
 
@@ -153,11 +153,11 @@ def enqueue(gui, search_queue, program_modes):
                 gui.nametowidget('custom_entrybox').get() != '') else 'none'
         custom_results_dir = gui.nametowidget('results_entrybox').get() if (
                 gui.nametowidget('results_entrybox').get() != '') else 'none'
-        command.append('custom')
+        command.append('-c')
         command.append(str(custom_import_dir))
         command.append(str(custom_results_dir))
         if not queue_contains(command, search_queue):
-            modes = (' ' + str(program_modes).replace("'", '')) if len(program_modes) > 0 else ''
+            modes = (' ' + str(program_modes).replace("'", '').replace("-", '')) if len(program_modes) > 0 else ''
             print(f'Enqueueing {tl.short_to_full_date(first_date)}'
                   f'{" - " + tl.short_to_full_date(second_date) if first_date != second_date else ""}'
                   f' on {detector.upper()}{modes}.')
@@ -176,7 +176,7 @@ def start(gui, communicator, search_queue, program_modes):
 # Stops the search script when the stop button is clicked
 def stop(communicator):
     if communicator.running:
-        print('Halting program execution...')
+        print('Stopping search...')
         communicator.set()
 
 
@@ -211,7 +211,7 @@ def run(gui, communicator, search_queue):
         print(f'Running search for {first_date_sep}{(" - " + second_date_sep) if first_date != second_date else ""} '
               f'on {unit}.')
         if len(mode_info) > 4:  # one for gui, one for custom, the last two for custom import/export locations
-            print(f'This search will be run with the following modes: {", ".join(mode_info[1:-3])}.')
+            print(f'This search will be run with the following modes: {", ".join(mode_info[1:-3]).replace("-", "")}.')
 
         # Runs the search program in a separate process and manages it
         read, write = multiprocessing.Pipe()
@@ -357,22 +357,22 @@ def main():
 
     ascb = tk.IntVar()
     allscints_cb = tk.Checkbutton(gui, text='allscints', variable=ascb, onvalue=1, offvalue=0, name='allscints',
-                                  command=lambda: tick_untick(ascb, program_modes, 'allscints'))
+                                  command=lambda: tick_untick(ascb, program_modes, '--allscints'))
     variables.append(ascb)
 
     tcb = tk.IntVar()
     template_cb = tk.Checkbutton(gui, text='template', variable=tcb, onvalue=1, offvalue=0, name='template',
-                                 command=lambda: tick_untick(tcb, program_modes, 'template'))
+                                 command=lambda: tick_untick(tcb, program_modes, '--template'))
     variables.append(tcb)
 
     acb = tk.IntVar()
     aircraft_cb = tk.Checkbutton(gui, text='aircraft', variable=acb, onvalue=1, offvalue=0, name='aircraft',
-                                 command=lambda: tick_untick(acb, program_modes, 'aircraft'))
+                                 command=lambda: tick_untick(acb, program_modes, '--aircraft'))
     variables.append(acb)
 
     combob = tk.IntVar()
     combo_cb = tk.Checkbutton(gui, text='combo', variable=combob, onvalue=1, offvalue=0, name='combo',
-                              command=lambda: tick_untick(combob, program_modes, 'combo'))
+                              command=lambda: tick_untick(combob, program_modes, '--combo'))
     variables.append(combob)
 
     regular_checkbox_label.place(x=correct_coord(150, 137), y=correct_coord(600, 630))
@@ -386,22 +386,22 @@ def main():
 
     sccb = tk.IntVar()
     skcali_cb = tk.Checkbutton(gui, text='skcali', variable=sccb, onvalue=1, offvalue=0, name='skcali',
-                               command=lambda: tick_untick(sccb, program_modes, 'skcali'))
+                               command=lambda: tick_untick(sccb, program_modes, '--skcali'))
     variables.append(sccb)
 
     sscb = tk.IntVar()
     skshort_cb = tk.Checkbutton(gui, text='skshort', variable=sscb, onvalue=1, offvalue=0, name='skshort',
-                                command=lambda: tick_untick(sscb, program_modes, 'skshort'))
+                                command=lambda: tick_untick(sscb, program_modes, '--skshort'))
     variables.append(sscb)
 
     sgcb = tk.IntVar()
     skglow_cb = tk.Checkbutton(gui, text='skglow', variable=sgcb, onvalue=1, offvalue=0, name='skglow',
-                               command=lambda: tick_untick(sgcb, program_modes, 'skglow'))
+                               command=lambda: tick_untick(sgcb, program_modes, '--skglow'))
     variables.append(sgcb)
 
     pcb = tk.IntVar()
     pickle_cb = tk.Checkbutton(gui, text='pickle', variable=pcb, onvalue=1, offvalue=0, name='pickle',
-                               command=lambda: tick_untick(pcb, program_modes, 'pickle'))
+                               command=lambda: tick_untick(pcb, program_modes, '--pickle'))
     variables.append(pcb)
 
     dev_checkbox_label.place(x=correct_coord(150, 137), y=correct_coord(630, 660))

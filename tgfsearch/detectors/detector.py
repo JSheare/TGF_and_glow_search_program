@@ -201,7 +201,7 @@ class Detector:
     def check_processed(self):
         """Checks to see if 'processed' is one of the user-specified modes, and sets the processed flag to true.
         Raises a ValueError if the Detector isn't Godot."""
-        if 'processed' in self.mode_info:
+        if '-p' in self.mode_info:
             self.processed = True
             if self.is_named('GODOT'):
                 self.import_loc = f'/media/godot/godot/monthly_processed/{self.date_str[0:4]}'
@@ -211,8 +211,8 @@ class Detector:
     def check_custom(self):
         """Checks to see if the user passed in custom import/export directories via mode_info and
         changes the import and export directories if the user specified different ones from the defaults."""
-        if 'custom' in self.mode_info:
-            index = self.mode_info.index('custom')
+        if '-c' in self.mode_info:
+            index = self.mode_info.index('-c')
             if index + 2 < len(self.mode_info):
                 import_index = index + 1
                 if self.mode_info[import_index] != 'none':
@@ -754,7 +754,7 @@ class Detector:
 
         """
 
-        gui = True if 'gui' in self.mode_info else False
+        gui = True if '-g' in self.mode_info else False
 
         if not existing_filelists:
             # Locates the files to be imported
