@@ -105,7 +105,7 @@ class Scintillator:
         else:
             raise ValueError(f"'{attribute}' is not a valid attribute.")
 
-    def get_lm_data(self, column, file_name=None):
+    def get_lm_data(self, column, file_name=None, to_mev=False):
         """Returns a single column of list mode data as a numpy array."""
         if file_name is None:
             frame = self.lm_frame
@@ -113,7 +113,15 @@ class Scintillator:
             frame = self.get_lm_file(file_name, deepcopy=False)
 
         if column in frame:
-            return frame[column].to_numpy()
+            data = frame[column].to_numpy()
+            if to_mev and column == 'energy':
+                if len(self.calibration_bins) != 2:
+                    raise ValueError("no calibration found. Scintillator either hasn't been calibrated or calibration"
+                                     "was unsuccessful.")
+
+                data = tl.channel_to_mev(data, self.calibration_bins, self.calibration_energies)
+
+            return data
         else:
             raise ValueError(f"'{column}' is either not a valid column or data hasn't been imported.")
 

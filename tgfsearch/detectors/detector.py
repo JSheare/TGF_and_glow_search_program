@@ -316,7 +316,7 @@ class Detector:
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
-    def get_lm_data(self, scintillator, column, file_name=None):
+    def get_lm_data(self, scintillator, column, file_name=None, to_mev=False):
         """Returns a single column of list mode data as a numpy array.
 
         Parameters
@@ -329,6 +329,9 @@ class Detector:
         file_name : str
             Optional. The name of the file to get data for. If not specified,
             data will be retrieved for the whole day.
+        to_mev : bool
+            Optional. If True, and if 'energy' is the column of interest, energies will be converted to MeV before
+            being returned. Raises an error if no calibration can be found for the scintillator.
 
         Returns
         -------
@@ -338,7 +341,7 @@ class Detector:
         """
 
         if scintillator in self._scintillators:
-            return self._scintillators[scintillator].get_lm_data(column, file_name)
+            return self._scintillators[scintillator].get_lm_data(column, file_name, to_mev)
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 

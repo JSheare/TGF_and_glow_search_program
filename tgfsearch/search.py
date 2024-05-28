@@ -565,18 +565,15 @@ def long_event_cutoff(detector, modes, chunk=None):
     # Checks to see if scintillators have all been calibrated. If one or more aren't, no counts are cut out
     all_calibrated = True
     for scintillator in long_event_scintillators:
-        calibration_bins = detector.get_attribute(scintillator, 'calibration_bins')
-        calibration_energies = detector.get_attribute(scintillator, 'calibration_energies')
-        existing_calibration = True if len(calibration_bins) == 2 else False
-        if not existing_calibration:
-            all_calibrated = False
-
         times.append(operating_obj.get_lm_data(scintillator, 'time'))
-        if modes['skcali'] or not existing_calibration:
+        if modes['skcali']:
             energies.append(operating_obj.get_lm_data(scintillator, 'energy'))
         else:
-            energies.append(tl.channel_to_mev(operating_obj.get_lm_data(scintillator, 'energy'),
-                                              calibration_bins, calibration_energies))
+            try:
+                energies.append(operating_obj.get_lm_data(scintillator, 'energy', to_mev=True))
+            except ValueError:
+                all_calibrated = False
+                energies.append(operating_obj.get_lm_data(scintillator, 'energy'))
 
     times = np.concatenate(times)
     energies = np.concatenate(energies)

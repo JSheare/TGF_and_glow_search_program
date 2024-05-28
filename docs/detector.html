@@ -231,7 +231,7 @@ Returns<br>
 str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;import&nbsp;directory&nbsp;as&nbsp;a&nbsp;string.</span></dd></dl>
 
-<dl><dt><a name="Detector-get_lm_data"><strong>get_lm_data</strong></a>(self, scintillator, column, file_name=None)</dt><dd><span class="code">Returns&nbsp;a&nbsp;single&nbsp;column&nbsp;of&nbsp;list&nbsp;mode&nbsp;data&nbsp;as&nbsp;a&nbsp;numpy&nbsp;array.<br>
+<dl><dt><a name="Detector-get_lm_data"><strong>get_lm_data</strong></a>(self, scintillator, column, file_name=None, to_mev=False)</dt><dd><span class="code">Returns&nbsp;a&nbsp;single&nbsp;column&nbsp;of&nbsp;list&nbsp;mode&nbsp;data&nbsp;as&nbsp;a&nbsp;numpy&nbsp;array.<br>
 &nbsp;<br>
 Parameters<br>
 ----------<br>
@@ -243,6 +243,9 @@ column&nbsp;:&nbsp;str<br>
 file_name&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;file&nbsp;to&nbsp;get&nbsp;data&nbsp;for.&nbsp;If&nbsp;not&nbsp;specified,<br>
 &nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;will&nbsp;be&nbsp;retrieved&nbsp;for&nbsp;the&nbsp;whole&nbsp;day.<br>
+to_mev&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;and&nbsp;if&nbsp;'energy'&nbsp;is&nbsp;the&nbsp;column&nbsp;of&nbsp;interest,&nbsp;energies&nbsp;will&nbsp;be&nbsp;converted&nbsp;to&nbsp;MeV&nbsp;before<br>
+&nbsp;&nbsp;&nbsp;&nbsp;being&nbsp;returned.&nbsp;Raises&nbsp;an&nbsp;error&nbsp;if&nbsp;no&nbsp;calibration&nbsp;can&nbsp;be&nbsp;found&nbsp;for&nbsp;the&nbsp;scintillator.<br>
 &nbsp;<br>
 Returns<br>
 -------<br>
