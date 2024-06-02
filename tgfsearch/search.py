@@ -37,19 +37,16 @@ class TraceInfo:
 
 
 # Returns the correct detector object based on the parameters provided
-def get_detector(unit, date_str, mode_info=None, print_feedback=False):
-    if mode_info is None:
-        mode_info = list()
-
+def get_detector(unit, date_str, print_feedback=False):
     if unit.upper() == 'GODOT':
-        return Godot(unit, date_str, mode_info, print_feedback)
+        return Godot(unit, date_str, print_feedback)
     elif unit.upper() == 'SANTIS':
-        return Santis(unit, date_str, mode_info, print_feedback)
+        return Santis(unit, date_str, print_feedback)
     elif unit.upper() == 'CROATIA':
-        return Croatia(unit, date_str, mode_info, print_feedback)
+        return Croatia(unit, date_str, print_feedback)
     elif 'THOR' in unit.upper():
         if len(unit) >= 5 and unit[4].isnumeric() and int(unit[4]) <= 6:  # only 6 of them right now
-            return Thor(unit, date_str, mode_info, print_feedback)
+            return Thor(unit, date_str, print_feedback)
         else:
             raise ValueError(f"'{unit}' is not a valid detector.")
     else:
@@ -76,11 +73,17 @@ def get_modes(mode_info):
     # Combo mode (all scintillator data is combined into one set of arrays and examined by the short event search algo)
     modes['combo'] = True if '--combo' in mode_info else False
 
+    # Template mode (make LP template)
+    modes['template'] = True if '--template' in mode_info else False
+
     # GUI mode (running script from gui)
     modes['gui'] = True if '-g' in mode_info else False
 
-    # Template mode (make LP template)
-    modes['template'] = True if '--template' in mode_info else False
+    # Custom mode (use custom import and/or export directories
+    modes['custom'] = True if '-c' in mode_info else False
+
+    # Processed mode (use processed data). Only available for Godot
+    modes['processed'] = True if '-p' in mode_info else False
 
     return modes
 
@@ -462,7 +465,7 @@ def short_event_search(detector, modes, prev_event_numbers=None):
             scintillator = detector.scint_list[i]
             tl.print_logger(f'Searching eRC {detector.get_attribute(scintillator, "eRC")} '
                             f'({scintillator})...', detector.log)
-            times = detector.get_lm_data(scintillator, 'time')
+            times = detector.get_lm_data(scintillator, 'SecondsOfDay')
             energies = detector.get_lm_data(scintillator, 'energy')
             wallclock = detector.get_lm_data(scintillator, 'wc')
             count_scints = None
@@ -566,7 +569,7 @@ def long_event_cutoff(detector, modes, chunk=None):
     # Checks to see if scintillators have all been calibrated. If one or more aren't, no counts are cut out
     all_calibrated = True
     for scintillator in long_event_scintillators:
-        times.append(operating_obj.get_lm_data(scintillator, 'time'))
+        times.append(operating_obj.get_lm_data(scintillator, 'SecondsOfDay'))
         if modes['skcali']:
             energies.append(operating_obj.get_lm_data(scintillator, 'energy'))
         else:
@@ -985,10 +988,28 @@ def program(first_date, second_date, unit, mode_info):
         # Initializes the detector object
         print('Importing data...')
         try:
-            detector = get_detector(unit, date_str, mode_info, print_feedback=True)
+            detector = get_detector(unit, date_str, print_feedback=True)
         except ValueError:
             print('Not a valid detector.')
             exit()
+
+        # Tells the detector to use processed data if the user asks for it
+        if modes['processed']:
+            detector.use_processed()
+
+        # Tells the detector to use custom import/export directories if the user asks for it
+        if modes['custom']:
+            index = mode_info.index('-c')
+            if index + 2 < len(mode_info):
+                import_index = index + 1
+                if mode_info[import_index] != 'none':
+                    if mode_info[import_index] != '/':
+                        detector.set_import_loc(mode_info[import_index])
+
+                export_index = index + 2
+                if mode_info[export_index] != 'none':
+                    if mode_info[export_index] != '/':
+                        detector.set_results_loc(mode_info[export_index])
 
         # Logs relevant data files and events in a .txt File
         log_path = f'{detector.get_results_loc()}/Results/{unit}/{date_str}/'
@@ -1003,15 +1024,15 @@ def program(first_date, second_date, unit, mode_info):
                 pickle_paths = glob.glob(f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}'
                                          f'/detector.pickle')
                 if len(pickle_paths) > 0:
-                    detector = tl.unpickle_detector(pickle_paths[0], mode_info)
+                    detector = tl.unpickle_detector(pickle_paths[0])
                     detector.log = log
                 else:
                     detector.log = log
-                    detector.import_data(ignore_missing=False)
+                    detector.import_data(ignore_missing=False, gui=modes['gui'])
                     tl.pickle_detector(detector, 'detector')
             else:
                 detector.log = log
-                detector.import_data(ignore_missing=False)
+                detector.import_data(ignore_missing=False, gui=modes['gui'])
 
             # raise MemoryError  # for low memory mode testing
 
@@ -1097,8 +1118,25 @@ def program(first_date, second_date, unit, mode_info):
                 chunk_list = []
 
                 for chunk_num in range(1, num_chunks + 1):
-                    chunk = get_detector(unit, date_str, mode_info, print_feedback=True)
+                    chunk = get_detector(unit, date_str, print_feedback=True)
                     chunk.log = log
+
+                    if modes['processed']:
+                        chunk.use_processed()
+
+                    if modes['custom']:
+                        index = mode_info.index('-c')
+                        if index + 2 < len(mode_info):
+                            import_index = index + 1
+                            if mode_info[import_index] != 'none':
+                                if mode_info[import_index] != '/':
+                                    chunk.set_import_loc(mode_info[import_index])
+
+                            export_index = index + 2
+                            if mode_info[export_index] != 'none':
+                                if mode_info[export_index] != '/':
+                                    chunk.set_results_loc(mode_info[export_index])
+
                     chunk_list.append(chunk)
 
                 chunk_scint_list = chunk_list[0].scint_list
@@ -1135,7 +1173,7 @@ def program(first_date, second_date, unit, mode_info):
                                                     deepcopy=True)
 
                         tl.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
-                        chunk.import_data(existing_filelists=True, ignore_missing=False)
+                        chunk.import_data(existing_filelists=True, ignore_missing=False, gui=modes['gui'])
 
                         # Checking that data is present in the necessary scintillators
 
@@ -1182,8 +1220,8 @@ def program(first_date, second_date, unit, mode_info):
                         for scintillator in chunk_scint_list:
                             energies = chunk.get_lm_data(scintillator, 'energy')
                             chunk_hist, _ = np.histogram(energies, bins=energy_bins)
-                            if len(existing_spectra[scintillator] == 0):
-                                existing_spectra = chunk_hist
+                            if len(existing_spectra[scintillator]) == 0:
+                                existing_spectra[scintillator] = chunk_hist
                             else:
                                 existing_spectra[scintillator] = existing_spectra[scintillator] + chunk_hist
 

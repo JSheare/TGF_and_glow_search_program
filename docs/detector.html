@@ -50,7 +50,7 @@
 <td class="section-title" colspan=3>&nbsp;<br><a name="Detector">class <strong>Detector</strong></a>(<a href="builtins.html#object">builtins.object</a>)</td></tr>
     
 <tr><td class="decor title-decor" rowspan=2><span class="code">&nbsp;&nbsp;&nbsp;</span></td>
-<td class="decor title-decor" colspan=2><span class="code"><a href="#Detector">Detector</a>(unit,&nbsp;date_str,&nbsp;mode_info,&nbsp;print_feedback=False)<br>
+<td class="decor title-decor" colspan=2><span class="code"><a href="#Detector">Detector</a>(unit,&nbsp;date_str,&nbsp;print_feedback=False)<br>
 &nbsp;<br>
 A&nbsp;class&nbsp;used&nbsp;to&nbsp;store&nbsp;all&nbsp;relevant&nbsp;information&nbsp;about&nbsp;an&nbsp;instrument&nbsp;and&nbsp;its&nbsp;data&nbsp;for&nbsp;a&nbsp;day.<br>
 &nbsp;<br>
@@ -60,11 +60,9 @@ and&nbsp;the&nbsp;actual&nbsp;data&nbsp;for&nbsp;the&nbsp;requested&nbsp;day&nbs
 Parameters<br>
 ----------<br>
 unit&nbsp;:&nbsp;str<br>
-&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;detector&nbsp;that&nbsp;the&nbsp;analysis&nbsp;is&nbsp;being&nbsp;requested&nbsp;for.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;instrument.<br>
 date_str&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;timestamp&nbsp;for&nbsp;the&nbsp;requested&nbsp;day&nbsp;in&nbsp;yymmdd&nbsp;format.<br>
-mode_info&nbsp;:&nbsp;list<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;information&nbsp;about&nbsp;the&nbsp;requested&nbsp;modes&nbsp;to&nbsp;be&nbsp;operated&nbsp;under.<br>
 print_feedback&nbsp;:&nbsp;bool<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;flag&nbsp;specifying&nbsp;whether&nbsp;feedback&nbsp;should&nbsp;be&nbsp;printed&nbsp;to&nbsp;stdout&nbsp;or&nbsp;not.<br>
 &nbsp;<br>
@@ -73,43 +71,42 @@ Attributes<br>
 log&nbsp;:&nbsp;_io.TextIO<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;file&nbsp;where&nbsp;actions&nbsp;and&nbsp;findings&nbsp;are&nbsp;logged.<br>
 first_sec&nbsp;:&nbsp;float<br>
-&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;first&nbsp;second&nbsp;in&nbsp;EPOCH&nbsp;time&nbsp;of&nbsp;the&nbsp;day.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;first&nbsp;second&nbsp;of&nbsp;the&nbsp;day&nbsp;in&nbsp;EPOCH&nbsp;time.<br>
 full_date_str&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;timestamp&nbsp;for&nbsp;the&nbsp;requested&nbsp;in&nbsp;day&nbsp;in&nbsp;yyyy-mm-dd&nbsp;format.<br>
 location&nbsp;:&nbsp;dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;Location&nbsp;information&nbsp;for&nbsp;the&nbsp;detector&nbsp;on&nbsp;the&nbsp;requested&nbsp;day.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Location&nbsp;information&nbsp;for&nbsp;the&nbsp;instrument&nbsp;on&nbsp;the&nbsp;requested&nbsp;day.<br>
 default_scintillator&nbsp;:&nbsp;str<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;string&nbsp;representing&nbsp;the&nbsp;default&nbsp;scintillator.&nbsp;Data&nbsp;from&nbsp;this&nbsp;scintillator&nbsp;must&nbsp;be&nbsp;present&nbsp;for&nbsp;the&nbsp;search<br>
-&nbsp;&nbsp;&nbsp;&nbsp;program&nbsp;to&nbsp;run.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;string&nbsp;representing&nbsp;the&nbsp;default&nbsp;scintillator.<br>
 long_event_scint_list&nbsp;:&nbsp;list<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;the&nbsp;scintillators&nbsp;used&nbsp;by&nbsp;the&nbsp;search&nbsp;program's&nbsp;long&nbsp;event&nbsp;search&nbsp;algorithm.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;the&nbsp;scintillators&nbsp;that&nbsp;are&nbsp;ideal&nbsp;for&nbsp;long&nbsp;event&nbsp;searches.<br>
 calibration_params&nbsp;:&nbsp;dict<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;various&nbsp;parameters&nbsp;used&nbsp;to&nbsp;calibrate&nbsp;the&nbsp;<a href="#Detector">Detector</a>.<br>
 default_data_loc&nbsp;:&nbsp;str<br>
-&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;default&nbsp;directory&nbsp;for&nbsp;a&nbsp;detector's&nbsp;raw&nbsp;data.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;default&nbsp;directory&nbsp;for&nbsp;an&nbsp;instrument's&nbsp;raw&nbsp;data.<br>
 import_loc&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;directory&nbsp;where&nbsp;data&nbsp;files&nbsp;for&nbsp;the&nbsp;day&nbsp;are&nbsp;located.<br>
 results_loc&nbsp;:&nbsp;str<br>
-&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;directory&nbsp;where&nbsp;program&nbsp;results&nbsp;will&nbsp;be&nbsp;exported.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;directory&nbsp;where&nbsp;results&nbsp;will&nbsp;be&nbsp;exported.<br>
 _scintillators&nbsp;:&nbsp;dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;Scintillators.&nbsp;These&nbsp;keep&nbsp;track&nbsp;of&nbsp;data&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;detector's<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;Scintillators.&nbsp;These&nbsp;keep&nbsp;track&nbsp;of&nbsp;data&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;instrument's<br>
 &nbsp;&nbsp;&nbsp;&nbsp;scintillators.&nbsp;Note&nbsp;the&nbsp;name&nbsp;mangling&nbsp;underscore.<br>
 scint_list&nbsp;:&nbsp;list<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;the&nbsp;detector's&nbsp;scintillator&nbsp;names.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;the&nbsp;instrument's&nbsp;scintillator&nbsp;names.<br>
 processed&nbsp;:&nbsp;bool<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;flag&nbsp;for&nbsp;whether&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;should&nbsp;import&nbsp;processed&nbsp;data.&nbsp;Only&nbsp;available&nbsp;for&nbsp;Godot.<br>&nbsp;</span></td></tr>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;flag&nbsp;for&nbsp;whether&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;should&nbsp;import&nbsp;processed&nbsp;data.<br>&nbsp;</span></td></tr>
 <tr><td>&nbsp;</td>
 <td class="singlecolumn">Methods defined here:<br>
 <dl><dt><a name="Detector-__bool__"><strong>__bool__</strong></a>(self)</dt><dd><span class="code">Bool&nbsp;casting&nbsp;overload.&nbsp;Returns&nbsp;True&nbsp;if&nbsp;data&nbsp;for&nbsp;the&nbsp;default&nbsp;scintillator&nbsp;is&nbsp;present.</span></dd></dl>
 
-<dl><dt><a name="Detector-__init__"><strong>__init__</strong></a>(self, unit, date_str, mode_info, print_feedback=False)</dt><dd><span class="code">Initialize&nbsp;self.&nbsp;&nbsp;See&nbsp;help(type(self))&nbsp;for&nbsp;accurate&nbsp;signature.</span></dd></dl>
+<dl><dt><a name="Detector-__init__"><strong>__init__</strong></a>(self, unit, date_str, print_feedback=False)</dt><dd><span class="code">Initialize&nbsp;self.&nbsp;&nbsp;See&nbsp;help(type(self))&nbsp;for&nbsp;accurate&nbsp;signature.</span></dd></dl>
 
 <dl><dt><a name="Detector-__iter__"><strong>__iter__</strong></a>(self)</dt><dd><span class="code">Iterator&nbsp;dunder.&nbsp;Returns&nbsp;a&nbsp;generator&nbsp;that&nbsp;yields&nbsp;the&nbsp;<a href="#Detector">Detector</a>'s&nbsp;scintillator&nbsp;names.</span></dd></dl>
 
-<dl><dt><a name="Detector-__repr__"><strong>__repr__</strong></a>(self)</dt><dd><span class="code">Debugging&nbsp;string&nbsp;dunder&nbsp;method.&nbsp;Returns&nbsp;a&nbsp;string&nbsp;of&nbsp;the&nbsp;form&nbsp;'<a href="#Detector">Detector</a>(unit,&nbsp;first_sec,&nbsp;mode_info)'&nbsp;along<br>
-with&nbsp;some&nbsp;info&nbsp;about&nbsp;which&nbsp;scintillators&nbsp;have&nbsp;data.</span></dd></dl>
+<dl><dt><a name="Detector-__repr__"><strong>__repr__</strong></a>(self)</dt><dd><span class="code">Debugging&nbsp;string&nbsp;dunder&nbsp;method.&nbsp;Returns&nbsp;a&nbsp;string&nbsp;of&nbsp;the&nbsp;form&nbsp;'<a href="#Detector">Detector</a>(unit,&nbsp;first_sec)'&nbsp;along<br>
+with&nbsp;some&nbsp;info&nbsp;about&nbsp;which&nbsp;Scintillators&nbsp;have&nbsp;data.</span></dd></dl>
 
-<dl><dt><a name="Detector-__str__"><strong>__str__</strong></a>(self)</dt><dd><span class="code">String&nbsp;casting&nbsp;overload.&nbsp;Returns&nbsp;a&nbsp;string&nbsp;of&nbsp;the&nbsp;form&nbsp;'<a href="#Detector">Detector</a>(unit,&nbsp;first_sec,&nbsp;mode_info)'.</span></dd></dl>
+<dl><dt><a name="Detector-__str__"><strong>__str__</strong></a>(self)</dt><dd><span class="code">String&nbsp;casting&nbsp;overload.&nbsp;Returns&nbsp;a&nbsp;string&nbsp;of&nbsp;the&nbsp;form&nbsp;'<a href="#Detector">Detector</a>(unit,&nbsp;first_sec)'.</span></dd></dl>
 
 <dl><dt><a name="Detector-calibrate"><strong>calibrate</strong></a>(self, existing_spectra=None, plot_spectra=False, make_template=False)</dt><dd><span class="code">Makes&nbsp;energy&nbsp;spectra&nbsp;histograms&nbsp;and&nbsp;calibrates&nbsp;the&nbsp;large&nbsp;plastic&nbsp;and&nbsp;sodium&nbsp;iodide&nbsp;scintillators.<br>
 &nbsp;<br>
@@ -121,12 +118,6 @@ plot_spectra&nbsp;:&nbsp;bool<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;Specifies&nbsp;whether&nbsp;to&nbsp;make&nbsp;and&nbsp;export&nbsp;spectra&nbsp;histograms.<br>
 make_template&nbsp;:&nbsp;bool<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;Specifies&nbsp;whether&nbsp;to&nbsp;run&nbsp;the&nbsp;large&nbsp;plastic&nbsp;scintillator&nbsp;template&nbsp;maker.</span></dd></dl>
-
-<dl><dt><a name="Detector-check_custom"><strong>check_custom</strong></a>(self)</dt><dd><span class="code">Checks&nbsp;to&nbsp;see&nbsp;if&nbsp;the&nbsp;user&nbsp;passed&nbsp;in&nbsp;custom&nbsp;import/export&nbsp;directories&nbsp;via&nbsp;mode_info&nbsp;and<br>
-changes&nbsp;the&nbsp;import&nbsp;and&nbsp;export&nbsp;directories&nbsp;if&nbsp;the&nbsp;user&nbsp;specified&nbsp;different&nbsp;ones&nbsp;from&nbsp;the&nbsp;defaults.</span></dd></dl>
-
-<dl><dt><a name="Detector-check_processed"><strong>check_processed</strong></a>(self)</dt><dd><span class="code">Checks&nbsp;to&nbsp;see&nbsp;if&nbsp;'processed'&nbsp;is&nbsp;one&nbsp;of&nbsp;the&nbsp;user-specified&nbsp;modes,&nbsp;and&nbsp;sets&nbsp;the&nbsp;processed&nbsp;flag&nbsp;to&nbsp;true.<br>
-Raises&nbsp;a&nbsp;ValueError&nbsp;if&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;isn't&nbsp;Godot.</span></dd></dl>
 
 <dl><dt><a name="Detector-clear"><strong>clear</strong></a>(self, clear_filelists=True)</dt><dd><span class="code">Clears&nbsp;all&nbsp;data&nbsp;currently&nbsp;stored&nbsp;in&nbsp;the&nbsp;<a href="#Detector">Detector</a>.<br>
 &nbsp;<br>
@@ -270,7 +261,7 @@ Returns<br>
 pandas.core.frame.DataFrame<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dataframe&nbsp;with&nbsp;the&nbsp;data&nbsp;for&nbsp;the&nbsp;requested&nbsp;list&nbsp;mode&nbsp;file.</span></dd></dl>
 
-<dl><dt><a name="Detector-get_location"><strong>get_location</strong></a>(self, deployment_file_loc)</dt><dd><span class="code">Returns&nbsp;a&nbsp;dictionary&nbsp;full&nbsp;of&nbsp;location&nbsp;information&nbsp;for&nbsp;the&nbsp;detector&nbsp;on&nbsp;its&nbsp;specified&nbsp;date.</span></dd></dl>
+<dl><dt><a name="Detector-get_location"><strong>get_location</strong></a>(self, deployment_file_loc)</dt><dd><span class="code">Returns&nbsp;a&nbsp;dictionary&nbsp;full&nbsp;of&nbsp;location&nbsp;information&nbsp;for&nbsp;the&nbsp;instrument&nbsp;on&nbsp;its&nbsp;specified&nbsp;date.</span></dd></dl>
 
 <dl><dt><a name="Detector-get_results_loc"><strong>get_results_loc</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;the&nbsp;directory&nbsp;where&nbsp;all&nbsp;results&nbsp;will&nbsp;be&nbsp;stored.<br>
 &nbsp;<br>
@@ -309,7 +300,7 @@ Returns<br>
 list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;names&nbsp;of&nbsp;the&nbsp;traces&nbsp;that&nbsp;are&nbsp;currently&nbsp;being&nbsp;stored.</span></dd></dl>
 
-<dl><dt><a name="Detector-import_data"><strong>import_data</strong></a>(self, existing_filelists=False, ignore_missing=True, import_traces=True, import_lm=True)</dt><dd><span class="code">Imports&nbsp;data&nbsp;from&nbsp;data&nbsp;files&nbsp;into&nbsp;arrays&nbsp;and&nbsp;then&nbsp;updates&nbsp;them&nbsp;into&nbsp;the&nbsp;detector's<br>
+<dl><dt><a name="Detector-import_data"><strong>import_data</strong></a>(self, existing_filelists=False, ignore_missing=True, import_traces=True, import_lm=True, gui=False)</dt><dd><span class="code">Imports&nbsp;data&nbsp;from&nbsp;data&nbsp;files&nbsp;into&nbsp;arrays&nbsp;and&nbsp;then&nbsp;updates&nbsp;them&nbsp;into&nbsp;the&nbsp;detector's<br>
 scintillator&nbsp;objects.<br>
 &nbsp;<br>
 Parameters<br>
@@ -321,7 +312,10 @@ ignore_missing&nbsp;:&nbsp;bool<br>
 import_traces&nbsp;:&nbsp;bool<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;the&nbsp;function&nbsp;will&nbsp;import&nbsp;any&nbsp;trace&nbsp;files&nbsp;it&nbsp;finds.&nbsp;True&nbsp;by&nbsp;default.<br>
 import_lm&nbsp;:&nbsp;bool<br>
-&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;the&nbsp;function&nbsp;will&nbsp;import&nbsp;any&nbsp;list&nbsp;mode&nbsp;data&nbsp;it&nbsp;finds.&nbsp;True&nbsp;by&nbsp;default.</span></dd></dl>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;the&nbsp;function&nbsp;will&nbsp;import&nbsp;any&nbsp;list&nbsp;mode&nbsp;data&nbsp;it&nbsp;finds.&nbsp;True&nbsp;by&nbsp;default.<br>
+gui&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;printed&nbsp;import&nbsp;progress&nbsp;updates&nbsp;will&nbsp;be&nbsp;gui-safe&nbsp;(return&nbsp;carriages&nbsp;won't&nbsp;be&nbsp;used).<br>
+&nbsp;&nbsp;&nbsp;&nbsp;False&nbsp;by&nbsp;default.</span></dd></dl>
 
 <dl><dt><a name="Detector-is_named"><strong>is_named</strong></a>(self, name)</dt><dd><span class="code">Returns&nbsp;True&nbsp;if&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;has&nbsp;the&nbsp;same&nbsp;name&nbsp;as&nbsp;the&nbsp;passed&nbsp;string.<br>
 &nbsp;<br>
@@ -378,6 +372,8 @@ Parameters<br>
 ----------<br>
 loc&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;results&nbsp;directory&nbsp;as&nbsp;a&nbsp;string.</span></dd></dl>
+
+<dl><dt><a name="Detector-use_processed"><strong>use_processed</strong></a>(self, overwrite_import_loc=True)</dt><dd><span class="code">Tells&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;to&nbsp;import&nbsp;processed&nbsp;data&nbsp;instead&nbsp;of&nbsp;normal&nbsp;raw&nbsp;data.&nbsp;Only&nbsp;available&nbsp;for&nbsp;Godot.</span></dd></dl>
 
 <hr>
 Data descriptors defined here:<br>

@@ -113,7 +113,7 @@ class Scintillator:
             frame = self.get_lm_file(file_name, deepcopy=False)
 
         if column in frame:
-            data = frame[column].to_numpy()
+            data = np.array(frame[column])
             if to_mev and column == 'energy':
                 if len(self.calibration_bins) != 2:
                     raise ValueError("no calibration found. Scintillator either hasn't been calibrated or calibration"

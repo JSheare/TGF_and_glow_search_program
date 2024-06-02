@@ -27,11 +27,9 @@ class Detector:
     Parameters
     ----------
     unit : str
-        The name of the detector that the analysis is being requested for.
+        The name of the instrument.
     date_str : str
         The timestamp for the requested day in yymmdd format.
-    mode_info : list
-        A list of information about the requested modes to be operated under.
     print_feedback : bool
         A flag specifying whether feedback should be printed to stdout or not.
 
@@ -40,39 +38,37 @@ class Detector:
     log : _io.TextIO
         The file where actions and findings are logged.
     first_sec : float
-        The first second in EPOCH time of the day.
+        The first second of the day in EPOCH time.
     full_date_str : str
         The timestamp for the requested in day in yyyy-mm-dd format.
     location : dict
-        Location information for the detector on the requested day.
+        Location information for the instrument on the requested day.
     default_scintillator : str
-        A string representing the default scintillator. Data from this scintillator must be present for the search
-        program to run.
+        A string representing the default scintillator.
     long_event_scint_list : list
-        A list of the scintillators used by the search program's long event search algorithm.
+        A list of the scintillators that are ideal for long event searches.
     calibration_params : dict
         A dictionary containing various parameters used to calibrate the Detector.
     default_data_loc : str
-        The default directory for a detector's raw data.
+        The default directory for an instrument's raw data.
     import_loc : str
         The directory where data files for the day are located.
     results_loc : str
-        The directory where program results will be exported.
+        The directory where results will be exported.
     _scintillators : dict
-        A dictionary containing Scintillators. These keep track of data for each of the detector's
+        A dictionary containing Scintillators. These keep track of data for each of the instrument's
         scintillators. Note the name mangling underscore.
     scint_list : list
-        A list of the detector's scintillator names.
+        A list of the instrument's scintillator names.
     processed : bool
-        A flag for whether the Detector should import processed data. Only available for Godot.
+        A flag for whether the Detector should import processed data.
 
     """
 
-    def __init__(self, unit, date_str, mode_info, print_feedback=False):
+    def __init__(self, unit, date_str, print_feedback=False):
         # Basic information
         self.unit = unit.upper()
         self.date_str = date_str  # yymmdd
-        self.mode_info = mode_info
         self.print_feedback = print_feedback
         self.log = None
         self.first_sec = tl.get_first_sec(self.date_str)
@@ -92,13 +88,13 @@ class Detector:
         self.processed = False
 
     def __str__(self):
-        """String casting overload. Returns a string of the form 'Detector(unit, first_sec, mode_info)'."""
-        return f'Detector({self.unit}, {self.first_sec}, {self.mode_info})'
+        """String casting overload. Returns a string of the form 'Detector(unit, first_sec)'."""
+        return f'Detector({self.unit}, {self.first_sec})'
 
     # Debugging string dunder
     def __repr__(self):
-        """Debugging string dunder method. Returns a string of the form 'Detector(unit, first_sec, mode_info)' along
-        with some info about which scintillators have data."""
+        """Debugging string dunder method. Returns a string of the form 'Detector(unit, first_sec)' along
+        with some info about which Scintillators have data."""
         scintillators_with_data = []
         has_data = False
         for scintillator in self._scintillators:
@@ -187,7 +183,7 @@ class Detector:
             raise TypeError('loc must be a string.')
 
     def get_location(self, deployment_file_loc):
-        """Returns a dictionary full of location information for the detector on its specified date."""
+        """Returns a dictionary full of location information for the instrument on its specified date."""
         for file in glob.glob(f'{deployment_file_loc}/{self.unit}_*_*.json'):
             if int(file[6:12]) <= int(self.date_str) <= int(file[13:19]):
                 with open(file, 'r') as deployment:
@@ -198,31 +194,15 @@ class Detector:
                 'Latitude (N)': '', 'Longitude (E, 0-360)': '', 'Altitude (km)': '',
                 'Notes': ''}
 
-    def check_processed(self):
-        """Checks to see if 'processed' is one of the user-specified modes, and sets the processed flag to true.
-        Raises a ValueError if the Detector isn't Godot."""
-        if '-p' in self.mode_info:
+    def use_processed(self, overwrite_import_loc=True):
+        """Tells the Detector to import processed data instead of normal raw data. Only available for Godot."""
+        if self.is_named('GODOT'):
             self.processed = True
-            if self.is_named('GODOT'):
+            if overwrite_import_loc:
                 self.import_loc = f'/media/godot/godot/monthly_processed/{self.date_str[0:4]}'
-            else:
-                raise ValueError('processed data mode is only available for GODOT.')
 
-    def check_custom(self):
-        """Checks to see if the user passed in custom import/export directories via mode_info and
-        changes the import and export directories if the user specified different ones from the defaults."""
-        if '-c' in self.mode_info:
-            index = self.mode_info.index('-c')
-            if index + 2 < len(self.mode_info):
-                import_index = index + 1
-                if self.mode_info[import_index] != 'none':
-                    if self.mode_info[import_index] != '/':
-                        self.set_import_loc(self.mode_info[import_index])
-
-                export_index = index + 2
-                if self.mode_info[export_index] != 'none':
-                    if self.mode_info[export_index] != '/':
-                        self.set_results_loc(self.mode_info[export_index])
+        else:
+            raise ValueError('processed data mode is only available for GODOT.')
 
     def is_named(self, name):
         """Returns True if the Detector has the same name as the passed string.
@@ -601,10 +581,8 @@ class Detector:
                 if 'energies' in data.columns:
                     data.rename(columns={'energies': 'energy'}, inplace=True)
 
-                data.rename(columns={'SecondsOfDay': 'time'}, inplace=True)
-
-            first_second = data['time'].iloc[0]
-            last_second = data['time'].iloc[-1]
+            first_second = data['SecondsOfDay'].iloc[0]
+            last_second = data['SecondsOfDay'].iloc[-1]
 
             # Determines the time gaps between adjacent files
             file_time_gap = first_second - prev_second if files_imported > 0 else 0.0
@@ -631,14 +609,14 @@ class Detector:
 
             # Correcting for the fact that the first 200-300 seconds of the next day are usually included
             # in the last file
-            times = all_data['time'].to_numpy()
+            times = all_data['SecondsOfDay'].to_numpy()
             day_change = np.where(np.diff(times) < -80000)[0]
             if day_change.size > 0:
                 change_index = int(day_change[0]) + 1
                 for i in range(change_index, len(times)):
                     times[i] += params.SEC_PER_DAY
 
-                all_data['time'] = times
+                all_data['SecondsOfDay'] = times
 
             # Doing it for the file time extrema too
             for k in range(1, int(len(file_ranges) / 8)):  # Last eighth of the files
@@ -722,7 +700,7 @@ class Detector:
         if self.log is not None:
             print('\n', file=self.log)
 
-    def import_data(self, existing_filelists=False, ignore_missing=True, import_traces=True, import_lm=True):
+    def import_data(self, existing_filelists=False, ignore_missing=True, import_traces=True, import_lm=True, gui=False):
         """Imports data from data files into arrays and then updates them into the detector's
         scintillator objects.
 
@@ -736,10 +714,11 @@ class Detector:
             Optional. If True, the function will import any trace files it finds. True by default.
         import_lm : bool
             Optional. If True, the function will import any list mode data it finds. True by default.
+        gui : bool
+            Optional. If True, printed import progress updates will be gui-safe (return carriages won't be used).
+            False by default.
 
         """
-
-        gui = True if '-g' in self.mode_info else False
 
         if not existing_filelists:
             # Locates the files to be imported
@@ -1013,9 +992,6 @@ class Detector:
             Optional. Specifies whether to run the large plastic scintillator template maker.
 
         """
-
-        if 'template' in self.mode_info:
-            make_template = True
 
         # Fetching a few calibration parameters
         bin_range = self.calibration_params['bin_range']

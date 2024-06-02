@@ -216,7 +216,6 @@ def pickle_detector(detector, file_name, path=None):
 
     log = detector.log
     detector.log = None  # serializing open file objects results in errors
-    detector.file_form = None  # serializing anonymous functions results in errors too
     export_path = f'{path}/{file_name}.pickle'
     with open(export_path, 'wb') as file:
         pickle.dump(detector, file)
@@ -225,15 +224,13 @@ def pickle_detector(detector, file_name, path=None):
     return export_path
 
 
-def unpickle_detector(pickle_path, mode_info=None):
+def unpickle_detector(pickle_path):
     """Unpickles Detectors.
 
     Parameters
     ----------
     pickle_path : str
         The path (including file name) to the pickle file that the Detector is stored in.
-    mode_info : list
-        Optional. A list of information about the requested modes the object should operate under.
 
     Returns
     -------
@@ -242,17 +239,10 @@ def unpickle_detector(pickle_path, mode_info=None):
 
     """
 
-    if mode_info is None:
-        mode_info = list()
-
     with open(pickle_path, 'rb') as file:
         detector = pickle.load(file)
 
-        # Modes might not necessarily be the same in the serialized object
-        detector.mode_info = mode_info
-        detector.check_processed()
-        detector.check_custom()
-        return detector
+    return detector
 
 
 def pickle_chunk(chunk, file_name):
@@ -573,7 +563,7 @@ def convert_clock_hour(clock_hour):
     elif meridiem == 'PM':  # PM conversion
         hour += 12
 
-    return float((hour * 3600) + (minute * 60))
+    return float((hour * params.SEC_PER_HOUR) + (minute * 60))
 
 
 def weather_from_score(score):
@@ -633,7 +623,7 @@ def combine_data(detector):
     count_scints = []
     for scintillator in detector:
         if detector.data_present_in(scintillator):
-            times.append(detector.get_lm_data(scintillator, 'time'))
+            times.append(detector.get_lm_data(scintillator, 'SecondsOfDay'))
             energies.append(detector.get_lm_data(scintillator, 'energy'))
             wallclock.append(detector.get_lm_data(scintillator, 'wc'))
             count_scints.append([scintillator] * len(times[-1]))
@@ -948,7 +938,7 @@ def align_trace(trace, lm_frame, buff_no=0, trigspot=None):
     if event_start_wc > rollover_correction:
         event_start_wc -= rollover_correction
 
-    trace_times += best_shift * 1e-6 + lm_frame['time'].iloc[event_indices[0]] - event_start_wc
+    trace_times += best_shift * 1e-6 + lm_frame['SecondsOfDay'].iloc[event_indices[0]] - event_start_wc
     return trace_times, trace_energies
 
 
