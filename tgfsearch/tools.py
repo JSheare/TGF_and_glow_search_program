@@ -697,15 +697,13 @@ def separate_data(data, count_scints, start=None, stop=None):
     return data_dict
 
 
-def is_good_trace(trace, trigspot=None):
+def is_good_trace(trace):
     """Returns True if the given trace is likely to be interesting and False otherwise.
 
     Parameters
     ----------
     trace : pandas.core.frame.DataFrame
         A dataframe containing the trace data to be aligned.
-    trigspot : int
-        Optional. The location in the buffer where the trace was triggered (in units of samples).
 
     Returns
     -------
@@ -714,19 +712,14 @@ def is_good_trace(trace, trigspot=None):
 
     """
 
-    if trigspot is None:
-        if trace['BufferNo'].iloc[0] == 0:  # Large buffer
-            trigspot = params.LARGE_TRIGSPOT
-        else:  # Smaller buffers
-            trigspot = params.SMALL_TRIGSPOT
-
-    pulse_window = trace['pulse'][trigspot - params.TRACE_WINDOW_RADIUS:trigspot + params.TRACE_WINDOW_RADIUS]
-    value_freq = pulse_window.value_counts(sort=False)
-    pulse_mode = pulse_window.mode()
+    value_freq = trace['pulse'].value_counts(sort=False)
+    pulse_mode = trace['pulse'].mode()
     if len(pulse_mode) > 0:  # If there is a mode, use it as the baseline. Otherwise, use the median
-        trigger_thresh = int(pulse_mode.iloc[0]) + params.TRIGGER_ABOVE_BASELINE
+        baseline = int(pulse_mode.iloc[0])
     else:
-        trigger_thresh = int(pulse_window.median()) + params.TRIGGER_ABOVE_BASELINE
+        baseline = int(trace['pulse'].median())
+
+    trigger_thresh = baseline + params.TRIGGER_ABOVE_BASELINE
 
     # "Bad" counts are those that are either at the minimum or maximum pulse value. Extra weight for those at the min
     num_bad_counts = 0
@@ -746,14 +739,45 @@ def is_good_trace(trace, trigspot=None):
         # Ratio of good counts to bad counts must be above threshold for the trace to pass
         if num_good_counts / num_bad_counts >= params.GOOD_TRACE_THRESH:
             return True
+        # Otherwise check for a valid rising edge
         else:
+            # Lower and upper bound for a count to be considered in the vicinity of the baseline
+            lower_bound = baseline - params.TRIGGER_ABOVE_BASELINE
+            upper_bound = baseline + params.TRIGGER_ABOVE_BASELINE
+
+            # For all indices with saturated counts
+            for loc in trace.index[trace['pulse'] == 255].to_list():
+                # Skipping over counts that aren't the first in the saturated region
+                if loc - 1 >= 0 and trace['pulse'].iloc[loc - 1] == 255:
+                    continue
+
+                slope_sum = 0
+                num_slopes = 0
+                pointer = loc - 1
+                # Working backwards from the saturated count to a count at either near baseline or zero
+                while pointer >= 0:
+                    pointer_val = trace['pulse'].iloc[pointer]
+                    slope_sum += trace['pulse'].iloc[pointer + 1] - pointer_val
+                    num_slopes += 1
+                    # If True, we've found the beginning of the rising edge
+                    if lower_bound <= pointer_val <= upper_bound or pointer_val == 0:
+                        break
+
+                    pointer -= 1
+
+                # If the average slope is positive and gradual (small) enough, we've found a valid rising edge
+                if 0 < slope_sum / num_slopes <= params.RISING_EDGE_MAX_SLOPE:
+                    return True
+                else:
+                    return False
+
             return False
 
     else:
         return True
 
 
-def filter_traces(detector, scintillator, trigspot=None):
+def filter_traces(detector, scintillator):
     """Returns a list of traces that are likely to be interesting for the given scintillator.
 
     Parameters
@@ -763,8 +787,6 @@ def filter_traces(detector, scintillator, trigspot=None):
     scintillator : str
         The name of the scintillator of interest. Allowed values (detector dependent):
         'NaI', 'SP', 'MP', 'LP'.
-    trigspot : int
-        Optional. The location in the buffer where the trace was triggered (in units of samples).
 
     Returns
     -------
@@ -776,7 +798,7 @@ def filter_traces(detector, scintillator, trigspot=None):
     good_traces = []
     trace_names = detector.get_trace_names(scintillator)
     for trace_name in trace_names:
-        if is_good_trace(detector.get_trace(scintillator, trace_name, deepcopy=False), trigspot):
+        if is_good_trace(detector.get_trace(scintillator, trace_name, deepcopy=False)):
             good_traces.append(trace_name)
 
     return good_traces

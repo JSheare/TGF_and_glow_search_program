@@ -33,7 +33,7 @@ box if you only want to search a single day).
 Afterward, specify the detector you want to search in the box labeled 'Detector' (a full list of supported detectors 
 appears to the right of the box).
 
-If you're running the program on Sol (UCSC TGF group computer) you're now ready to begin a search. Otherwise, 
+If you're running the program on Thrud (UCSC TGF group computer) you're now ready to begin a search. Otherwise, 
 you may need to specify an import directory for the data. This can be done by entering the data directory in the box
 labeled 'Import Location' or by clicking on the 'Browse' button to the right of the box and navigating to the data
 directory. 
@@ -82,8 +82,8 @@ they include:
 - **'skglow' mode** - Skips the long event search algorithm.
 
 
-- **'pickle' mode** - Serializes and saves the detector object for later use OR imports an 
-  already-serialized detector object.
+- **'pickle' mode** - Serializes and saves imported data for later use OR imports 
+  previously-serialized data.
 
 ### **Enqueuing Multiple Searches:**
 If desired, several searches can be enqueued and then executed sequentially.
@@ -189,5 +189,5 @@ they include:
 - **'skglow' mode** - Skips the long event search algorithm. Flag: --skglow
 
 
-- **'pickle' mode** - Serializes and saves the detector object for later use OR imports an 
-  already-serialized detector object. Flag: --pickle
+- **'pickle' mode** - Serializes and saves imported data for later use OR imports 
+  previously-serialized data. Flag: --pickle

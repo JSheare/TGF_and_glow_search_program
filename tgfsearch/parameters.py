@@ -22,10 +22,10 @@ NAI_CALI_RATIO_TOLERANCE = 0.001  # Used in NaI calibration. The max tolerance f
 """Trace-Related Parameters"""
 LARGE_TRIGSPOT = 4092  # The usual trigspot for the large buffer
 SMALL_TRIGSPOT = 1024  # The usual trigspot for the smaller buffers
-TRACE_WINDOW_RADIUS = 400  # The number of samples on either side of the trigger point to use in the filtering process
 TRIGGER_ABOVE_BASELINE = 2  # The number of energy channels above baseline needed to trigger a trace
 ZERO_WEIGHT = 4  # The weight given pulse values of zero in the measurement of "bad" counts
-GOOD_TRACE_THRESH = 1.5  # The minimum ratio of "good" and "bad" counts for a trace to be considered worthwhile
+GOOD_TRACE_THRESH = 0.5  # The minimum ratio of "good" and "bad" counts for a trace to be considered worthwhile
+RISING_EDGE_MAX_SLOPE = 30  # The maximum slope of a rising edge (which precedes saturation) in a trace
 ROLLOVER_PERIOD = 2**36  # Maximum number of clock ticks before a rollover
 T_STEP = 12.5e-9  # clock tick time resolution (80 MHz)
 DT = 200e-9  # Time to extend sample on either side to let pulse shapes finish
