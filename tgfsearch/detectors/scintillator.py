@@ -20,7 +20,7 @@ class Scintillator:
     Attributes
     ----------
     lm_frame : pandas.core.frame.Dataframe
-        A pandas dataframe containing all the scintillator's data.
+        A pandas dataframe containing all the scintillator's list mode data.
     calibration_bins : list
         A list containing the energy bins corresponding to Compton edges/photo peaks used for calibration.
     calibration_energies : list

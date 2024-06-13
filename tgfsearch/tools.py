@@ -20,7 +20,7 @@ def print_logger(string, logfile):
     Parameters
     ----------
     string : str
-        The string to be printed/logged
+        The string to be printed/logged.
     logfile : _io.TextIO
         The file where the string should be written.
 
@@ -726,8 +726,9 @@ def is_good_trace(trace):
             num_good_counts += value_freq[val]
 
     if num_bad_counts > 0:
+        ratio = num_good_counts / num_bad_counts
         # Ratio of good counts to bad counts must be above threshold for the trace to pass
-        if num_good_counts / num_bad_counts >= params.GOOD_TRACE_THRESH:
+        if ratio >= params.GOOD_TRACE_THRESH:
             return True
         # Otherwise check for a valid rising edge
         else:
@@ -735,15 +736,18 @@ def is_good_trace(trace):
             lower_bound = baseline - params.TRIGGER_ABOVE_BASELINE
             upper_bound = baseline + params.TRIGGER_ABOVE_BASELINE
 
-            # For all indices with saturated counts
-            for loc in trace.index[trace['pulse'] == 255].to_list():
+            for i in trace.index:
+                # For all indices with saturated counts
+                if trace['pulse'].iloc[i] != 255:
+                    continue
+
                 # Skipping over counts that aren't the first in the saturated region
-                if loc - 1 >= 0 and trace['pulse'].iloc[loc - 1] == 255:
+                if i - 1 >= 0 and trace['pulse'].iloc[i - 1] == 255:
                     continue
 
                 slope_sum = 0
                 num_slopes = 0
-                pointer = loc - 1
+                pointer = i - 1
                 # Working backwards from the saturated count to a count at either near baseline or zero
                 while pointer >= 0:
                     pointer_val = trace['pulse'].iloc[pointer]

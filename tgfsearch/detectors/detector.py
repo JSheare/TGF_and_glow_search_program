@@ -88,12 +88,12 @@ class Detector:
         self.processed = False
 
     def __str__(self):
-        """String casting overload. Returns a string of the form 'Detector(unit, first_sec)'."""
-        return f'Detector({self.unit}, {self.first_sec})'
+        """String casting overload. Returns a string of the form 'Detector(unit, date_str)'."""
+        return f'Detector({self.unit}, {self.date_str})'
 
     # Debugging string dunder
     def __repr__(self):
-        """Debugging string dunder method. Returns a string of the form 'Detector(unit, first_sec)' along
+        """Debugging string dunder method. Returns a string of the form 'Detector(unit, date_str)' along
         with some info about which Scintillators have data."""
         scintillators_with_data = []
         has_data = False
@@ -101,7 +101,6 @@ class Detector:
             if self._scintillators[scintillator]:
                 has_data = True
                 scintillators_with_data.append(scintillator)
-                break
 
         default_string = self.__str__()
         data_string = f' in {scintillators_with_data}' if has_data else ''

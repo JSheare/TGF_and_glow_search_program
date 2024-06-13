@@ -90,19 +90,20 @@ def get_modes(mode_info):
 
 # Plots the given list of traces
 def plot_traces(detector, scintillator, trace_names):
-    # Makes the trace plot path
-    plot_path = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/traces/'
-    tl.make_path(plot_path)
-    for trace_name in trace_names:
-        trace = detector.get_trace(scintillator, trace_name, deepcopy=False)
-        trace_single_buff = trace[trace['BufferNo'] == trace['BufferNo'].iloc[0]]
-        plot_name = 'eRC' + trace_name.split('eRC')[-1][1:].split('.')[0]
-        plt.plot(trace_single_buff['Seconds'], trace_single_buff['pulse'])
-        plt.xlabel('Seconds')
-        plt.ylabel('Pulse Magnitude')
-        plt.title(plot_name)
-        plt.savefig(f'{plot_path}{plot_name}.png')
-        plt.clf()
+    if trace_names:
+        # Makes the trace plot path
+        plot_path = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/traces/'
+        tl.make_path(plot_path)
+        for trace_name in trace_names:
+            trace = detector.get_trace(scintillator, trace_name, deepcopy=False)
+            trace_single_buff = trace[trace['BufferNo'] == trace['BufferNo'].iloc[0]]
+            plot_name = 'eRC' + trace_name.split('eRC')[-1][1:].split('.')[0]
+            plt.plot(trace_single_buff['Seconds'], trace_single_buff['pulse'])
+            plt.xlabel('Seconds')
+            plt.ylabel('Pulse Magnitude')
+            plt.title(plot_name)
+            plt.savefig(f'{plot_path}{plot_name}.png')
+            plt.clf()
 
 
 # Checks whether a short event is valid by passing it through several filters
