@@ -41,6 +41,8 @@ class Detector:
         The first second of the day in EPOCH time.
     full_date_str : str
         The timestamp for the requested in day in yyyy-mm-dd format.
+    dates_stored : list
+        A list of dates currently being stored in the Detector.
     location : dict
         Location information for the instrument on the requested day.
     default_scintillator : str
@@ -73,6 +75,7 @@ class Detector:
         self.log = None
         self.first_sec = tl.get_first_sec(self.date_str)
         self.full_date_str = dt.datetime.utcfromtimestamp(int(self.first_sec)).strftime('%Y-%m-%d')  # yyyy-mm-dd
+        self.dates_stored = [date_str]
         self.location = None
         self.default_scintillator = 'LP'  # Don't change this unless you have a really good reason
 
@@ -114,6 +117,11 @@ class Detector:
     def __bool__(self):
         """Bool casting overload. Returns True if data for the default scintillator is present."""
         return self.data_present_in(self.default_scintillator)
+
+    def __add__(self, operand_detector):
+        """Addition operator overload. Returns a new Detector containing data from the current Detector
+        and the provided one. See splice() method documentation for more information."""
+        return self.splice(operand_detector)
 
     def file_form(self, eRC):
         """Returns the regex for a scintillator's files given the scintillator's eRC serial number."""
@@ -516,8 +524,12 @@ class Detector:
             Optional. If True, lists of files stored in the detector will be also be cleared. True by default.
 
         """
+
         for scintillator in self._scintillators:
             self._scintillators[scintillator].clear(clear_filelists)
+
+        if clear_filelists:
+            self.dates_stored = [self.date_str]
 
     def _import_lm_data(self, scintillator, gui):
         """Imports list mode data for the given scintillator."""
@@ -718,6 +730,9 @@ class Detector:
             False by default.
 
         """
+
+        if len(self.dates_stored) > 1:
+            raise RuntimeError("cannot import multiple days' data.")
 
         if not existing_filelists:
             # Locates the files to be imported
@@ -1045,3 +1060,102 @@ class Detector:
 
         else:
             raise ValueError("data necessary for calibration is either missing or hasn't been imported.")
+
+    def splice(self, operand_detector):
+        """Returns a new Detector with the combined data of the current Detector and the one provided.
+
+        Parameters
+        ----------
+        operand_detector : tgfsearch.detectors.detector.Detector
+            Another Detector.
+
+        Returns
+        -------
+        tgfsearch.detectors.detector.Detector
+            A new Detector containing the data of the current Detector and the one provided.
+
+            Three things to note:
+                - This Detector will store the date of the *earlier* operand Detector
+
+                - All time-related data will be adjusted to reflect the difference in date between the operand Detectors
+
+                - Using the method import() with this Detector won't work. Trying this will result in a RuntimeError
+
+        """
+
+        if operand_detector.unit == self.unit:
+            if int(self.date_str) < int(operand_detector.date_str):
+                new_detector = type(self)(self.unit, self.date_str, print_feedback=self.print_feedback)
+                earlier = self
+                later = operand_detector
+            elif int(self.date_str) > int(operand_detector.date_str):
+                new_detector = type(self)(operand_detector.unit, operand_detector.date_str,
+                                          print_feedback=operand_detector.print_feedback)
+                earlier = operand_detector
+                later = self
+            else:
+                raise ValueError('cannot splice the same day into itself.')
+
+            new_detector.dates_stored.append(later.date_str)
+
+            # Measuring the number of days between the earlier and later date
+            day_difference = 0
+            rolled_date = earlier.date_str
+            while rolled_date != later.date_str:
+                rolled_date = tl.roll_date_forward(rolled_date)
+                day_difference += 1
+
+            for scintillator in self._scintillators:
+                # Combining list mode file lists
+                new_detector.set_attribute(scintillator, 'lm_filelist',
+                                           earlier.get_attribute(scintillator, 'lm_filelist') +
+                                           later.get_attribute(scintillator, 'lm_filelist'),
+                                           deepcopy=False)
+
+                # Combining list mode file ranges
+                # Updating ranges from later Detector to reflect the date difference
+                new_ranges = later.get_attribute(scintillator, 'lm_file_ranges')
+                for new_range in new_ranges:
+                    new_range[0] += day_difference * params.SEC_PER_DAY
+                    new_range[1] += day_difference * params.SEC_PER_DAY
+
+                new_detector.set_attribute(scintillator, 'lm_file_ranges',
+                                           earlier.get_attribute(scintillator, 'lm_file_ranges') +
+                                           new_ranges, deepcopy=False)
+
+                # Combining list mode file indices
+                # Updating indices from later Detector to reflect their new positions in the data frame
+                new_start = len(earlier.get_attribute(scintillator, 'lm_frame', deepcopy=False))
+                new_indices = later.get_attribute(scintillator, 'lm_file_indices')
+                for file in new_indices:
+                    new_indices[file][0] += new_start
+                    new_indices[file][1] += new_start
+
+                new_indices.update(earlier.get_attribute(scintillator, 'lm_file_indices'))
+                new_detector.set_attribute(scintillator, 'lm_file_indices', new_indices, deepcopy=False)
+
+                # Combining list mode data frames
+                # Updating later frame to reflect the difference in days
+                later_frame = later.get_attribute(scintillator, 'lm_frame')
+                later_frame['SecondsOfDay'] += day_difference * params.SEC_PER_DAY
+
+                new_lm_frame = pd.concat([
+                    earlier.get_attribute(scintillator, 'lm_frame', deepcopy=False),
+                    later_frame], axis=0)
+
+                new_detector.set_attribute(scintillator, 'lm_frame', new_lm_frame, deepcopy=False)
+
+                # Combining trace file lists
+                new_detector.set_attribute(scintillator, 'trace_filelist',
+                                           earlier.get_attribute(scintillator, 'trace_filelist') +
+                                           later.get_attribute(scintillator, 'trace_filelist'),
+                                           deepcopy=False)
+
+                # Combining trace tables
+                new_traces = earlier.get_attribute(scintillator, 'traces')
+                new_traces.update(later.get_attribute(scintillator, 'traces'))
+                new_detector.set_attribute(scintillator, 'traces', new_traces, deepcopy=False)
+
+            return new_detector
+        else:
+            raise TypeError(f"cannot splice '{self.unit}' with '{operand_detector.unit}'.")

@@ -143,7 +143,7 @@ class Scintillator:
     def find_lm_file_index(self, count_time):
         """Returns the index of the list mode file that the given count occurred in."""
         # Checking to see that the count is inside the day or in the ~500 seconds of the next day included sometimes
-        if count_time < 0 or count_time > params.SEC_PER_DAY + 500:
+        if count_time < 0:
             return -1
 
         # Binary search of list mode file ranges
