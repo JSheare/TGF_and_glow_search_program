@@ -229,7 +229,7 @@ def run(gui, communicator, search_queue):
 
     communicator.clear()
     communicator.running = False
-    print('Search Concluded.\n')
+    print('\nSearch Concluded.\n')
     enable_elements(gui)
 
 

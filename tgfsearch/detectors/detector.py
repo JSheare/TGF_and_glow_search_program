@@ -536,11 +536,11 @@ class Detector:
         lm_filelist = self.get_attribute(scintillator, 'lm_filelist')
         if len(lm_filelist) < 1:
             if self.log is not None:
-                print('Missing list mode data for the specified day', file=self.log)
-                print('\n', file=self.log)
+                print('Missing list mode data', file=self.log)
+                print('', file=self.log)
 
             if self.print_feedback:
-                print('Missing list mode data for the specified day')
+                print('Missing list mode data')
 
             return
 
@@ -640,24 +640,24 @@ class Detector:
             self.set_attribute(scintillator, 'lm_file_indices', file_indices, deepcopy=False)
 
             if self.log is not None:
-                print('\n', file=self.log)
+                print('', file=self.log)
                 print(f'Total Counts: {len(all_data.index)}', file=self.log)
                 print(f'Average time gap: {sum(file_time_gaps) / len(file_time_gaps)}', file=self.log)
-                print('\n', file=self.log)
+                print('', file=self.log)
         else:
             if self.log is not None:
-                print('\n', file=self.log)
+                print('', file=self.log)
 
     def _import_trace_data(self, scintillator, gui):
         """Imports trace data for the given scintillator."""
         trace_filelist = self.get_attribute(scintillator, 'trace_filelist')
         if len(trace_filelist) < 1:
             if self.log is not None:
-                print('No trace data for the specified day', file=self.log)
-                print('\n', file=self.log)
+                print('No trace data', file=self.log)
+                print('', file=self.log)
 
             if self.print_feedback:
-                print('No trace data for the specified day')
+                print('No trace data')
 
             return
 
@@ -709,9 +709,9 @@ class Detector:
             self.set_attribute(scintillator, 'traces', traces, deepcopy=False)
 
         if self.log is not None:
-            print('\n', file=self.log)
+            print('', file=self.log)
 
-    def import_data(self, existing_filelists=False, ignore_missing=True, import_traces=True, import_lm=True, gui=False):
+    def import_data(self, existing_filelists=False, import_traces=True, import_lm=True, gui=False):
         """Imports data from data files into arrays and then updates them into the detector's
         scintillator objects.
 
@@ -719,8 +719,6 @@ class Detector:
         ----------
         existing_filelists : bool
             Optional. If True, the function will use the file lists already stored in the Detector.
-        ignore_missing : bool
-            Optional. If True, the function will not raise an error if data is missing in the default scintillator.
         import_traces : bool
             Optional. If True, the function will import any trace files it finds. True by default.
         import_lm : bool
@@ -754,30 +752,14 @@ class Detector:
                 if import_traces:
                     self.set_attribute(scintillator, 'trace_filelist', trace_filelist, deepcopy=False)
 
-        # Checks to see if the necessary files for a full search are present
-        if not ignore_missing and len(self.get_attribute(self.default_scintillator, 'lm_filelist')) == 0:
-            missing_data_scints = []
-            for scintillator in self._scintillators:
-                if len(self.get_attribute(scintillator, 'lm_filelist')) == 0:
-                    missing_data_scints.append(scintillator)
-
-            if self.log is not None:
-                print('\n', file=self.log)
-                print('No/missing necessary data for specified day.', file=self.log)
-                print(f'Data missing in the following: {", ".join(missing_data_scints)}', file=self.log)
-
-            if self.print_feedback:
-                print('\n')
-                print('No/missing necessary data for specified day.')
-                print('\n')
-
-            raise FileNotFoundError(f'missing data files for default scintillator ({self.default_scintillator}).')
-
         # Determines whether there is enough free memory to load the entire dataset
         total_file_size = self.get_fileset_size()
         available_memory = psutil.virtual_memory()[1] * params.TOTAL_MEMORY_ALLOWANCE_FRAC
         if (params.OPERATING_MEMORY_ALLOWANCE + total_file_size) > available_memory:
             raise MemoryError('not enough free memory to hold complete dataset.')
+
+        if self.log is not None:
+            print('', file=self.log)
 
         for scintillator in self._scintillators:
             eRC = self.get_attribute(scintillator, 'eRC')
@@ -785,7 +767,7 @@ class Detector:
                 print(f'For eRC {eRC} ({scintillator}):', file=self.log)
 
             if self.print_feedback:
-                print('\n')
+                print('')
                 print(f'For eRC {eRC} ({scintillator}):')
 
             # Importing list mode data

@@ -106,6 +106,19 @@ def plot_traces(detector, scintillator, trace_names):
             plt.clf()
 
 
+# Searches through all traces in detector and returns lists of good ones for each scintillator. Also plots good traces
+def trace_search(detector, modes):
+    # Filtering traces and setting up trace_dict, which keeps track of filtered trace names
+    trace_dict = {}
+    for scintillator in detector:
+        trace_dict[scintillator] = tl.filter_traces(detector, scintillator)
+
+        # Making plots for the traces that passed through the filter
+        plot_traces(detector, scintillator, trace_dict[scintillator])
+
+    return trace_dict
+
+
 # Checks whether a short event is valid by passing it through several filters
 def is_good_short_event(detector, modes, stats, times, energies, start, length):
     # Checks that the length of the event is greater than or equal to a certain minimum number of counts
@@ -233,7 +246,7 @@ def find_short_events(detector, modes, scintillator, rollgap, times, energies):
             event_start = 0
             event_length = 0
 
-    tl.print_logger(f'\n{len(potential_events)} potential events recorded', detector.log)
+    tl.print_logger(f'{len(potential_events)} potential events recorded', detector.log)
     if stats['removed_len'] > 0:
         tl.print_logger(f'{stats["removed_len"]} events removed due to insufficient length', detector.log)
 
@@ -249,7 +262,6 @@ def find_short_events(detector, modes, scintillator, rollgap, times, energies):
         tl.print_logger(f'{stats["removed_crs"]} events removed due to successive CRS', detector.log)
 
     tl.print_logger(f'Detection threshold reached {stats["total_threshold_reached"]} times', detector.log)
-    print('\n', file=detector.log)
 
     return potential_events
 
@@ -391,7 +403,7 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
     # Note: with this code, if an event happens in that 200-300 seconds of the next day that are included in the
     # last file, the image will have the wrong date in its name (though the timestamp in the scatter plot title will
     # always be correct)
-    scatter_path = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/scatter plots/'
+    scatter_path = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/scatter_plots/'
     tl.make_path(scatter_path)
     event_num_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.number)))
     rank_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.rank)))
@@ -403,7 +415,7 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
 # Makes the json file for a short event
 def make_se_json(detector, event, times, energies, wallclock, count_scints):
     eventpath = (f'{detector.get_results_loc()}/Results/{detector.unit}/'
-                 f'{detector.date_str}/event files/short events/')
+                 f'{detector.date_str}/event_files/short_events/')
     tl.make_path(eventpath)
     event_frame = pd.DataFrame()
     event_frame['wc'] = wallclock[event.start:event.stop]
@@ -423,7 +435,7 @@ def make_se_json(detector, event, times, energies, wallclock, count_scints):
 
 
 # Runs the short event search
-def short_event_search(detector, modes, prev_event_numbers=None):
+def short_event_search(detector, modes, trace_dict, prev_event_numbers=None):
     if modes['aircraft']:
         rollgap = params.AIRCRAFT_ROLLGAP
     elif modes['combo']:
@@ -432,26 +444,11 @@ def short_event_search(detector, modes, prev_event_numbers=None):
         rollgap = params.NORMAL_ROLLGAP
 
     event_numbers = prev_event_numbers if prev_event_numbers is not None else {}
-
-    tl.print_logger('Filtering traces...', detector.log)
-    # Filtering traces and setting up trace_dict, which keeps track of filtered trace names
-    trace_dict = {}
-    for scintillator in detector:
-        if scintillator != detector.default_scintillator and not (modes['allscints'] or modes['combo']):
-            continue
-
-        trace_dict[scintillator] = tl.filter_traces(detector, scintillator)
-
-        # Making plots for the traces that passed through the filter
-        plot_traces(detector, scintillator, trace_dict[scintillator])
-
-    tl.print_logger('Done.', detector.log)
-    tl.print_logger('\n', detector.log)
-
     for i in range(len(detector.scint_list)):
         if detector.scint_list[i] != detector.default_scintillator and not modes['allscints']:
             continue
 
+        tl.print_logger('', detector.log)
         # Combining data from all available scintillators (combo mode)
         if modes['combo']:
             scintillator = 'CM'
@@ -478,9 +475,7 @@ def short_event_search(detector, modes, prev_event_numbers=None):
         potential_events = find_short_events(detector, modes, scintillator, rollgap, times, energies)
 
         if len(potential_events) > 0:
-            print('\n')
             tl.print_logger('Generating scatter plots and event files...', detector.log)
-            print('\n', file=detector.log)
 
             if prev_event_numbers is not None:
                 plots_already_made = event_numbers[scintillator]
@@ -498,6 +493,7 @@ def short_event_search(detector, modes, prev_event_numbers=None):
 
             plots_made = 0
             filecount_switch = True
+            print('', file=detector.log)
             print('Potential short events:', file=detector.log)
             for j in range(len(potential_events)):
                 # Stops making plots/event files/log entries after max reached
@@ -544,8 +540,8 @@ def short_event_search(detector, modes, prev_event_numbers=None):
                 print(f'{plots_made}/{max_plots}\n', end='\r')
 
             event_numbers[scintillator] = plots_made + plots_already_made
-        else:
-            print('\n')
+
+            tl.print_logger('', detector.log)
 
         # In combo mode, we only need to run through this loop once
         if modes['combo']:
@@ -855,17 +851,14 @@ def long_event_search(detector, modes, times, existing_hist=None):
                borderaxespad=0.)
     ax1.grid(True)
 
-    tl.print_logger('Done.', detector.log)
-
     # Making event files and subplots (if they exist)
     if len(potential_glows) > 0:
-        tl.print_logger('\n', detector.log)
         tl.print_logger('Generating event files...', detector.log)
-        print('\n', file=detector.log)
+        print('', file=detector.log)
         print('Potential glows:', file=detector.log)
 
         eventpath = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/' \
-                    f'event files/long events/'
+                    f'event_files/long_events/'
         tl.make_path(eventpath)
 
         files_made = 0
@@ -896,10 +889,10 @@ def long_event_search(detector, modes, times, existing_hist=None):
             event_file.close()
             files_made += 1
 
+        print('', file=detector.log)
+
         if not modes['gui']:
             print(f'{files_made}/{len(potential_glows)}\n', end='\r')
-
-        tl.print_logger('Done.', detector.log)
 
         # Sorts the glows in descending order depending on their highest z-scores
         potential_glows = sorted(potential_glows, key=lambda x: -x.highest_score)  # Negative for descending order sort
@@ -914,13 +907,11 @@ def long_event_search(detector, modes, times, existing_hist=None):
                 break
 
     else:
-        tl.print_logger('\n', detector.log)
         tl.print_logger(f'There were no potential glows on {detector.full_date_str}', detector.log)
 
     plt.tight_layout()
 
     # Saves the histogram(s):
-    tl.print_logger('\n', detector.log)
     tl.print_logger('Saving Histogram...', detector.log)
     hist_path = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/'
     tl.make_path(hist_path)
@@ -984,7 +975,8 @@ def program(first_date, second_date, unit, mode_info):
     # Looping through the dates
     for date_str in requested_dates:
         low_memory_mode = False
-        print(f'\n{tl.short_to_full_date(date_str)}:')
+        print('')
+        print(f'{tl.short_to_full_date(date_str)}:')
 
         # Initializes the detector object
         print('Importing data...')
@@ -1029,27 +1021,35 @@ def program(first_date, second_date, unit, mode_info):
                     detector.log = log
                 else:
                     detector.log = log
-                    detector.import_data(ignore_missing=False, gui=modes['gui'])
+                    detector.import_data(gui=modes['gui'])
                     tl.pickle_detector(detector, 'detector')
             else:
                 detector.log = log
-                detector.import_data(ignore_missing=False, gui=modes['gui'])
+                detector.import_data(gui=modes['gui'])
 
             # raise MemoryError  # for low memory mode testing
 
+            print('')
+            print('Done.')
+
+            # Trace Search
+            if not modes['skshort']:
+                tl.print_logger('\n', detector.log)
+                tl.print_logger('Filtering traces...', detector.log)
+                trace_dict = trace_search(detector, modes)
+                tl.print_logger('Done.', detector.log)
+            else:
+                trace_dict = {scintillator: [] for scintillator in detector}
+
             # Checks to see that necessary list mode data is present
             if not detector.data_present_in(detector.default_scintillator):
-                print('\n')
+                tl.print_logger('\n', detector.log)
                 tl.print_logger('No/missing necessary data for specified day.', detector.log)
-                print('\n')
                 raise FileNotFoundError('data missing for one or more scintillators.')
-
-            print('\n')
-            print('Done.')
 
             # Calibrates each scintillator
             if not modes['skcali']:
-                print('\n')
+                tl.print_logger('\n', detector.log)
                 tl.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
 
                 # Calling the calibration algorithm
@@ -1061,16 +1061,15 @@ def program(first_date, second_date, unit, mode_info):
             if not modes['skshort']:
                 tl.print_logger('\n', detector.log)
                 tl.print_logger('Starting search for short events...', detector.log)
-                tl.print_logger('\n', detector.log)
 
                 # Calling the short event search algorithm
-                short_event_search(detector, modes)
+                short_event_search(detector, modes, trace_dict)
 
                 tl.print_logger('Done.', detector.log)
-                tl.print_logger('\n', detector.log)
 
             # Long event search
             if not modes['skglow']:
+                tl.print_logger('\n', detector.log)
                 tl.print_logger('Starting search for glows...', detector.log)
                 # Converts energy channels to MeV using the locations of peaks/edges obtained during calibration
                 le_times = long_event_cutoff(detector, modes)
@@ -1079,7 +1078,6 @@ def program(first_date, second_date, unit, mode_info):
                 long_event_search(detector, modes, le_times)
 
                 tl.print_logger('Done.', detector.log)
-                tl.print_logger('\n', detector.log)
 
         except MemoryError:
             low_memory_mode = True
@@ -1090,9 +1088,8 @@ def program(first_date, second_date, unit, mode_info):
         # Low memory mode
         if low_memory_mode:
             try:
-                tl.print_logger('\n', detector.log)
+                tl.print_logger('', detector.log)
                 tl.print_logger('Not enough memory. Entering low memory mode...', detector.log)
-                tl.print_logger('\n', detector.log)
                 # Measures the total combined size of all the data files
                 total_file_size = detector.get_fileset_size()
                 # Clears leftover data (just to be sure)
@@ -1153,9 +1150,10 @@ def program(first_date, second_date, unit, mode_info):
 
                 # Imports data to each chunk and then pickles the chunks (and checks that data is actually present)
                 print('Importing data...')
-                print('\n')
+
                 chunk_num = 1
                 chunk_path_list = []
+                has_data = True
                 # Temporary pickle feature for low memory mode. REMOVE WHEN PROGRAM IS FINISHED
                 pickled_chunk_paths = glob.glob(f'{detector.get_results_loc()}/Results/{unit}/{date_str}/chunk*.pickle')
                 pickled_chunk_paths.sort()
@@ -1173,17 +1171,13 @@ def program(first_date, second_date, unit, mode_info):
                                 chunk.set_attribute(scintillator, 'passtime', passtime_dict[scintillator],
                                                     deepcopy=True)
 
+                        tl.print_logger('', detector.log)
                         tl.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
-                        chunk.import_data(existing_filelists=True, ignore_missing=False, gui=modes['gui'])
+                        chunk.import_data(existing_filelists=True, gui=modes['gui'])
 
                         # Checking that data is present in the necessary scintillators
-
-                        # Skips the day if necessary list mode data is missing in any of the chunks
                         if not chunk.data_present_in(chunk.default_scintillator):
-                            print('\n')
-                            tl.print_logger('No/missing necessary data for specified day.', detector.log)
-                            print('\n')
-                            raise FileNotFoundError('data missing for one or more scintillators.')
+                            has_data = False
 
                         # Makes a full list of filetime extrema for long event search
                         # Also updates passtime_dict for the next chunk
@@ -1204,13 +1198,33 @@ def program(first_date, second_date, unit, mode_info):
                         chunk_list[chunk_num - 1] = 0
 
                         chunk_num += 1
-                        print('\n')
 
+                print('')
                 print('Done.')
+
+                # Trace Search
+                chunk_trace_dicts = {}
+                if not modes['skshort']:
+                    tl.print_logger('\n', detector.log)
+                    tl.print_logger('Filtering traces...', detector.log)
+                    for chunk_path in chunk_path_list:
+                        chunk = tl.unpickle_chunk(chunk_path)
+                        trace_dict = trace_search(chunk, modes)
+                        chunk_trace_dicts[chunk_path] = trace_dict
+
+                    tl.print_logger('Done.', detector.log)
+                else:
+                    for chunk_path in chunk_path_list:
+                        chunk_trace_dicts[chunk_path] = {scintillator: [] for scintillator in chunk_scint_list}
+
+                # Skips the day if necessary list mode data is missing in any of the chunks
+                if not has_data:
+                    tl.print_logger('No/missing necessary data for specified day.', detector.log)
+                    raise FileNotFoundError('data missing for one or more scintillators.')
 
                 # Calibrates each scintillator
                 if not modes['skcali']:
-                    print('\n')
+                    tl.print_logger('\n', detector.log)
                     tl.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
                     # Keeps track of spectra contributions for each chunk
                     existing_spectra = {scintillator: np.array([]) for scintillator in chunk_scint_list}
@@ -1241,28 +1255,29 @@ def program(first_date, second_date, unit, mode_info):
                     tl.print_logger('Warning! In low memory mode, short events '
                                     'will be ranked on a per-chunk basis.',
                                     detector.log)
-                    tl.print_logger('\n', detector.log)
-                    existing_event_numbers = {scintillator: 0 for scintillator in chunk_scint_list}
+                    tl.print_logger('', detector.log)
+                    prev_event_numbers = {scintillator: 0 for scintillator in chunk_scint_list}
 
                     chunk_num = 1
                     for chunk_path in chunk_path_list:
                         chunk = tl.unpickle_chunk(chunk_path)
                         chunk.log = log
                         tl.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
-                        print('\n')
 
                         # Calling the short event search algorithm
-                        existing_event_numbers = short_event_search(chunk, modes, existing_event_numbers)
+                        prev_event_numbers = short_event_search(chunk, modes,
+                                                                chunk_trace_dicts[chunk_path],
+                                                                prev_event_numbers=prev_event_numbers)
 
                         del chunk
                         gc.collect()
                         chunk_num += 1
 
-                        tl.print_logger('Done.', detector.log)
-                        tl.print_logger('\n', detector.log)
+                    tl.print_logger('Done.', detector.log)
 
                 # Long event search
                 if not modes['skglow']:
+                    tl.print_logger('\n', detector.log)
                     tl.print_logger('Starting search for glows...', detector.log)
                     le_hist = np.array([])
                     day_bins = np.arange(0, params.SEC_PER_DAY + 200 + params.BIN_SIZE, params.BIN_SIZE)
@@ -1283,7 +1298,6 @@ def program(first_date, second_date, unit, mode_info):
                     long_event_search(detector, modes, np.array([]), existing_hist=le_hist)
 
                     tl.print_logger('Done.', detector.log)
-                    tl.print_logger('\n', detector.log)
 
                 log.close()
                 # Deletes chunk .pickle files
@@ -1295,7 +1309,6 @@ def program(first_date, second_date, unit, mode_info):
             except MemoryError:
                 tl.print_logger('\n', detector.log)
                 tl.print_logger('Cannot complete search. Too little memory available on system.', detector.log)
-                tl.print_logger('\n', detector.log)
 
             except FileNotFoundError:
                 pass
