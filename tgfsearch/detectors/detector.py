@@ -1,4 +1,4 @@
-"""A base class for keeping track of data and associated information."""
+"""A base class for keeping track of lightning data and associated information."""
 import glob as glob
 import os as os
 import contextlib as contextlib
