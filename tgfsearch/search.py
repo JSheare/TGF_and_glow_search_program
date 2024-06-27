@@ -1,8 +1,9 @@
 """A script that searches for TGFs and glows."""
-import sys
+import sys as sys
 import datetime as dt
 import glob as glob
 import os as os
+import traceback as traceback
 import psutil as psutil
 import gc as gc
 import heapq
@@ -1085,6 +1086,12 @@ def program(first_date, second_date, unit, mode_info):
         except FileNotFoundError:  # Missing necessary data
             pass
 
+        except Exception as ex:  # Logging errors
+            tl.print_logger('\n', log)
+            tl.print_logger(f'Search could not be completed due to the following error: {ex}', log)
+            with open(f'{log_path}err.txt', 'w') as err_file:
+                err_file.write(traceback.format_exc())
+
         # Low memory mode
         if low_memory_mode:
             try:
@@ -1307,11 +1314,17 @@ def program(first_date, second_date, unit, mode_info):
                         os.remove(chunk_path)
 
             except MemoryError:
-                tl.print_logger('\n', detector.log)
-                tl.print_logger('Cannot complete search. Too little memory available on system.', detector.log)
+                tl.print_logger('\n', log)
+                tl.print_logger('Cannot complete search. Too little memory available on system.', log)
 
-            except FileNotFoundError:
+            except FileNotFoundError:  # Missing necessary data
                 pass
+
+            except Exception as ex:  # Logging errors
+                tl.print_logger('\n', log)
+                tl.print_logger(f'Search could not be completed due to the following error: {ex}', log)
+                with open(f'{log_path}err.txt', 'w') as err_file:
+                    err_file.write(traceback.format_exc())
 
         del detector
         log.close()
