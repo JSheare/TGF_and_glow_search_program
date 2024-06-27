@@ -11,7 +11,7 @@ class Thor(Detector):
         self.calibration_params = {'bin_range': 65535.0, 'bin_size': 1, 'template_bin_plot_edge': 8000}
         self.default_data_loc = '/media/tgfdata/Detectors/THOR'
         self.location = self.get_location(self.default_data_loc)
-        self.import_loc = f'{self.default_data_loc}/{self.unit}/Data/{self.date_str}'
+        self._import_loc = f'{self.default_data_loc}/{self.unit}/Data/{self.date_str}'
         serial_nums = self._get_eRC()
         self._scintillators = {'NaI': Scintillator('NaI', serial_nums[0]), 'SP': Scintillator('SP', serial_nums[1]),
                                'MP': Scintillator('MP', serial_nums[2]), 'LP': Scintillator('LP', serial_nums[3])}

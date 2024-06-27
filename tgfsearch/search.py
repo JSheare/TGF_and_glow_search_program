@@ -93,7 +93,7 @@ def get_modes(mode_info):
 def plot_traces(detector, scintillator, trace_names):
     if trace_names:
         # Makes the trace plot path
-        plot_path = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/traces/'
+        plot_path = f'{detector.get_results_loc()}/traces'
         tl.make_path(plot_path)
         for trace_name in trace_names:
             trace = detector.get_trace(scintillator, trace_name, deepcopy=False)
@@ -103,12 +103,12 @@ def plot_traces(detector, scintillator, trace_names):
             plt.xlabel('Seconds')
             plt.ylabel('Pulse Magnitude')
             plt.title(plot_name)
-            plt.savefig(f'{plot_path}{plot_name}.png')
+            plt.savefig(f'{plot_path}/{plot_name}.png')
             plt.clf()
 
 
 # Searches through all traces in detector and returns lists of good ones for each scintillator. Also plots good traces
-def trace_search(detector, modes):
+def trace_search(detector):
     # Filtering traces and setting up trace_dict, which keeps track of filtered trace names
     trace_dict = {}
     for scintillator in detector:
@@ -404,19 +404,18 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
     # Note: with this code, if an event happens in that 200-300 seconds of the next day that are included in the
     # last file, the image will have the wrong date in its name (though the timestamp in the scatter plot title will
     # always be correct)
-    scatter_path = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/scatter_plots/'
+    scatter_path = f'{detector.get_results_loc()}/scatter_plots'
     tl.make_path(scatter_path)
     event_num_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.number)))
     rank_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.rank)))
-    figure1.savefig(f'{scatter_path}{detector.date_str}_{event.scintillator}_'
+    figure1.savefig(f'{scatter_path}/{detector.date_str}_{event.scintillator}_'
                     f'event{event_num_padding}{event.number}_rank{rank_padding}{event.rank}.png')
     plt.close(figure1)
 
 
 # Makes the json file for a short event
 def make_se_json(detector, event, times, energies, wallclock, count_scints):
-    eventpath = (f'{detector.get_results_loc()}/Results/{detector.unit}/'
-                 f'{detector.date_str}/event_files/short_events/')
+    eventpath = f'{detector.get_results_loc()}/event_files/short_events/'
     tl.make_path(eventpath)
     event_frame = pd.DataFrame()
     event_frame['wc'] = wallclock[event.start:event.stop]
@@ -431,7 +430,7 @@ def make_se_json(detector, event, times, energies, wallclock, count_scints):
     # Saves the json file
     event_num_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.number)))
     rank_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.rank)))
-    event_frame.to_json(f'{eventpath}{detector.date_str}_{event.scintillator}_'
+    event_frame.to_json(f'{eventpath}/{detector.date_str}_{event.scintillator}_'
                         f'event{event_num_padding}{event.number}_rank{rank_padding}{event.rank}.json')
 
 
@@ -858,9 +857,8 @@ def long_event_search(detector, modes, times, existing_hist=None):
         print('', file=detector.log)
         print('Potential glows:', file=detector.log)
 
-        eventpath = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/' \
-                    f'event_files/long_events/'
-        tl.make_path(eventpath)
+        event_path = f'{detector.get_results_loc()}/event_files/long_events'
+        tl.make_path(event_path)
 
         files_made = 0
         filecount_switch = True
@@ -880,7 +878,7 @@ def long_event_search(detector, modes, times, existing_hist=None):
             print(info, file=detector.log)
 
             # Making the event file
-            event_file = open(f'{eventpath}{detector.date_str}_event{i + 1}_zscore'
+            event_file = open(f'{event_path}/{detector.date_str}_event{i + 1}_zscore'
                               f'{int(glow.highest_score)}.txt', 'w')
             print(info, file=event_file)
             glow.lm_files = find_le_files(detector, glow)
@@ -914,9 +912,9 @@ def long_event_search(detector, modes, times, existing_hist=None):
 
     # Saves the histogram(s):
     tl.print_logger('Saving Histogram...', detector.log)
-    hist_path = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}/'
+    hist_path = f'{detector.get_results_loc()}'
     tl.make_path(hist_path)
-    plt.savefig(f'{hist_path}{detector.date_str}_histogram.png', dpi=500)
+    plt.savefig(f'{hist_path}/{detector.date_str}_histogram.png', dpi=500)
     plt.close(figure)
 
 
@@ -1006,17 +1004,16 @@ def program(first_date, second_date, unit, mode_info):
                         detector.set_results_loc(mode_info[export_index])
 
         # Logs relevant data files and events in a .txt File
-        log_path = f'{detector.get_results_loc()}/Results/{unit}/{date_str}/'
+        log_path = f'{detector.get_results_loc()}'
         tl.make_path(log_path)
-        log = open(f'{log_path}log.txt', 'w')
+        log = open(f'{log_path}/log.txt', 'w')
         print(f'{tl.short_to_full_date(date_str)}:', file=log)
 
         # Normal operating mode
         try:
             # Imports the data
             if modes['pickle']:  # In pickle mode: reads the pickle file, or exports one if it doesn't exist yet
-                pickle_paths = glob.glob(f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}'
-                                         f'/detector.pickle')
+                pickle_paths = glob.glob(f'{detector.get_results_loc()}/detector.pickle')
                 if len(pickle_paths) > 0:
                     detector = tl.unpickle_detector(pickle_paths[0])
                     detector.log = log
@@ -1037,7 +1034,7 @@ def program(first_date, second_date, unit, mode_info):
             if not modes['skshort']:
                 tl.print_logger('\n', detector.log)
                 tl.print_logger('Filtering traces...', detector.log)
-                trace_dict = trace_search(detector, modes)
+                trace_dict = trace_search(detector)
                 tl.print_logger('Done.', detector.log)
             else:
                 trace_dict = {scintillator: [] for scintillator in detector}
@@ -1089,7 +1086,8 @@ def program(first_date, second_date, unit, mode_info):
         except Exception as ex:  # Logging errors
             tl.print_logger('\n', log)
             tl.print_logger(f'Search could not be completed due to the following error: {ex}', log)
-            with open(f'{log_path}err.txt', 'w') as err_file:
+            tl.print_logger('See error log for details.', log)
+            with open(f'{log_path}/err.txt', 'w') as err_file:
                 err_file.write(traceback.format_exc())
 
         # Low memory mode
@@ -1216,7 +1214,7 @@ def program(first_date, second_date, unit, mode_info):
                     tl.print_logger('Filtering traces...', detector.log)
                     for chunk_path in chunk_path_list:
                         chunk = tl.unpickle_chunk(chunk_path)
-                        trace_dict = trace_search(chunk, modes)
+                        trace_dict = trace_search(chunk)
                         chunk_trace_dicts[chunk_path] = trace_dict
 
                     tl.print_logger('Done.', detector.log)
@@ -1323,7 +1321,8 @@ def program(first_date, second_date, unit, mode_info):
             except Exception as ex:  # Logging errors
                 tl.print_logger('\n', log)
                 tl.print_logger(f'Search could not be completed due to the following error: {ex}', log)
-                with open(f'{log_path}err.txt', 'w') as err_file:
+                tl.print_logger('See error log for details.', log)
+                with open(f'{log_path}/err.txt', 'w') as err_file:
                     err_file.write(traceback.format_exc())
 
         del detector

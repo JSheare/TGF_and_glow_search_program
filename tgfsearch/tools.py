@@ -210,7 +210,7 @@ def pickle_detector(detector, file_name, path=None):
     """
 
     if path is None:
-        path = f'{detector.get_results_loc()}/Results/{detector.unit}/{detector.date_str}'
+        path = f'{detector.get_results_loc()}'
 
     make_path(path)
 

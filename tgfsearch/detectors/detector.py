@@ -53,9 +53,9 @@ class Detector:
         A dictionary containing various parameters used to calibrate the Detector.
     default_data_loc : str
         The default directory for an instrument's raw data.
-    import_loc : str
+    _import_loc : str
         The directory where data files for the day are located.
-    results_loc : str
+    _results_loc : str
         The directory where results will be exported.
     _scintillators : dict
         A dictionary containing Scintillators. These keep track of data for each of the instrument's
@@ -83,8 +83,8 @@ class Detector:
         self.long_event_scint_list = []
         self.calibration_params = {'bin_range': 0, 'bin_size': 0, 'template_bin_plot_edge': 0}
         self.default_data_loc = ''
-        self.import_loc = ''
-        self.results_loc = os.getcwd()
+        self._import_loc = ''
+        self._results_loc = os.getcwd() + f'/Results/{self.unit}/{self.date_str}'
         self._scintillators = {self.default_scintillator: Scintillator(self.default_scintillator, '0')}
         self.scint_list = []
 
@@ -137,7 +137,7 @@ class Detector:
 
         """
 
-        return self.import_loc
+        return self._import_loc
 
     def set_import_loc(self, loc):
         """Sets the directory where data will be imported from.
@@ -154,7 +154,7 @@ class Detector:
                 if loc[-1] == '/':
                     loc = loc[:-1]
 
-            self.import_loc = loc
+            self._import_loc = loc
         else:
             raise TypeError('loc must be a string.')
 
@@ -168,15 +168,19 @@ class Detector:
 
         """
 
-        return self.results_loc
+        return self._results_loc
 
-    def set_results_loc(self, loc):
+    def set_results_loc(self, loc, subdir=True):
         """Sets the directory where all results will be stored.
 
         Parameters
         ----------
         loc : str
             The results directory as a string.
+
+        subdir : bool
+            Optional. If True, results will be exported to a subdirectory of the form 'Results/unit/yymmdd' inside
+            the specified location rather than straight to the location itself. True by default.
 
         """
 
@@ -185,7 +189,10 @@ class Detector:
                 if loc[-1] == '/':
                     loc = loc[:-1]
 
-            self.results_loc = loc
+            if subdir:
+                self._results_loc = loc + f'/Results/{self.unit}/{self.date_str}'
+            else:
+                self._results_loc = loc
         else:
             raise TypeError('loc must be a string.')
 
@@ -206,7 +213,7 @@ class Detector:
         if self.is_named('GODOT'):
             self.processed = True
             if overwrite_import_loc:
-                self.import_loc = f'/media/godot/godot/monthly_processed/{self.date_str[0:4]}'
+                self._import_loc = f'/media/godot/godot/monthly_processed/{self.date_str[0:4]}'
 
         else:
             raise ValueError('processed data mode is only available for GODOT.')
@@ -738,11 +745,11 @@ class Detector:
                 eRC = self.get_attribute(scintillator, 'eRC')
                 # Here in case the data files are grouped into daily folders
                 try:
-                    complete_filelist = glob.glob(f'{self.import_loc}/{self.file_form(eRC)}'.replace('\\', '/'))
+                    complete_filelist = glob.glob(f'{self._import_loc}/{self.file_form(eRC)}'.replace('\\', '/'))
                     assert len(complete_filelist) > 0, 'Empty filelist'
 
                 except AssertionError:
-                    complete_filelist = glob.glob(f'{self.import_loc}/{self.date_str}'
+                    complete_filelist = glob.glob(f'{self._import_loc}/{self.date_str}'
                                                   f'/{self.file_form(eRC)}'.replace('\\', '/'))
 
                 lm_filelist, trace_filelist = tl.separate_files(tl.filter_files(complete_filelist))
@@ -869,7 +876,7 @@ class Detector:
         indices[1] = edge2_slider.val
         template = pd.DataFrame(data={'energy_hist': energy_hist, 'bins': energy_bins[0:bin_plot_edge],
                                       'indices': indices})
-        template_path = f'{self.results_loc}/Templates'
+        template_path = f'{self._results_loc}/Templates'
         tl.make_path(template_path)
         template.to_csv(f'{template_path}/{self.unit}_{self.location["Location"]}_template.csv', index=False)
 
@@ -954,7 +961,7 @@ class Detector:
 
         return flagged_indices
 
-    def _plot_spectra(self, scintillator, energy_bins, energy_hist, flagged_indices, sp_path):
+    def _plot_spectra(self, scintillator, energy_bins, energy_hist, flagged_indices):
         """Plots the histograms (with calibration lines, if applicable) for the given spectra."""
         # Plots the actual spectrum
         bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1 (no idea why)
@@ -972,7 +979,7 @@ class Detector:
             plt.vlines([energy_bins[s] for s in flagged_indices], 0, np.amax(energy_hist), zorder=2, alpha=0.75)
 
         # Saves the figure
-        plt.savefig(f'{sp_path}/{scintillator}_Spectrum.png', dpi=500)
+        plt.savefig(f'{self._results_loc}/{scintillator}_Spectrum.png', dpi=500)
         plt.clf()
 
     def calibrate(self, existing_spectra=None, plot_spectra=False, make_template=False):
@@ -995,9 +1002,8 @@ class Detector:
 
         # Making the energy bins and setting up the calibration files
         energy_bins = np.arange(0.0, bin_range, bin_size)
-        sp_path = f'{self.results_loc}/Results/{self.unit}/{self.date_str}'
-        tl.make_path(sp_path)
-        spectra_conversions = open(f'{sp_path}/spectra_conversions.txt', 'w')
+        tl.make_path(self._results_loc)
+        spectra_conversions = open(f'{self._results_loc}/spectra_conversions.txt', 'w')
         spectra_frame = pd.DataFrame()
         spectra_frame['energy bins'] = energy_bins[:-1]
         if self or existing_spectra:
@@ -1011,7 +1017,7 @@ class Detector:
                     # Calibrates the LP scintillator (if possible) and plots the calibration
                     flagged_indices = self._calibrate_LP(energy_bins, energy_hist, spectra_conversions, spectra_frame)
                     if plot_spectra:
-                        self._plot_spectra('LP', energy_bins, energy_hist, flagged_indices, sp_path)
+                        self._plot_spectra('LP', energy_bins, energy_hist, flagged_indices)
 
                 else:
                     if self.log is not None:
@@ -1026,7 +1032,7 @@ class Detector:
                     energy_hist = self._generate_hist(energy_bins, 'NaI', existing_spectra)
                     flagged_indices = self._calibrate_NaI(energy_bins, energy_hist, spectra_conversions, spectra_frame)
                     if plot_spectra:
-                        self._plot_spectra('NaI', energy_bins, energy_hist, flagged_indices, sp_path)
+                        self._plot_spectra('NaI', energy_bins, energy_hist, flagged_indices)
 
                 else:
                     if self.log is not None:
@@ -1036,7 +1042,7 @@ class Detector:
                         print('Cannot calibrate NaI (missing data)...')
 
             if plot_spectra:
-                spectra_frame.to_json(f'{sp_path}/{self.date_str}_spectra.json')
+                spectra_frame.to_json(f'{self._results_loc}/{self.date_str}_spectra.json')
 
             spectra_conversions.close()
 

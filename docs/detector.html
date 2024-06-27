@@ -86,9 +86,9 @@ calibration_params&nbsp;:&nbsp;dict<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;various&nbsp;parameters&nbsp;used&nbsp;to&nbsp;calibrate&nbsp;the&nbsp;<a href="#Detector">Detector</a>.<br>
 default_data_loc&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;default&nbsp;directory&nbsp;for&nbsp;an&nbsp;instrument's&nbsp;raw&nbsp;data.<br>
-import_loc&nbsp;:&nbsp;str<br>
+_import_loc&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;directory&nbsp;where&nbsp;data&nbsp;files&nbsp;for&nbsp;the&nbsp;day&nbsp;are&nbsp;located.<br>
-results_loc&nbsp;:&nbsp;str<br>
+_results_loc&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;directory&nbsp;where&nbsp;results&nbsp;will&nbsp;be&nbsp;exported.<br>
 _scintillators&nbsp;:&nbsp;dict<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;Scintillators.&nbsp;These&nbsp;keep&nbsp;track&nbsp;of&nbsp;data&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;instrument's<br>
@@ -369,12 +369,16 @@ file_name&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;file&nbsp;to&nbsp;set&nbsp;data&nbsp;for.&nbsp;If&nbsp;not&nbsp;specified,<br>
 &nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;will&nbsp;be&nbsp;set&nbsp;for&nbsp;the&nbsp;whole&nbsp;day.</span></dd></dl>
 
-<dl><dt><a name="Detector-set_results_loc"><strong>set_results_loc</strong></a>(self, loc)</dt><dd><span class="code">Sets&nbsp;the&nbsp;directory&nbsp;where&nbsp;all&nbsp;results&nbsp;will&nbsp;be&nbsp;stored.<br>
+<dl><dt><a name="Detector-set_results_loc"><strong>set_results_loc</strong></a>(self, loc, subdir=True)</dt><dd><span class="code">Sets&nbsp;the&nbsp;directory&nbsp;where&nbsp;all&nbsp;results&nbsp;will&nbsp;be&nbsp;stored.<br>
 &nbsp;<br>
 Parameters<br>
 ----------<br>
 loc&nbsp;:&nbsp;str<br>
-&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;results&nbsp;directory&nbsp;as&nbsp;a&nbsp;string.</span></dd></dl>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;results&nbsp;directory&nbsp;as&nbsp;a&nbsp;string.<br>
+&nbsp;<br>
+subdir&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;results&nbsp;will&nbsp;be&nbsp;exported&nbsp;to&nbsp;a&nbsp;subdirectory&nbsp;of&nbsp;the&nbsp;form&nbsp;'Results/unit/yymmdd'&nbsp;inside<br>
+&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;specified&nbsp;location&nbsp;rather&nbsp;than&nbsp;straight&nbsp;to&nbsp;the&nbsp;location&nbsp;itself.&nbsp;True&nbsp;by&nbsp;default.</span></dd></dl>
 
 <dl><dt><a name="Detector-splice"><strong>splice</strong></a>(self, operand_detector)</dt><dd><span class="code">Returns&nbsp;a&nbsp;new&nbsp;<a href="#Detector">Detector</a>&nbsp;with&nbsp;the&nbsp;combined&nbsp;data&nbsp;of&nbsp;the&nbsp;current&nbsp;<a href="#Detector">Detector</a>&nbsp;and&nbsp;the&nbsp;one&nbsp;provided.<br>
 &nbsp;<br>
