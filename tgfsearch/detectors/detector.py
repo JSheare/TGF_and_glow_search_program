@@ -622,25 +622,24 @@ class Detector:
             print(f'{files_imported}/{len(lm_filelist)} list mode files imported\n', end='\r')
 
         if len(file_frames) > 0:
-            # Makes the final dataframe and stores it
-            all_data = pd.concat(file_frames, axis=0)
-
             # Correcting for the fact that the first 200-300 seconds of the next day are usually included
             # in the last file
-            times = all_data['SecondsOfDay'].to_numpy()
-            day_change = np.where(np.diff(times) < -80000)[0]
-            if day_change.size > 0:
+            last_times = file_frames[-1]['SecondsOfDay'].to_numpy()
+            # Times belonging to the next day will always be < 500
+            day_change = np.where(np.diff(last_times) < -(params.SEC_PER_DAY - 500))[0]
+            if len(day_change) > 0:
                 change_index = int(day_change[0]) + 1
-                for i in range(change_index, len(times)):
-                    times[i] += params.SEC_PER_DAY
+                for i in range(change_index, len(last_times)):
+                    last_times[i] += params.SEC_PER_DAY
 
-                all_data['SecondsOfDay'] = times
+                file_frames[-1]['SecondsOfDay'] = last_times
 
-            # Doing it for the file time extrema too
-            for k in range(1, int(len(file_ranges) / 8)):  # Last eighth of the files
-                for j in range(2):
-                    if file_ranges[-k][j] < 500:  # Extrema belonging to the next day will always be < 500
-                        file_ranges[-k][j] += params.SEC_PER_DAY
+            # Correcting the last file's time ranges too
+            if (file_ranges[-1][1] - file_ranges[-1][0]) < -(params.SEC_PER_DAY - 500):
+                file_ranges[-1][1] += params.SEC_PER_DAY
+
+            # Makes the final dataframe and stores it
+            all_data = pd.concat(file_frames, axis=0)
 
             self.set_attribute(scintillator, 'lm_frame', all_data, deepcopy=False)
             self.set_attribute(scintillator, 'lm_file_ranges', file_ranges, deepcopy=False)
@@ -966,7 +965,7 @@ class Detector:
         # Plots the actual spectrum
         bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1 (no idea why)
         bin_size = self.calibration_params['bin_size']
-        plt.figure(figsize=[20, 11.0])
+        fig = plt.figure(figsize=[20, 11.0])
         plt.title(f'Energy Spectrum for {scintillator}, {self.full_date_str}', loc='center')
         plt.xlabel('Energy Channel')
         plt.ylabel('Counts/bin')
@@ -980,7 +979,7 @@ class Detector:
 
         # Saves the figure
         plt.savefig(f'{self._results_loc}/{scintillator}_Spectrum.png', dpi=500)
-        plt.clf()
+        plt.close(fig)
 
     def calibrate(self, existing_spectra=None, plot_spectra=False, make_template=False):
         """Makes energy spectra histograms and calibrates the large plastic and sodium iodide scintillators.
