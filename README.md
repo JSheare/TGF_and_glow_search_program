@@ -430,9 +430,9 @@ This can be performant in some cases, but be careful not to modify your data by 
 ## **List of Common Functions and Methods:**
 
 ### **Detector:**
-- Detector.import_data() <br/> 
+- Detector.import_data()
   - Imports data from data files into arrays and then updates them into the detector's scintillator objects.
-- Detector.get_import_loc() <br/>
+- Detector.get_import_loc()
   - Returns the directory where data will be imported from.
 - Detector.set_import_loc()
   - Sets the directory where data will be imported from.
@@ -476,6 +476,8 @@ Full Detector documentation for these methods (and more) can be found [here](htt
   - Prints the specified string to both stdout and the specified file.
 - tgf.days_per_month()
   - Returns the number of days in the requested month based on the year.
+- tgf.file_size()
+  - Returns the size of the given file in bytes.
 - tgf.roll_date_forward()
   - Returns the calendar date after the one given as an argument.
 - tgf.roll_date_backward()
