@@ -5,6 +5,11 @@
 #         needed by datetime.strptime()
 #Added multifilesToData() routine to read multiple files into a single dataset
 #Added warnings about unexpected behavior across frame boundaries to thorFileToData()
+#5/6/24: added handling of the case where there are columns for specific flags (like 'pps') instead of a
+#        'flags' column like in normal THOR data in getdatafromlmthor()
+#5/6/24: Changed "if mode is" to "if mode ==" on advice of new warnings.
+#7/5/24 Fixed condition where there is a rollover between the last PPS of the prior frame and the end
+#       of the of the prior frame, which was messing up all the counts up to the first pps of the new frame.
 
 import re # Regular expressions module for string operations
 import pdb  #syntax to use is pdb.set_trace() for equivalent to an IDL "stop"
@@ -90,6 +95,7 @@ def thorFileToData(lines, passtime):
             dt=tfirst-passtime['lastsod']
             if (dt > 0.5):
                 print('Long gap (>0.5s) between frames at: ',tfirst)
+                #pdb.set_trace()
             if (dt < 0.0):
                 print('Anomalous clock backwards at: ',tfirst,passtime['lastsod'], dt)
 #                pdb.set_trace()
@@ -108,11 +114,11 @@ def thorFileToData(lines, passtime):
 
 def lmFileToData(lines, mode):
     dataList = list()
-    if mode is 1:
+    if mode== 1:
         start = 2
         increment = 2
         tStamp = 1
-    elif mode is 2:
+    elif mode== 2:
         start = 7
         increment = 6
         tStamp = 0 #NEED TO DOUBLE CHECK THIS WITH JEFF (was 2 -- experimenting)
@@ -138,7 +144,10 @@ def lmFileToData(lines, mode):
 def getDataFromLMthor(lmString):
     jsonDict = json.loads(re.sub("eRC[0-9]{4} ", "", lmString))['lm_data']
     data = pd.DataFrame.from_dict(jsonDict)
-    data['PPS'] = pd.Series([int('{0:08b}'.format(x)[-8]) for x in data['flags']]) ## very useful column for future operations - separates out GPS signal from the Flags column
+    if 'pps' in data.columns:
+        data['PPS'] = data['pps'].copy()
+    else:
+        data['PPS'] = pd.Series([int('{0:08b}'.format(x)[-8]) for x in data['flags']]) ## very useful column for future operations - separates out GPS signal from the Flags column
     data['gpsSync'] = False
     data['UnixTime']=0.
     data['SecondsOfDay']=0.
@@ -167,8 +176,13 @@ def processDataTiming(data, passtime, headerDT, mode):
                                                  ##Python passes by object reference.
 
     #But what if there was a rollover between the last PPS of the prior frame and the start of this frame???? -- Note to add code for that. :p
-    
+    #7/5/24 Here is is, looks like it works (?)
+    lastpps_wc = passtime['ppswc']
+    first_wc_here = data['wc'][0]
+    if (first_wc_here - lastpps_wc < -rolloverLength/4.):
+        passtime['ppswc'] -= rolloverLength
 
+    
     #Get the header timestamp in unix time, and unix time at start of second, and start of day
     header_unix = headerDT.timestamp()
     header_unix_trunc = int(header_unix)*1.0
@@ -204,7 +218,6 @@ def processDataTiming(data, passtime, headerDT, mode):
         if ( passtime['started']==0 ):
             if (mode==0):
                 print('THOR data begins with a frame with 0 or 1 PPS!')
-                #pdb.set_trace()
             data['UnixTime'] = m1_unix
         else:
             data['UnixTime'] = m2_unix
@@ -214,6 +227,8 @@ def processDataTiming(data, passtime, headerDT, mode):
 
         #Find the frequencies in between each pair of PPS:
         frequencies = m1_unix*0. + 8e7
+#        if ( passtime['started']>0 ):
+#              pdb.set_trace()
         for i in np.arange(len(pps)-1):
             testhz = data['wc'][pps[i+1]] - data['wc'][pps[i]]
 
@@ -342,10 +357,10 @@ def processDataTiming(data, passtime, headerDT, mode):
 
 
 def getDataFromLM(lmString, mode):
-    if mode is 1:
+    if mode== 1:
         start = 2
         rowLength = 3
-    elif mode is 2:
+    elif mode== 2:
         start = 9
         rowLength = 6
     lmStrings = lmString.split(" ")[start:]
@@ -355,12 +370,12 @@ def getDataFromLM(lmString, mode):
     #data = pd.concat(data, ignore_index = True)
     data = data[~data.duplicated()]
     coarsetick = 65536
-    if mode is 2:
+    if mode== 2:
         wc = (data[2] + data[3] * coarsetick + data[4] * coarsetick * coarsetick) 
         energy = data[1]
         ticks = pd.Series([int('{0:08b}'.format(x)[-8]) for x in data[5]])
         flags = data[5]
-    elif mode is 1:
+    elif mode== 1:
         wc = (data[1] + data[2] * coarsetick) 
         energy = data[0]
         ticks = data[0] * 0 ## For some reason makes the pd.concat phase much faster than doing (repeat(0, len(data)))
