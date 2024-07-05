@@ -24,8 +24,9 @@
 <a href="tgfsearch.parameters.html">tgfsearch.parameters</a><br>
 </td><td class="multicolumn"><a href="pandas.html">pandas</a><br>
 <a href="pickle.html">pickle</a><br>
-<a href="selenium.webdriver.html">selenium.webdriver</a><br>
-</td><td class="multicolumn"></td></tr></table></td></tr></table><p>
+<a href="struct.html">struct</a><br>
+</td><td class="multicolumn"><a href="selenium.webdriver.html">selenium.webdriver</a><br>
+</td></tr></table></td></tr></table><p>
 <table class="section">
 <tr class="decor functions-decor heading-text">
 <td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Functions</strong></td></tr>
@@ -139,6 +140,22 @@ Returns<br>
 str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;status&nbsp;for&nbsp;the&nbsp;date:&nbsp;'inside'&nbsp;if&nbsp;the&nbsp;date&nbsp;is&nbsp;inside&nbsp;dst,&nbsp;'outside'&nbsp;if&nbsp;out,&nbsp;or&nbsp;'beginning'/'end'&nbsp;for<br>
 &nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;boundaries.</span></dd></dl>
+ <dl><dt><a name="-file_size"><strong>file_size</strong></a>(file, uncompressed=True)</dt><dd><span class="code">Returns&nbsp;the&nbsp;size&nbsp;of&nbsp;the&nbsp;given&nbsp;file&nbsp;in&nbsp;bytes.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+file&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;file.<br>
+uncompressed&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;the&nbsp;function&nbsp;will&nbsp;return&nbsp;the&nbsp;uncompressed&nbsp;file&nbsp;size&nbsp;(if&nbsp;the&nbsp;file&nbsp;is&nbsp;compressed).&nbsp;True<br>
+&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;default.&nbsp;Note:&nbsp;this&nbsp;will&nbsp;not&nbsp;be&nbsp;accurate&nbsp;for&nbsp;files&nbsp;that&nbsp;are&nbsp;over&nbsp;4GB&nbsp;uncompressed&nbsp;due&nbsp;to&nbsp;the&nbsp;way<br>
+&nbsp;&nbsp;&nbsp;&nbsp;uncompressed&nbsp;size&nbsp;is&nbsp;stored&nbsp;according&nbsp;to&nbsp;the&nbsp;gzip&nbsp;standard.<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+int<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;size&nbsp;of&nbsp;the&nbsp;file&nbsp;in&nbsp;bytes.</span></dd></dl>
+ <dl><dt><a name="-file_timestamp"><strong>file_timestamp</strong></a>(file)</dt><dd><span class="code">Returns&nbsp;the&nbsp;timestamp&nbsp;of&nbsp;the&nbsp;given&nbsp;file&nbsp;as&nbsp;a&nbsp;string&nbsp;of&nbsp;the&nbsp;form&nbsp;hhmmss.</span></dd></dl>
  <dl><dt><a name="-filter_files"><strong>filter_files</strong></a>(complete_filelist)</dt><dd><span class="code">Returns&nbsp;an&nbsp;ordered&nbsp;list&nbsp;of&nbsp;files&nbsp;with&nbsp;duplicate/invalid&nbsp;files&nbsp;filtered&nbsp;out.</span></dd></dl>
  <dl><dt><a name="-filter_traces"><strong>filter_traces</strong></a>(detector, scintillator)</dt><dd><span class="code">Returns&nbsp;a&nbsp;list&nbsp;of&nbsp;traces&nbsp;that&nbsp;are&nbsp;likely&nbsp;to&nbsp;be&nbsp;interesting&nbsp;for&nbsp;the&nbsp;given&nbsp;scintillator.<br>
 &nbsp;<br>
