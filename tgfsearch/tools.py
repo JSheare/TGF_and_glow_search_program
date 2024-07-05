@@ -5,6 +5,7 @@ import pickle as pickle
 import datetime as dt
 import numpy as np
 import pandas as pd
+import struct as struct
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -42,6 +43,42 @@ def make_path(path):
 
     if not os.path.exists(path):
         os.makedirs(path)
+
+
+def file_size(file, uncompressed=True):
+    """Returns the size of the given file in bytes.
+
+    Parameters
+    ----------
+    file : str
+        The name of the file.
+    uncompressed : bool
+        Optional. If True, the function will return the uncompressed file size (if the file is compressed). True
+        by default. Note: this will not be accurate for files that are over 4GB uncompressed due to the way
+        uncompressed size is stored according to the gzip standard.
+
+    Returns
+    -------
+    int
+        The size of the file in bytes.
+
+    """
+
+    if uncompressed and len(file) > 3 and file[-3:] == '.gz':
+        with open(file, 'rb') as f:
+            f.seek(-4, 2)
+            size = struct.unpack('I', f.read(4))[0]
+    
+    else:
+        size = os.path.getsize(file)
+    
+    return size
+
+
+def file_timestamp(file):
+    """Returns the timestamp of the given file as a string of the form hhmmss."""
+
+    return file.split('.')[0].split('_')[-1]
 
 
 def days_per_month(month, year):

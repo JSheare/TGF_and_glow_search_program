@@ -16,31 +16,8 @@ if parent_dir not in sys.path:
 
 import tgfsearch.tools as tl
 from tgfsearch.search import program
-
-
-# A slightly modified version of the Event class from threading.
-# Used to communicate with the thread that the search program is managed on
-class Communicator(threading.Event):
-    def __init__(self):
-        super().__init__()
-        self.running = False
-
-
-# A class for conveniently writing stdout to a multiprocessing connection object
-class PipeStdout:
-    def __init__(self, pipe):
-        self.pipe = pipe
-        self.stdout = sys.stdout
-        sys.stdout = self
-
-    def write(self, data):
-        self.pipe.send(data)
-
-    def flush(self):
-        self.stdout.flush()
-
-    def __del__(self):
-        sys.stdout = self.stdout
+from tgfsearch.helpers.communicator import Communicator
+from tgfsearch.helpers.pipestdout import PipeStdout
 
 
 # Creates a directory selection dialogue box and then puts the selected directory in the specified text entry box

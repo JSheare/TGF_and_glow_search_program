@@ -515,10 +515,10 @@ class Detector:
             lm_filelist = self.get_attribute(scintillator, 'lm_filelist')
             trace_filelist = self.get_attribute(scintillator, 'trace_filelist')
             for file in lm_filelist:
-                total_file_size += os.path.getsize(file)
+                total_file_size += tl.file_size(file)
 
             for file in trace_filelist:
-                total_file_size += os.path.getsize(file)
+                total_file_size += tl.file_size(file)
 
         return total_file_size
 
@@ -757,12 +757,6 @@ class Detector:
 
                 if import_traces:
                     self.set_attribute(scintillator, 'trace_filelist', trace_filelist, deepcopy=False)
-
-        # Determines whether there is enough free memory to load the entire dataset
-        total_file_size = self.get_fileset_size()
-        available_memory = psutil.virtual_memory()[1] * params.TOTAL_MEMORY_ALLOWANCE_FRAC
-        if (params.OPERATING_MEMORY_ALLOWANCE + total_file_size) > available_memory:
-            raise MemoryError('not enough free memory to hold complete dataset.')
 
         if self.log is not None:
             print('', file=self.log)
