@@ -237,4 +237,3 @@ class Scintillator:
         if clear_filelists:
             self.lm_filelist = []
             self.trace_filelist = []
-

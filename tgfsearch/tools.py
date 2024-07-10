@@ -418,7 +418,7 @@ def get_weather_conditions(detector, weather_cache, full_date_str, event_time):
         best_diff = float('inf')
         best_index = 0
         for clock_hour in weather_table['Time']:
-            if type(clock_hour) != float:
+            if not isinstance(clock_hour, float):
                 time_sec = convert_clock_hour(clock_hour)
                 time_diff = abs(event_time - time_sec)
                 if time_diff < best_diff:
@@ -667,7 +667,7 @@ def combine_data(detector):
             times.append(detector.get_lm_data(scintillator, 'SecondsOfDay'))
             energies.append(detector.get_lm_data(scintillator, 'energy'))
             wallclock.append(detector.get_lm_data(scintillator, 'wc'))
-            count_scints.append([scintillator] * len(times[-1]))
+            count_scints.append(np.array([scintillator] * len(times[-1])))
 
     times = np.concatenate(times)
     energies = np.concatenate(energies)

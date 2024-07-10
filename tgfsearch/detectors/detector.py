@@ -149,7 +149,7 @@ class Detector:
 
         """
 
-        if type(loc) == str:
+        if isinstance(loc, str):
             if len(loc) > 0:
                 if loc[-1] == '/':
                     loc = loc[:-1]
@@ -184,7 +184,7 @@ class Detector:
 
         """
 
-        if type(loc) == str:
+        if isinstance(loc, str):
             if len(loc) > 0:
                 if loc[-1] == '/':
                     loc = loc[:-1]

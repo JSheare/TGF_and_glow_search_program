@@ -877,12 +877,12 @@ def find_long_events(detector, modes, bins_allday, hist_allday):
 
         # Makes the histogram subplots
         ax_list = [ax2, ax3, ax4, ax5]
-        for i in range(4):
-            try:
-                glow = potential_glows[i]
-                make_hist_subplot(ax_list[i], glow, bins_allday, hist_allday, mue, sigma)
-            except IndexError:
+        for i in range(len(ax_list)):
+            if i == len(potential_glows):
                 break
+
+            glow = potential_glows[i]
+            make_hist_subplot(ax_list[i], glow, bins_allday, hist_allday, mue, sigma)
 
     else:
         tl.print_logger(f'There were no potential glows on {detector.full_date_str}', detector.log)
