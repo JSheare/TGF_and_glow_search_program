@@ -113,16 +113,16 @@ with&nbsp;some&nbsp;info&nbsp;about&nbsp;which&nbsp;Scintillators&nbsp;have&nbsp
 
 <dl><dt><a name="Detector-__str__"><strong>__str__</strong></a>(self)</dt><dd><span class="code">String&nbsp;casting&nbsp;overload.&nbsp;Returns&nbsp;a&nbsp;string&nbsp;of&nbsp;the&nbsp;form&nbsp;'<a href="#Detector">Detector</a>(unit,&nbsp;date_str)'.</span></dd></dl>
 
-<dl><dt><a name="Detector-calibrate"><strong>calibrate</strong></a>(self, existing_spectra=None, plot_spectra=False, make_template=False)</dt><dd><span class="code">Makes&nbsp;energy&nbsp;spectra&nbsp;histograms&nbsp;and&nbsp;calibrates&nbsp;the&nbsp;large&nbsp;plastic&nbsp;and&nbsp;sodium&nbsp;iodide&nbsp;scintillators.<br>
+<dl><dt><a name="Detector-calibrate"><strong>calibrate</strong></a>(self, plot_spectra=False, make_template=False, existing_spectra=None)</dt><dd><span class="code">Makes&nbsp;energy&nbsp;spectra&nbsp;histograms&nbsp;and&nbsp;calibrates&nbsp;the&nbsp;large&nbsp;plastic&nbsp;and&nbsp;sodium&nbsp;iodide&nbsp;scintillators.<br>
 &nbsp;<br>
 Parameters<br>
 ------<br>
-existing_spectra&nbsp;:&nbsp;dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;Existing&nbsp;energy&nbsp;spectra&nbsp;histograms&nbsp;for&nbsp;each&nbsp;scintillator.<br>
 plot_spectra&nbsp;:&nbsp;bool<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;Specifies&nbsp;whether&nbsp;to&nbsp;make&nbsp;and&nbsp;export&nbsp;spectra&nbsp;histograms.<br>
 make_template&nbsp;:&nbsp;bool<br>
-&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;Specifies&nbsp;whether&nbsp;to&nbsp;run&nbsp;the&nbsp;large&nbsp;plastic&nbsp;scintillator&nbsp;template&nbsp;maker.</span></dd></dl>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;Specifies&nbsp;whether&nbsp;to&nbsp;run&nbsp;the&nbsp;large&nbsp;plastic&nbsp;scintillator&nbsp;template&nbsp;maker.<br>
+existing_spectra&nbsp;:&nbsp;dict<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;Existing&nbsp;energy&nbsp;spectra&nbsp;histograms&nbsp;for&nbsp;each&nbsp;scintillator.</span></dd></dl>
 
 <dl><dt><a name="Detector-clear"><strong>clear</strong></a>(self, clear_filelists=True)</dt><dd><span class="code">Clears&nbsp;all&nbsp;data&nbsp;currently&nbsp;stored&nbsp;in&nbsp;the&nbsp;<a href="#Detector">Detector</a>.<br>
 &nbsp;<br>
@@ -305,7 +305,7 @@ Returns<br>
 list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;names&nbsp;of&nbsp;the&nbsp;traces&nbsp;that&nbsp;are&nbsp;currently&nbsp;being&nbsp;stored.</span></dd></dl>
 
-<dl><dt><a name="Detector-import_data"><strong>import_data</strong></a>(self, existing_filelists=False, import_traces=True, import_lm=True, gui=False)</dt><dd><span class="code">Imports&nbsp;data&nbsp;from&nbsp;data&nbsp;files&nbsp;into&nbsp;arrays&nbsp;and&nbsp;then&nbsp;updates&nbsp;them&nbsp;into&nbsp;the&nbsp;detector's<br>
+<dl><dt><a name="Detector-import_data"><strong>import_data</strong></a>(self, existing_filelists=False, import_traces=True, import_lm=True, mem_frac=1.0, gui=False)</dt><dd><span class="code">Imports&nbsp;data&nbsp;from&nbsp;data&nbsp;files&nbsp;into&nbsp;arrays&nbsp;and&nbsp;then&nbsp;updates&nbsp;them&nbsp;into&nbsp;the&nbsp;detector's<br>
 scintillator&nbsp;objects.<br>
 &nbsp;<br>
 Parameters<br>
@@ -316,6 +316,10 @@ import_traces&nbsp;:&nbsp;bool<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;the&nbsp;function&nbsp;will&nbsp;import&nbsp;any&nbsp;trace&nbsp;files&nbsp;it&nbsp;finds.&nbsp;True&nbsp;by&nbsp;default.<br>
 import_lm&nbsp;:&nbsp;bool<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;the&nbsp;function&nbsp;will&nbsp;import&nbsp;any&nbsp;list&nbsp;mode&nbsp;data&nbsp;it&nbsp;finds.&nbsp;True&nbsp;by&nbsp;default.<br>
+mem_frac&nbsp;:&nbsp;float<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional:&nbsp;The&nbsp;maximum&nbsp;fraction&nbsp;of&nbsp;currently-available&nbsp;system&nbsp;memory&nbsp;that&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;is&nbsp;allowed&nbsp;to&nbsp;use&nbsp;for<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;(not&nbsp;including&nbsp;overhead).&nbsp;If&nbsp;the&nbsp;dataset&nbsp;is&nbsp;larger&nbsp;than&nbsp;this&nbsp;limit,&nbsp;a&nbsp;MemoryError&nbsp;will&nbsp;be&nbsp;raised.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.0&nbsp;(100%&nbsp;of&nbsp;system&nbsp;memory)&nbsp;by&nbsp;default.<br>
 gui&nbsp;:&nbsp;bool<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;printed&nbsp;import&nbsp;progress&nbsp;updates&nbsp;will&nbsp;be&nbsp;gui-safe&nbsp;(return&nbsp;carriages&nbsp;won't&nbsp;be&nbsp;used).<br>
 &nbsp;&nbsp;&nbsp;&nbsp;False&nbsp;by&nbsp;default.</span></dd></dl>

@@ -244,7 +244,7 @@ for scintillator in detector:
     if not detector.data_present_in(scintillator):  # Checking that list mode data is present (default)
         print(f'List mode data missing for {scintillator}.')
 
-    if not detector.data_present_int(scintillator, data_type='trace'):  # Checking that trace data is present
+    if not detector.data_present_in(scintillator, data_type='trace'):  # Checking that trace data is present
         print(f'Trace data missing for {scintillator}.')
 ```
 

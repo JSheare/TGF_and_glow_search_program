@@ -78,7 +78,11 @@ def file_size(file, uncompressed=True):
 def file_timestamp(file):
     """Returns the timestamp of the given file as a string of the form hhmmss."""
 
-    return file.split('.')[0].split('_')[-1]
+    labels = file.split('.')[0].split('_')
+    if len(labels) > 4:
+        return labels[-2]
+
+    return labels[-1]
 
 
 def days_per_month(month, year):

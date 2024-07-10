@@ -717,7 +717,7 @@ class Detector:
         if self.log is not None:
             print('', file=self.log)
 
-    def import_data(self, existing_filelists=False, import_traces=True, import_lm=True, gui=False):
+    def import_data(self, existing_filelists=False, import_traces=True, import_lm=True, mem_frac=1., gui=False):
         """Imports data from data files into arrays and then updates them into the detector's
         scintillator objects.
 
@@ -729,6 +729,10 @@ class Detector:
             Optional. If True, the function will import any trace files it finds. True by default.
         import_lm : bool
             Optional. If True, the function will import any list mode data it finds. True by default.
+        mem_frac : float
+            Optional: The maximum fraction of currently-available system memory that the Detector is allowed to use for
+             data (not including overhead). If the dataset is larger than this limit, a MemoryError will be raised.
+             1.0 (100% of system memory) by default.
         gui : bool
             Optional. If True, printed import progress updates will be gui-safe (return carriages won't be used).
             False by default.
@@ -757,6 +761,10 @@ class Detector:
 
                 if import_traces:
                     self.set_attribute(scintillator, 'trace_filelist', trace_filelist, deepcopy=False)
+
+        # Checking to make sure that currently listed data won't go over the memory limit
+        if self.get_fileset_size() > psutil.virtual_memory()[1] * mem_frac:
+            raise MemoryError('dataset larger than specified limit.')
 
         if self.log is not None:
             print('', file=self.log)
@@ -975,17 +983,17 @@ class Detector:
         plt.savefig(f'{self._results_loc}/{scintillator}_Spectrum.png', dpi=500)
         plt.close(fig)
 
-    def calibrate(self, existing_spectra=None, plot_spectra=False, make_template=False):
+    def calibrate(self, plot_spectra=False, make_template=False, existing_spectra=None):
         """Makes energy spectra histograms and calibrates the large plastic and sodium iodide scintillators.
 
         Parameters
         ------
-        existing_spectra : dict
-            Optional. Existing energy spectra histograms for each scintillator.
         plot_spectra : bool
             Optional. Specifies whether to make and export spectra histograms.
         make_template : bool
             Optional. Specifies whether to run the large plastic scintillator template maker.
+        existing_spectra : dict
+            Optional. Existing energy spectra histograms for each scintillator.
 
         """
 
