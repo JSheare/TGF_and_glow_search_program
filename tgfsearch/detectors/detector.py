@@ -1,15 +1,17 @@
 """A base class for keeping track of lightning data and associated information."""
 import glob as glob
 import os as os
+import gc as gc
 import contextlib as contextlib
 import psutil as psutil
 import numpy as np
 import pandas as pd
 import json as json
 import scipy.signal as signal
-import matplotlib.pyplot as plt
 import datetime as dt
 import warnings
+import matplotlib as matplotlib
+import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 
 import tgfsearch.utilities.DataReaderTimetrack2 as Dr
@@ -512,12 +514,10 @@ class Detector:
         """Returns the total size (in bytes) of all the currently listed files for the day."""
         total_file_size = 0
         for scintillator in self._scintillators:
-            lm_filelist = self.get_attribute(scintillator, 'lm_filelist')
-            trace_filelist = self.get_attribute(scintillator, 'trace_filelist')
-            for file in lm_filelist:
+            for file in self.get_attribute(scintillator, 'lm_filelist', deepcopy=False):
                 total_file_size += tl.file_size(file)
 
-            for file in trace_filelist:
+            for file in self.get_attribute(scintillator, 'trace_filelist', deepcopy=False):
                 total_file_size += tl.file_size(file)
 
         return total_file_size
@@ -700,7 +700,6 @@ class Detector:
 
                 continue
 
-            # Time id is just the time the trace has in its file name (last digits before the file extension)
             traces[file] = data
             if self.log is not None:
                 print(f'{file}|True', file=self.log)
@@ -786,6 +785,8 @@ class Detector:
             if import_traces:
                 self._import_trace_data(scintillator, gui)
 
+        gc.collect()
+
     def _generate_hist(self, energy_bins, scintillator, existing_spectra=None):
         """Returns the energy spectra histogram for the requested scintillator."""
         if existing_spectra is not None:
@@ -806,6 +807,9 @@ class Detector:
                 print('No location specified. Cannot make template...')
 
             return
+
+        backend = matplotlib.get_backend()
+        matplotlib.use('TkAgg')
 
         bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1
         template_bin_plot_edge = self.calibration_params['template_bin_plot_edge']
@@ -877,7 +881,7 @@ class Detector:
         indices[1] = edge2_slider.val
         template = pd.DataFrame(data={'energy_hist': energy_hist, 'bins': energy_bins[0:bin_plot_edge],
                                       'indices': indices})
-        template_path = f'{self._results_loc}/Templates'
+        template_path = f'{self._results_loc}/Templates'.replace(f'/Results/{self.unit}/{self.date_str}', '')
         tl.make_path(template_path)
         template.to_csv(f'{template_path}/{self.unit}_{self.location["Location"]}_template.csv', index=False)
 
@@ -886,6 +890,8 @@ class Detector:
 
         if self.log is not None:
             print('Template made.', file=self.log)
+
+        matplotlib.use(backend)
 
     def _calibrate_NaI(self, energy_bins, energy_hist, spectra_conversions, spectra_frame):
         """Calibration algorithm for the sodium iodide scintillators."""
@@ -967,21 +973,24 @@ class Detector:
         # Plots the actual spectrum
         bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1 (no idea why)
         bin_size = self.calibration_params['bin_size']
-        fig = plt.figure(figsize=[20, 11.0])
-        plt.title(f'Energy Spectrum for {scintillator}, {self.full_date_str}', loc='center')
-        plt.xlabel('Energy Channel')
-        plt.ylabel('Counts/bin')
-        plt.yscale('log')
-        plt.bar(energy_bins[0:bin_plot_edge], energy_hist[0:bin_plot_edge], color='r',
-                width=bin_size / 2, zorder=1)
+        figure = plt.figure(figsize=[20, 11.0])
+        ax = figure.add_subplot()
+        figure.suptitle(f'Energy Spectrum for {scintillator}, {self.full_date_str}')
+        ax.set_xlabel('Energy Channel')
+        ax.set_ylabel('Counts/bin')
+        ax.set_yscale('log')
+        ax.bar(energy_bins[0:bin_plot_edge], energy_hist[0:bin_plot_edge], color='r',
+               width=bin_size / 2, zorder=1)
 
         # Plots the energy bins corresponding to the desired energies as vertical lines
         if len(flagged_indices) > 0:
-            plt.vlines([energy_bins[s] for s in flagged_indices], 0, np.amax(energy_hist), zorder=2, alpha=0.75)
+            ax.vlines([energy_bins[s] for s in flagged_indices], 0, np.amax(energy_hist), zorder=2, alpha=0.75)
 
         # Saves the figure
-        plt.savefig(f'{self._results_loc}/{scintillator}_Spectrum.png', dpi=500)
-        plt.close(fig)
+        figure.savefig(f'{self._results_loc}/{scintillator}_Spectrum.png', dpi=500)
+        figure.clf()
+        plt.close(figure)
+        gc.collect()
 
     def calibrate(self, plot_spectra=False, make_template=False, existing_spectra=None):
         """Makes energy spectra histograms and calibrates the large plastic and sodium iodide scintillators.
@@ -1046,7 +1055,6 @@ class Detector:
                 spectra_frame.to_json(f'{self._results_loc}/{self.date_str}_spectra.json')
 
             spectra_conversions.close()
-
         else:
             raise ValueError("data necessary for calibration is either missing or hasn't been imported.")
 

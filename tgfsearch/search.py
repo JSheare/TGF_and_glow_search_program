@@ -9,6 +9,7 @@ import gc as gc
 import heapq
 import numpy as np
 import pandas as pd
+import matplotlib as matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import scipy as sp
@@ -91,12 +92,20 @@ def plot_traces(detector, scintillator, trace_names):
             trace = detector.get_trace(scintillator, trace_name, deepcopy=False)
             trace_single_buff = trace[trace['BufferNo'] == trace['BufferNo'].iloc[0]]
             plot_name = 'eRC' + trace_name.split('eRC')[-1][1:].split('.')[0]
-            plt.plot(trace_single_buff['Seconds'], trace_single_buff['pulse'])
-            plt.xlabel('Seconds')
-            plt.ylabel('Pulse Magnitude')
-            plt.title(plot_name)
-            plt.savefig(f'{plot_path}/{plot_name}.png')
-            plt.clf()
+
+            # Makes the figure
+            figure = plt.figure()
+            ax = figure.add_subplot()
+            figure.suptitle(plot_name)
+            ax.plot(trace_single_buff['Seconds'], trace_single_buff['pulse'])
+            ax.set_xlabel('Seconds')
+            ax.set_ylabel('Pulse Magnitude')
+
+            # Saves the figure
+            figure.savefig(f'{plot_path}/{plot_name}.png')
+            figure.clf()
+            plt.close(figure)
+            gc.collect()
 
 
 # Searches through all traces in detector and returns lists of good ones for each scintillator. Also plots good traces
@@ -342,14 +351,14 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
         times_dict = {event.scintillator: times[left_edge:right_edge]}
         energies_dict = {event.scintillator: energies[left_edge:right_edge]}
 
-    figure1 = plt.figure(figsize=[20, 11.0], dpi=150.)
-    figure1.suptitle(f'{event.scintillator} Event {str(event.number)}, '
-                     f'{dt.datetime.utcfromtimestamp(times[event.start] + detector.first_sec)} UTC, '
-                     f'{event.length} counts \n Weather: {tl.weather_from_score(event.weather_subscore)} \n'
-                     f'Rank: {event.rank}', fontsize=20)
-    ax1 = figure1.add_subplot(3, 1, 1)
-    ax2 = figure1.add_subplot(3, 1, 2)
-    ax3 = figure1.add_subplot(3, 1, 3)
+    figure = plt.figure(figsize=[20, 11.0], dpi=150.)
+    figure.suptitle(f'{event.scintillator} Event {str(event.number)}, ' 
+                    f'{dt.datetime.utcfromtimestamp(times[event.start] + detector.first_sec)} UTC, ' 
+                    f'{event.length} counts \n Weather: {tl.weather_from_score(event.weather_subscore)} \n'
+                    f'Rank: {event.rank}', fontsize=20)
+    ax1 = figure.add_subplot(3, 1, 1)
+    ax2 = figure.add_subplot(3, 1, 2)
+    ax3 = figure.add_subplot(3, 1, 3)
     ax_list = [ax1, ax2, ax3]
     assert len(ax_list) == len(timescales)
 
@@ -383,14 +392,14 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
 
     # Adds a legend to the plot if we're in combo mode
     if count_scints is not None:
-        plt.legend(loc='lower right')
+        figure.legend(loc='lower right')
 
     # Adds the name of the relevant list mode file (and trace, if applicable) to the scatter plot
     if count_scints is None:
-        plt.title(f'Obtained from {event.lm_files[event.scintillator]}'
-                  + (f'\nand {event.traces[event.scintillator].trace_name}' if
-                     event.scintillator in event.traces else ''),
-                  fontsize=15, y=-0.4)
+        figure.text(0.5, 0.04, f'Obtained from {event.lm_files[event.scintillator]}'
+                    + (f'\nand {event.traces[event.scintillator].trace_name}' if
+                       event.scintillator in event.traces else ''),
+                    fontsize=15, horizontalalignment='center')
 
     # Saves the scatter plot
     # Note: with this code, if an event happens in that 200-300 seconds of the next day that are included in the
@@ -400,9 +409,11 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
     tl.make_path(scatter_path)
     event_num_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.number)))
     rank_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.rank)))
-    figure1.savefig(f'{scatter_path}/{detector.date_str}_{event.scintillator}_'
-                    f'event{event_num_padding}{event.number}_rank{rank_padding}{event.rank}.png')
-    plt.close(figure1)
+    figure.savefig(f'{scatter_path}/{detector.date_str}_{event.scintillator}_'
+                   f'event{event_num_padding}{event.number}_rank{rank_padding}{event.rank}.png')
+    figure.clf()
+    plt.close(figure)
+    gc.collect()
 
 
 # Makes the json file for a short event
@@ -539,6 +550,7 @@ def find_short_events(detector, modes, trace_dict, prev_event_numbers=None):
         if modes['combo']:
             break
 
+    gc.collect()
     return event_numbers
 
 
@@ -806,8 +818,7 @@ def find_long_events(detector, modes, bins_allday, hist_allday):
 
     # Making histogram
     figure = plt.figure(figsize=[20, 11.0])
-    plt.title(f'{detector.unit} at {detector.location["Location"]}, {detector.full_date_str}', loc='center')
-    plt.tick_params(left=False, right=False, labelleft=False, labelbottom=False, bottom=False)
+    figure.suptitle(f'{detector.unit} at {detector.location["Location"]}, {detector.full_date_str}')
 
     ax1 = figure.add_subplot(5, 1, 1)  # Daily histogram
     # The 4 top events in descending order (if they exist)
@@ -887,14 +898,16 @@ def find_long_events(detector, modes, bins_allday, hist_allday):
     else:
         tl.print_logger(f'There were no potential glows on {detector.full_date_str}', detector.log)
 
-    plt.tight_layout()
+    figure.tight_layout()
 
     # Saves the histogram(s):
     tl.print_logger('Saving Histogram...', detector.log)
     hist_path = f'{detector.get_results_loc()}'
     tl.make_path(hist_path)
-    plt.savefig(f'{hist_path}/{detector.date_str}_histogram.png', dpi=500)
+    figure.savefig(f'{hist_path}/{detector.date_str}_histogram.png', dpi=500)
+    figure.clf()
     plt.close(figure)
+    gc.collect()
 
 
 # Mapping traces to their corresponding list mode files based on their timestamps
@@ -1079,6 +1092,7 @@ def main():
 
 # Main program function
 def program(first_date, second_date, unit, mode_info):
+    matplotlib.use('Agg')  # Memory leaks without this
     modes = get_modes(mode_info)
 
     # Makes a list of all the dates on the requested range

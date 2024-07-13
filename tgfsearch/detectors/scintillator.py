@@ -227,11 +227,11 @@ class Scintillator:
     def clear(self, clear_filelists=True):
         """Clears all data currently stored in the Scintillator."""
         self.lm_frame = pd.DataFrame()
+        self.traces = {}
         self.calibration_energies = []
         self.calibration_bins = []
         self.lm_file_ranges = []
         self.lm_file_indices = {}
-        self.traces = {}
         self.passtime = {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0, 'ppsunix': -1.0, 'lastwc': 0,
                          'ppswc': 0, 'hz': 8e7, 'started': 0}
         if clear_filelists:
