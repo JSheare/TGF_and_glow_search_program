@@ -253,7 +253,7 @@ The Detector class has several useful class attributes containing basic informat
 ```python3
 unit = detector.unit  # The name of the detector (string).
 date_str = detector.date_str  # The date in yymmdd format (string).
-full_date_Str = detector.full_date_str  # The date in yyyy-mm-dd format (string).
+full_date_str = detector.full_date_str  # The date in yyyy-mm-dd format (string).
 first_sec = detector.first_sec  # The first second of the day in epoch time.
 scint_list = detector.scint_list  # A list of abbreviations corresponding to the instrument's scintillators.
 ```
