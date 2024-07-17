@@ -347,7 +347,7 @@ A Detector object can be pickled (saved to a file, data and all) and unpickled u
 # Note that path is an optional variable, and if left unspecified the detector will be pickled to its results directory.
 pickle_path = tgf.pickle_detector(detector, 'my_detector', path='/home/user')
 
-detector = tgf.unpickle(pickle_path)
+detector = tgf.unpickle_detector(pickle_path)
 ```
 These functions can be useful if you're using the same data set over and over again and want to avoid the lengthy
 import procedure.
