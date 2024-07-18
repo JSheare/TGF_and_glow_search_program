@@ -251,7 +251,7 @@ for scintillator in detector:
 ### **Getting and Setting Basic Information for Detector:**
 The Detector class has several useful class attributes containing basic information that are worth knowing about:
 ```python3
-unit = detector.unit  # The name of the detector (string).
+unit = detector.unit  # The name of the instrument (string).
 date_str = detector.date_str  # The date in yymmdd format (string).
 full_date_str = detector.full_date_str  # The date in yyyy-mm-dd format (string).
 first_sec = detector.first_sec  # The first second of the day in epoch time.

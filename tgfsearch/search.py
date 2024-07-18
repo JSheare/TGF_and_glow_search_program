@@ -379,7 +379,8 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
 
             # Plotting traces on only the first subplot
             if ts == params.SE_TIMESCALE_ONE and scintillator in event.traces:
-                ax.plot(event.traces[scintillator].times, event.traces[scintillator].energies + 0.6,
+                # Dividing by 100 makes the trace appear a little lower in the plot, which looks better
+                ax.plot(event.traces[scintillator].times, (event.traces[scintillator].energies + 0.6) / 100,
                         zorder=-1, alpha=params.DOT_ALPHA, color=colors[scintillator])
 
         ax.set_xlabel(f'Time (Seconds, {ts}s total)')
@@ -392,11 +393,11 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
 
     # Adds a legend to the plot if we're in combo mode
     if count_scints is not None:
-        figure.legend(loc='lower right')
+        ax3.legend(loc='lower right')
 
     # Adds the name of the relevant list mode file (and trace, if applicable) to the scatter plot
     if count_scints is None:
-        figure.text(0.5, 0.04, f'Obtained from {event.lm_files[event.scintillator]}'
+        figure.text(0.5, 0.03, f'Obtained from {event.lm_files[event.scintillator]}'
                     + (f'\nand {event.traces[event.scintillator].trace_name}' if
                        event.scintillator in event.traces else ''),
                     fontsize=15, horizontalalignment='center')
@@ -554,33 +555,40 @@ def find_short_events(detector, modes, trace_dict, prev_event_numbers=None):
     return event_numbers
 
 
-# Makes histogram used in long event search. Combines time data from several scintillators (if applicable) and cuts out
-# counts below a certain energy
-def make_le_hist(detector, modes, le_scint_list):
+# Returns the list of preferred scintillators to be used in the long event search depending on the Detector
+def get_le_scints(detector):
+    # Scintillator preferences for each instrument
+    if detector.is_named('THOR'):
+        return ['NaI']
+    elif detector.is_named('GODOT'):
+        return ['NaI', 'LP']
+    elif detector.is_named('SANTIS'):
+        return ['LP']
+    elif detector.is_named('CROATIA'):
+        return ['LP']
+    else:
+        return [detector.default_scintillator]
+
+
+# Makes histogram used in long event search. If possible, cuts out counts below a certain energy
+def make_le_hist(detector, modes, scintillator):
     # Makes one bin for every binsize seconds of the day (plus around 300 seconds more for the next day)
     bins_allday = np.arange(0, params.SEC_PER_DAY + 200 + params.BIN_SIZE, params.BIN_SIZE)
 
-    times = []
-    energies = []
-    # Checks to see if scintillators have all been calibrated. If one or more aren't, no counts are cut out
-    all_calibrated = True
-    for scintillator in le_scint_list:
-        times.append(detector.get_lm_data(scintillator, 'SecondsOfDay'))
-        if modes['skcali']:
-            energies.append(detector.get_lm_data(scintillator, 'energy'))
-        else:
-            try:
-                energies.append(detector.get_lm_data(scintillator, 'energy', to_mev=True))
-            except ValueError:
-                all_calibrated = False
-                energies.append(detector.get_lm_data(scintillator, 'energy'))
+    calibrated = True
+    times = detector.get_lm_data(scintillator, 'SecondsOfDay')
+    if modes['skcali']:
+        energies = detector.get_lm_data(scintillator, 'energy')
+    else:
+        try:
+            energies = detector.get_lm_data(scintillator, 'energy', to_mev=True)
+        except ValueError:
+            calibrated = False
+            energies = detector.get_lm_data(scintillator, 'energy')
 
-    times = np.concatenate(times)
-    energies = np.concatenate(energies)
-    # Removes entries that are below a certain cutoff energy
-    if not all_calibrated or modes['skcali']:
-        print('Missing calibration(s), beware radon washout!',
-              file=detector.log)
+    # Removes counts that are below the cutoff energy
+    if not calibrated or modes['skcali']:
+        print(f'Missing calibration in {scintillator}. Beware radon washout!', file=detector.log)
     else:
         times = np.delete(times, np.where(energies < params.ENERGY_CUTOFF))
 
@@ -768,15 +776,9 @@ def long_event_search(modes, day_bins, hist_allday, mue, sigma):
 
 
 # Finds the list mode file(s) associated with a long event
-def find_le_files(detector, event):
+def find_le_files(detector, le_scint_list, event):
     lm_files = {}
-    long_event_scintillators = detector.long_event_scint_list
-    for scintillator in detector.long_event_scint_list:
-        if not detector.data_present_in(scintillator):
-            long_event_scintillators = [detector.default_scintillator]
-            break
-
-    for scintillator in long_event_scintillators:
+    for scintillator in le_scint_list:
         lm_files[scintillator] = detector.find_lm_file(scintillator, event.start_sec)
 
     return lm_files
@@ -799,7 +801,7 @@ def make_hist_subplot(ax, event, day_bins, hist_allday, mue, sigma):
 
 
 # Runs the long event search
-def find_long_events(detector, modes, bins_allday, hist_allday):
+def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
     # Calculates mean
     mue_val = calculate_mue(hist_allday)
 
@@ -871,7 +873,7 @@ def find_long_events(detector, modes, bins_allday, hist_allday):
             event_file = open(f'{event_path}/{detector.date_str}_event{i + 1}_zscore'
                               f'{int(glow.highest_score)}.txt', 'w')
             print(info, file=event_file)
-            glow.lm_files = find_le_files(detector, glow)
+            glow.lm_files = find_le_files(detector, le_scint_list, glow)
             for scintillator in glow.lm_files:
                 print(f'{scintillator}: {glow.lm_files[scintillator]}', file=event_file)
 
@@ -1198,18 +1200,26 @@ def program(first_date, second_date, unit, mode_info):
                 tl.print_logger('Starting search for glows...', detector.log)
 
                 # Choosing whether to use preferred scintillators for long event search based on whether they have data
-                le_scint_list = detector.long_event_scint_list
-                for scintillator in detector.long_event_scint_list:
-                    if not detector.data_present_in(scintillator):
-                        le_scint_list = [detector.default_scintillator]
-                        break
+                le_scint_list = []
+                for scintillator in get_le_scints(detector):
+                    if detector.data_present_in(scintillator):
+                        le_scint_list.append(scintillator)
 
-                # Makes daily histogram and converts energy channels to MeV using the locations of peaks/edges
-                # obtained during calibration
-                bins_allday, hist_allday = make_le_hist(detector, modes, le_scint_list)
+                # Uses default scintillator data if data isn't present in any of the preferred scintillators
+                if len(le_scint_list) == 0:
+                    le_scint_list.append(detector.default_scintillator)
+
+                print(f'Using the following scintillators: {", ".join(le_scint_list)}', file=detector.log)
+
+                # Makes daily histogram with each scintillator's contribution
+                bins_allday = None
+                hist_allday = None
+                for scintillator in le_scint_list:
+                    bins_allday, scint_hist = make_le_hist(detector, modes, scintillator)
+                    hist_allday = scint_hist if hist_allday is None else hist_allday + scint_hist
 
                 # Calling the long event search algorithm
-                find_long_events(detector, modes, bins_allday, hist_allday)
+                find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday)
 
                 tl.print_logger('Done.', detector.log)
 
@@ -1224,6 +1234,10 @@ def program(first_date, second_date, unit, mode_info):
             tl.print_logger(f'Search could not be completed due to the following error: {ex}', log)
             tl.print_logger('See error log for details.', log)
             with open(f'{log_path}/err.txt', 'w') as err_file:
+                print('Info:', file=err_file)
+                print(f'{detector.date_str} {detector.unit}', file=err_file)
+                print(modes, file=err_file)
+                print('', file=err_file)
                 err_file.write(traceback.format_exc())
 
         # Low memory mode
@@ -1266,7 +1280,7 @@ def program(first_date, second_date, unit, mode_info):
 
                 chunk_num = 1
                 has_data = True
-                le_scint_list = [detector.default_scintillator]
+                le_scint_data = {scintillator: False for scintillator in get_le_scints(detector)}
                 # Keeps timings consistent between chunks
                 passtime_dict = {scintillator: chunk_list[0].get_attribute(scintillator, 'passtime', deepcopy=True)
                                  for scintillator in chunk_scint_list}
@@ -1288,14 +1302,9 @@ def program(first_date, second_date, unit, mode_info):
                         has_data = False
 
                     # Checking that data is present in the preferred scintillators for the long event search
-                    data_in_pref = True
-                    for scintillator in detector.long_event_scint_list:
-                        if not chunk.data_present_in(scintillator):
-                            data_in_pref = False
-                            break
-
-                    if data_in_pref:
-                        le_scint_list = detector.long_event_scint_list
+                    for scintillator in le_scint_data:
+                        if not le_scint_data[scintillator]:
+                            le_scint_data[scintillator] = chunk.data_present_in(scintillator)
 
                     # Makes a full list of filetime extrema for long event search
                     # Also updates passtime_dict for the next chunk
@@ -1397,9 +1406,20 @@ def program(first_date, second_date, unit, mode_info):
                     tl.print_logger('Starting search for glows...', detector.log)
                     bins_allday = None
                     hist_allday = None
+                    le_scint_list = []
+                    # Scintillator will be used if it has data in at least one chunk
+                    for scintillator in le_scint_data:
+                        if le_scint_data[scintillator]:
+                            le_scint_list.append(scintillator)
+
+                    # Otherwise, default scintillator data will be used
+                    if len(le_scint_list) == 0:
+                        le_scint_list.append(detector.default_scintillator)
+
+                    print(f'Using the following scintillators: {", ".join(le_scint_list)}', file=detector.log)
+
                     for chunk_path in chunk_path_list:
                         chunk = tl.unpickle_chunk(chunk_path)
-                        use_chunk = True
                         for scintillator in le_scint_list:
                             if chunk.data_present_in(scintillator):
                                 chunk.set_attribute(scintillator, 'calibration_energies',
@@ -1408,21 +1428,16 @@ def program(first_date, second_date, unit, mode_info):
                                 chunk.set_attribute(scintillator, 'calibration_bins',
                                                     detector.get_attribute(scintillator, 'calibration_bins'),
                                                     deepcopy=False)
-                            else:
-                                use_chunk = False
-                                break
-
-                        if use_chunk:
-                            chunk.log = log
-                            # Histograms the counts from each chunk and combines them with the main one
-                            bins_allday, chunk_hist = make_le_hist(chunk, modes, le_scint_list)
-                            hist_allday = chunk_hist if hist_allday is None else hist_allday + chunk_hist
+                                chunk.log = log
+                                # Histograms the counts from each scintillator and combines them with the main one
+                                bins_allday, scint_hist = make_le_hist(chunk, modes, scintillator)
+                                hist_allday = scint_hist if hist_allday is None else hist_allday + scint_hist
 
                         del chunk
                         gc.collect()
 
                     # Calling the long event search algorithm
-                    find_long_events(detector, modes, bins_allday, hist_allday)
+                    find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday)
 
                     tl.print_logger('Done.', detector.log)
 
@@ -1438,6 +1453,10 @@ def program(first_date, second_date, unit, mode_info):
                 tl.print_logger(f'Search could not be completed due to the following error: {ex}', log)
                 tl.print_logger('See error log for details.', log)
                 with open(f'{log_path}/err.txt', 'w') as err_file:
+                    print('Info:', file=err_file)
+                    print(f'{detector.date_str} {detector.unit}', file=err_file)
+                    print(modes, file=err_file)
+                    print('', file=err_file)
                     err_file.write(traceback.format_exc())
 
             finally:

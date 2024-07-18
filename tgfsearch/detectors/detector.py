@@ -49,8 +49,6 @@ class Detector:
         Location information for the instrument on the requested day.
     default_scintillator : str
         A string representing the default scintillator.
-    long_event_scint_list : list
-        A list of the scintillators that are ideal for long event searches.
     calibration_params : dict
         A dictionary containing various parameters used to calibrate the Detector.
     default_data_loc : str
@@ -78,11 +76,10 @@ class Detector:
         self.first_sec = tl.get_first_sec(self.date_str)
         self.full_date_str = dt.datetime.utcfromtimestamp(int(self.first_sec)).strftime('%Y-%m-%d')  # yyyy-mm-dd
         self.dates_stored = [date_str]
-        self.location = None
+        self.location = {}
         self.default_scintillator = 'LP'  # Don't change this unless you have a really good reason
 
         # Detector-specific information
-        self.long_event_scint_list = []
         self.calibration_params = {'bin_range': 0, 'bin_size': 0, 'template_bin_plot_edge': 0}
         self.default_data_loc = ''
         self._import_loc = ''
@@ -599,8 +596,12 @@ class Detector:
                 if 'energies' in data.columns:
                     data.rename(columns={'energies': 'energy'}, inplace=True)
 
-            first_second = data['SecondsOfDay'].iloc[0]
-            last_second = data['SecondsOfDay'].iloc[-1]
+            # first_second = data['SecondsOfDay'].iloc[0]
+            # last_second = data['SecondsOfDay'].iloc[-1]
+
+            # Above would be better, but counts are very occasionally out of chronological order for some reason
+            first_second = data['SecondsOfDay'].min()
+            last_second = data['SecondsOfDay'].max()
 
             # Determines the time gaps between adjacent files
             file_time_gap = first_second - prev_second if files_imported > 0 else 0.0

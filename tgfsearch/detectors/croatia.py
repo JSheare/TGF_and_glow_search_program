@@ -7,7 +7,6 @@ class Croatia(Detector):
     def __init__(self, unit, date_str, print_feedback=False):
         super().__init__(unit, date_str, print_feedback)
 
-        self.long_event_scint_list = ['LP']
         self.calibration_params = {'bin_range': 15008.0, 'bin_size': 16, 'template_bin_plot_edge': 400}
         self.default_data_loc = '/media/tgfdata/Detectors/SANTIS/Data'
         self.location = self.get_location(self.default_data_loc[:-5])
