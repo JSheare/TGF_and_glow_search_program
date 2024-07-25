@@ -120,6 +120,9 @@ def enqueue(gui, search_queue, program_modes):
     first_date = gui.nametowidget('date_one').get()
     second_date = gui.nametowidget('date_two').get()
     detector = gui.nametowidget('detector_entrybox').get()
+    if second_date == 'yymmdd' or second_date == '':
+        second_date = first_date
+
     # If the search command is valid, constructs the command and adds it to the queue
     if is_valid_search(first_date, second_date, detector):
         command = [first_date, second_date, detector.upper(), '-g']
@@ -353,10 +356,10 @@ def main():
     variables.append(combob)
 
     regular_checkbox_label.place(x=correct_coord(150, 137), y=correct_coord(600, 630))
-    allscints_cb.place(x=correct_coord(220, 217), y=correct_coord(600, 630))
-    template_cb.place(x=correct_coord(300, 307), y=correct_coord(600, 630))
+    combo_cb.place(x=correct_coord(220, 217), y=correct_coord(600, 630))
+    allscints_cb.place(x=correct_coord(300, 307), y=correct_coord(600, 630))
     aircraft_cb.place(x=correct_coord(380, 397), y=correct_coord(600, 630))
-    combo_cb.place(x=correct_coord(460, 487), y=correct_coord(600, 630))
+    template_cb.place(x=correct_coord(460, 487), y=correct_coord(600, 630))
 
     # Making and placing developer mode checkboxes
     dev_checkbox_label = tk.Label(gui, text='Dev Modes:')
@@ -382,10 +385,10 @@ def main():
     variables.append(pcb)
 
     dev_checkbox_label.place(x=correct_coord(150, 137), y=correct_coord(630, 660))
-    skcali_cb.place(x=correct_coord(220, 217), y=correct_coord(630, 660))
-    skshort_cb.place(x=correct_coord(300, 307), y=correct_coord(630, 660))
-    skglow_cb.place(x=correct_coord(380, 397), y=correct_coord(630, 660))
-    pickle_cb.place(x=correct_coord(460, 487), y=correct_coord(630, 660))
+    pickle_cb.place(x=correct_coord(220, 217), y=correct_coord(630, 660))
+    skcali_cb.place(x=correct_coord(300, 307), y=correct_coord(630, 660))
+    skshort_cb.place(x=correct_coord(380, 397), y=correct_coord(630, 660))
+    skglow_cb.place(x=correct_coord(460, 487), y=correct_coord(630, 660))
 
     # Making and placing detector entry box
     detector_label = tk.Label(gui, text='Detector:')

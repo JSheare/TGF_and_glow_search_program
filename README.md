@@ -27,8 +27,8 @@ This will open the program's graphical user interface.
 
 To start a search, enter the first date in your search range in the entry box labeled 'Date One'. 
 
-Next, enter the last date in your search range in the entry box labeled 'Date Two' (enter the same date as in the first 
-box if you only want to search a single day). 
+Next, enter the last date in your search range in the entry box labeled 'Date Two' (if you're searching a single day, 
+just leave this blank). 
 
 Afterward, specify the detector you want to search in the box labeled 'Detector' (a full list of supported detectors 
 appears to the right of the box).
