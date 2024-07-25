@@ -1354,14 +1354,11 @@ def program(first_date, second_date, unit, mode_info):
                     tl.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
                     # Keeps track of spectra contributions for each chunk
                     existing_spectra = {scintillator: np.array([]) for scintillator in chunk_scint_list}
-                    energy_bins = np.arange(0.0, detector.calibration_params['bin_range'],
-                                            detector.calibration_params['bin_size'])
                     for chunk_path in chunk_path_list:
                         chunk = tl.unpickle_chunk(chunk_path)
                         for scintillator in chunk_scint_list:
                             if chunk.data_present_in(scintillator):
-                                energies = chunk.get_lm_data(scintillator, 'energy')
-                                chunk_hist, _ = np.histogram(energies, bins=energy_bins)
+                                _, chunk_hist = chunk.make_spectra(scintillator)
                                 if len(existing_spectra[scintillator]) == 0:
                                     existing_spectra[scintillator] = chunk_hist
                                 else:
@@ -1408,7 +1405,7 @@ def program(first_date, second_date, unit, mode_info):
                     hist_allday = None
                     le_scint_list = []
                     # Scintillator will be used if it has data in at least one chunk
-                    for scintillator in le_scint_data:
+                    for scintillator in get_le_scints(detector):
                         if le_scint_data[scintillator]:
                             le_scint_list.append(scintillator)
 

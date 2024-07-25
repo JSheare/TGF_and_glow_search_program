@@ -336,6 +336,19 @@ Returns<br>
 bool<br>
 &nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;if&nbsp;the&nbsp;name&nbsp;matches&nbsp;the&nbsp;name&nbsp;of&nbsp;the&nbsp;<a href="#Detector">Detector</a>,&nbsp;False&nbsp;otherwise.</span></dd></dl>
 
+<dl><dt><a name="Detector-make_spectra"><strong>make_spectra</strong></a>(self, scintillator)</dt><dd><span class="code">Makes&nbsp;an&nbsp;energy&nbsp;spectra&nbsp;histogram&nbsp;for&nbsp;the&nbsp;requested&nbsp;scintillator.<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+scintillator&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;scintillator&nbsp;of&nbsp;interest.&nbsp;Allowed&nbsp;values&nbsp;(detector&nbsp;dependent):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'NaI',&nbsp;'SP',&nbsp;'MP',&nbsp;'LP'.<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+tuple[numpy.ndarray,&nbsp;numpy.ndarray]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Two&nbsp;numpy&nbsp;arrays:&nbsp;the&nbsp;energy&nbsp;bins,&nbsp;and&nbsp;the&nbsp;energy&nbsp;histogram.</span></dd></dl>
+
 <dl><dt><a name="Detector-set_attribute"><strong>set_attribute</strong></a>(self, scintillator, attribute, new_info, deepcopy=True)</dt><dd><span class="code">Updates&nbsp;the&nbsp;requested&nbsp;attribute&nbsp;for&nbsp;a&nbsp;particular&nbsp;scintillator.<br>
 Note:&nbsp;new&nbsp;info&nbsp;must&nbsp;be&nbsp;of&nbsp;the&nbsp;same&nbsp;type&nbsp;as&nbsp;the&nbsp;old.<br>
 &nbsp;<br>

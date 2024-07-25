@@ -788,15 +788,29 @@ class Detector:
 
         gc.collect()
 
-    def _generate_hist(self, energy_bins, scintillator, existing_spectra=None):
-        """Returns the energy spectra histogram for the requested scintillator."""
-        if existing_spectra is not None:
-            energy_hist = existing_spectra[scintillator]
-        else:
-            energies = self.get_lm_data(scintillator, 'energy')
-            energy_hist, _ = np.histogram(energies, bins=energy_bins)
+    def make_spectra(self, scintillator):
+        """Makes an energy spectra histogram for the requested scintillator.
 
-        return energy_hist
+        Parameters
+        ----------
+        scintillator : str
+            The name of the scintillator of interest. Allowed values (detector dependent):
+            'NaI', 'SP', 'MP', 'LP'.
+
+        Returns
+        -------
+        tuple[numpy.ndarray, numpy.ndarray]
+            Two numpy arrays: the energy bins, and the energy histogram.
+
+        """
+
+        if self.data_present_in(scintillator):
+            energy_bins = np.arange(0.0, self.calibration_params['bin_range'], self.calibration_params['bin_size'])
+            data = self.get_attribute(scintillator, 'lm_frame', deepcopy=False)
+            energy_hist, _ = np.histogram(data['energy'], bins=energy_bins)
+            return energy_bins, energy_hist
+        else:
+            raise ValueError(f"data for '{scintillator}' is either missing or hasn't been imported yet.")
 
     def _make_template(self, energy_bins, energy_hist):
         """Makes a template that can be used in the LP calibration algorithm's cross-correlation."""
@@ -809,12 +823,11 @@ class Detector:
 
             return
 
+        # Temporarily setting the matplotlib backend to an interactive one
         backend = matplotlib.get_backend()
         matplotlib.use('TkAgg')
 
-        bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1
         template_bin_plot_edge = self.calibration_params['template_bin_plot_edge']
-
         template_bins = energy_bins[0:template_bin_plot_edge]
         template_hist = energy_hist[0:template_bin_plot_edge]
 
@@ -877,10 +890,10 @@ class Detector:
         plt.show()
 
         # Exporting the template as a csv file
-        indices = np.zeros(bin_plot_edge)
+        indices = np.zeros(len(energy_bins) - 1)  # Histogram array is shorter than bin array by 1
         indices[0] = edge1_slider.val
         indices[1] = edge2_slider.val
-        template = pd.DataFrame(data={'energy_hist': energy_hist, 'bins': energy_bins[0:bin_plot_edge],
+        template = pd.DataFrame(data={'energy_hist': energy_hist, 'bins': energy_bins[:-1],
                                       'indices': indices})
         template_path = f'{self._results_loc}/Templates'.replace(f'/Results/{self.unit}/{self.date_str}', '')
         tl.make_path(template_path)
@@ -892,6 +905,7 @@ class Detector:
         if self.log is not None:
             print('Template made.', file=self.log)
 
+        # Setting the matplotlib backend back to what it was before
         matplotlib.use(backend)
 
     def _calibrate_NaI(self, energy_bins, energy_hist, spectra_conversions, spectra_frame):
@@ -943,7 +957,8 @@ class Detector:
         """Calibration algorithm for the large plastic scintillators."""
         flagged_indices = []
         try:
-            template = pd.read_csv(f'Templates/{self.unit}_{self.location["Location"]}_template.csv')
+            template_path = f'{self._results_loc}/Templates'.replace(f'/Results/{self.unit}/{self.date_str}', '')
+            template = pd.read_csv(f'{template_path}/{self.unit}_{self.location["Location"]}_template.csv')
             correlation = signal.correlate(template['energy_hist'].to_numpy(), energy_hist, 'full')
             shift_amount = (-len(template) + 1) + np.argmax(correlation)
 
@@ -971,17 +986,15 @@ class Detector:
 
     def _plot_spectra(self, scintillator, energy_bins, energy_hist, flagged_indices):
         """Plots the histograms (with calibration lines, if applicable) for the given spectra."""
-        # Plots the actual spectrum
-        bin_plot_edge = len(energy_bins) - 1  # Histogram array is shorter than bin array by 1 (no idea why)
-        bin_size = self.calibration_params['bin_size']
         figure = plt.figure(figsize=[20, 11.0])
         ax = figure.add_subplot()
         figure.suptitle(f'Energy Spectrum for {scintillator}, {self.full_date_str}')
         ax.set_xlabel('Energy Channel')
-        ax.set_ylabel('Counts/bin')
+        ax.set_ylabel('Counts / bin')
         ax.set_yscale('log')
-        ax.bar(energy_bins[0:bin_plot_edge], energy_hist[0:bin_plot_edge], color='r',
-               width=bin_size / 2, zorder=1)
+        # Histogram array is shorter than bin array by 1 (no idea why)
+        ax.bar(energy_bins[:-1], energy_hist, color='r',
+               width=self.calibration_params['bin_size'] / 2, zorder=1)
 
         # Plots the energy bins corresponding to the desired energies as vertical lines
         if len(flagged_indices) > 0:
@@ -1007,21 +1020,21 @@ class Detector:
 
         """
 
-        # Fetching a few calibration parameters
-        bin_range = self.calibration_params['bin_range']
-        bin_size = self.calibration_params['bin_size']
-
         # Making the energy bins and setting up the calibration files
-        energy_bins = np.arange(0.0, bin_range, bin_size)
+        energy_bins = np.arange(0.0, self.calibration_params['bin_range'], self.calibration_params['bin_size'])
         tl.make_path(self._results_loc)
         spectra_conversions = open(f'{self._results_loc}/spectra_conversions.txt', 'w')
         spectra_frame = pd.DataFrame()
-        spectra_frame['energy bins'] = energy_bins[:-1]
+        spectra_frame['energy_bins'] = energy_bins[:-1]
         if self or existing_spectra:
             if 'LP' in self._scintillators:
                 if self.data_present_in('LP') or (existing_spectra and len(existing_spectra['LP']) != 0):
-                    energy_hist = self._generate_hist(energy_bins, 'LP', existing_spectra)  # Putting this up here
-                    # so that we don't have to do it again just for template mode
+                    # Putting this up here so that we don't have to do it again just for template mode
+                    if existing_spectra:
+                        energy_hist = existing_spectra['LP']
+                    else:
+                        _, energy_hist = self.make_spectra('LP')
+
                     if make_template:
                         self._make_template(energy_bins, energy_hist)
 
@@ -1037,10 +1050,14 @@ class Detector:
                     if self.print_feedback:
                         print('Cannot calibrate LP (missing data)...')
 
-            # Calibrates the NaI scintillator (if possible) and plots the calibration
             if 'NaI' in self._scintillators:
                 if self.data_present_in('NaI') or (existing_spectra and len(existing_spectra['NaI']) != 0):
-                    energy_hist = self._generate_hist(energy_bins, 'NaI', existing_spectra)
+                    if existing_spectra:
+                        energy_hist = existing_spectra['NaI']
+                    else:
+                        _, energy_hist = self.make_spectra('NaI')
+
+                    # Calibrates the NaI scintillator (if possible) and plots the calibration
                     flagged_indices = self._calibrate_NaI(energy_bins, energy_hist, spectra_conversions, spectra_frame)
                     if plot_spectra:
                         self._plot_spectra('NaI', energy_bins, energy_hist, flagged_indices)
