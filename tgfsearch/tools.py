@@ -15,6 +15,16 @@ from selenium.webdriver.support import expected_conditions as ec
 import tgfsearch.parameters as params
 
 
+def first_order_poly(x, a=0., b=0.):
+    """Returns the y value at the given x for a first-order polynomial with terms a and b."""
+    return x * a + b
+
+
+def second_order_poly(x, a=0., b=0., c=0.):
+    """Returns the y value at the given x for a second-order polynomial with terms a, b, and c."""
+    return a * x**2 + b * x + c
+
+
 def print_logger(string, logfile):
     """Prints the specified string to both stdout and the specified file.
 
@@ -630,7 +640,7 @@ def weather_from_score(score):
     elif score == 1:
         return 'lightning or hail'
     else:
-        return 'error getting weather data'
+        return 'no weather data'
 
 
 def combine_data(detector):

@@ -635,8 +635,6 @@ def calculate_mue(hist_allday):
 def calculate_rolling_baseline(day_bins, hist_allday, mue, sigma):
     center_index = 0
     num_bins = len(day_bins) - 1  # Hist array is shorter than bins array by 1 (-_-)
-    so_poly = lambda t, a, b, c: a * t ** 2 + b * t + c
-    line = lambda t, a, b: a * t + b
 
     l_bins = []
     l_counts = []
@@ -713,15 +711,16 @@ def calculate_rolling_baseline(day_bins, hist_allday, mue, sigma):
             r_bool.pop(0)
 
         # Fitting curve is linear if either of the windows contains a zero-value bin
-        fit_curve = line if l_zeros != 0 or r_zeros != 0 else so_poly
+        fit_curve = tl.first_order_poly if l_zeros != 0 or r_zeros != 0 else tl.second_order_poly
 
         if len(l_bins) + len(r_bins) >= 3:
-            fit, pcov = sp.optimize.curve_fit(fit_curve, l_bins + r_bins, l_counts + r_counts)
-            if fit_curve == so_poly:
+            result = sp.optimize.curve_fit(fit_curve, l_bins + r_bins, l_counts + r_counts)
+            fit = result[0]
+            if fit_curve == tl.second_order_poly:
                 # Float casting is necessary for later parts of the day due to integer overflow
-                mue[center_index] = so_poly(float(day_bins[center_index]), fit[0], fit[1], fit[2])
+                mue[center_index] = fit_curve(float(day_bins[center_index]), fit[0], fit[1], fit[2])
             else:
-                mue[center_index] = line(day_bins[center_index], fit[0], fit[1])
+                mue[center_index] = fit_curve(day_bins[center_index], fit[0], fit[1])
 
             sigma[center_index] = np.sqrt(mue[center_index])
 
