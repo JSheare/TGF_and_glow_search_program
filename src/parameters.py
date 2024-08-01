@@ -85,6 +85,7 @@ DOT_ALPHA = 0.5  # Controls dot transparency
 # Search algorithm parameters
 ENERGY_CUTOFF = 1.9  # MeV. If calibration was possible, all energies below this are cut out of the data during
 # the long event search
+CHANNEL_CUTOFF = 2000  # If calibration wasn't possible, all channels below this are cut
 BIN_SIZE = 4  # The size of each bin (in seconds)
 FLAG_THRESH = 5  # The number of standard deviations above the mean at which a bin is flagged
 LONG_EVENT_MIN_COUNTS = 1000  # Only in aircraft mode

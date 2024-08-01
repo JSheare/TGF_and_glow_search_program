@@ -188,7 +188,7 @@ def run(gui, communicator, search_queue):
         # Prints feedback about what date and modes were selected
         first_date_sep = f'{first_date[0:2]}/{first_date[2:4]}/{first_date[4:]}'
         second_date_sep = f'{second_date[0:2]}/{second_date[2:4]}/{second_date[4:]}'
-        print(f'Running search for {first_date_sep}{(" - " + second_date_sep) if first_date != second_date else ""} '
+        print(f'\nRunning search for {first_date_sep}{(" - " + second_date_sep) if first_date != second_date else ""} '
               f'on {unit}.')
         if len(mode_info) > 4:  # one for gui, one for custom, the last two for custom import/export locations
             print(f'This search will be run with the following modes: {", ".join(mode_info[1:-3]).replace("-", "")}.')

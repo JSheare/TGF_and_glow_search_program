@@ -15,14 +15,19 @@ from selenium.webdriver.support import expected_conditions as ec
 import src.parameters as params
 
 
-def first_order_poly(x, a=0., b=0.):
+def o1_poly(x, a=0., b=0.):
     """Returns the y value at the given x for a first-order polynomial with terms a and b."""
     return x * a + b
 
 
-def second_order_poly(x, a=0., b=0., c=0.):
+def o2_poly(x, a=0., b=0., c=0.):
     """Returns the y value at the given x for a second-order polynomial with terms a, b, and c."""
     return a * x**2 + b * x + c
+
+
+def o3_poly(x, a=0., b=0., c=0., d=0.):
+    """Returns the y value at the given x for a third-order polynomial with terms a, b, c, and d."""
+    return a * x**3 + b * x**2 + c * x + d
 
 
 def print_logger(string, logfile):

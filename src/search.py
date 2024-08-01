@@ -588,7 +588,7 @@ def make_le_hist(detector, modes, scintillator):
 
     # Removes counts that are below the cutoff energy
     if not calibrated or modes['skcali']:
-        print(f'Missing calibration in {scintillator}. Beware radon washout!', file=detector.log)
+        times = np.delete(times, np.where(energies < params.CHANNEL_CUTOFF))
     else:
         times = np.delete(times, np.where(energies < params.ENERGY_CUTOFF))
 
@@ -596,7 +596,7 @@ def make_le_hist(detector, modes, scintillator):
         times = times - detector.first_sec
 
     hist_allday, _ = np.histogram(times, bins=bins_allday)
-    return bins_allday, hist_allday
+    return bins_allday[:-1], hist_allday  # Bins is always longer than hist by one for some reason
 
 
 # Calculates mean for the long event search algorithm
@@ -632,9 +632,9 @@ def calculate_mue(hist_allday):
 
 
 # Calculates rolling mue/sigma baseline for the long event search algorithm
-def calculate_rolling_baseline(day_bins, hist_allday, mue, sigma):
+def calculate_rolling_baseline(bins_allday, hist_allday, mue, sigma):
+    num_bins = len(bins_allday)
     center_index = 0
-    num_bins = len(day_bins) - 1  # Hist array is shorter than bins array by 1 (-_-)
 
     l_bins = []
     l_counts = []
@@ -651,7 +651,7 @@ def calculate_rolling_baseline(day_bins, hist_allday, mue, sigma):
         too_short = True if len(r_bool) == 0 else False
         index = center_index + params.WINDOW_GAP + 1 + i
         if hist_allday[index] > 0 and (too_short or hist_allday[i - 1]):
-            r_bins.append(day_bins[index])
+            r_bins.append(bins_allday[index])
             r_counts.append(hist_allday[index])
             r_bool.append(True)
         else:
@@ -669,7 +669,7 @@ def calculate_rolling_baseline(day_bins, hist_allday, mue, sigma):
             # Neighbors are not checked for those bins on the ends, though
             if hist_allday[l_index] > 0 and (on_end or (
                     hist_allday[l_index - 1] > 0 and hist_allday[l_index + 1] > 0)):
-                l_bins.append(day_bins[l_index])
+                l_bins.append(bins_allday[l_index])
                 l_counts.append(hist_allday[l_index])
                 l_bool.append(True)
             else:
@@ -693,7 +693,7 @@ def calculate_rolling_baseline(day_bins, hist_allday, mue, sigma):
             on_end = True if r_index + 1 >= num_bins else False
             if hist_allday[r_index] > 0 and (on_end or (
                     hist_allday[r_index - 1] > 0 and hist_allday[r_index + 1] > 0)):
-                r_bins.append(day_bins[r_index])
+                r_bins.append(bins_allday[r_index])
                 r_counts.append(hist_allday[r_index])
                 r_bool.append(True)
             else:
@@ -711,16 +711,16 @@ def calculate_rolling_baseline(day_bins, hist_allday, mue, sigma):
             r_bool.pop(0)
 
         # Fitting curve is linear if either of the windows contains a zero-value bin
-        fit_curve = tl.first_order_poly if l_zeros != 0 or r_zeros != 0 else tl.second_order_poly
+        fit_curve = tl.o1_poly if l_zeros != 0 or r_zeros != 0 else tl.o2_poly
 
         if len(l_bins) + len(r_bins) >= 3:
             result = sp.optimize.curve_fit(fit_curve, l_bins + r_bins, l_counts + r_counts)
             fit = result[0]
-            if fit_curve == tl.second_order_poly:
+            if fit_curve == tl.o2_poly:
                 # Float casting is necessary for later parts of the day due to integer overflow
-                mue[center_index] = fit_curve(float(day_bins[center_index]), fit[0], fit[1], fit[2])
+                mue[center_index] = fit_curve(float(bins_allday[center_index]), fit[0], fit[1], fit[2])
             else:
-                mue[center_index] = fit_curve(day_bins[center_index], fit[0], fit[1])
+                mue[center_index] = fit_curve(bins_allday[center_index], fit[0], fit[1])
 
             sigma[center_index] = np.sqrt(mue[center_index])
 
@@ -802,17 +802,19 @@ def make_hist_subplot(ax, event, day_bins, hist_allday, mue, sigma):
 # Runs the long event search
 def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
     # Calculates mean
-    mue_val = calculate_mue(hist_allday)
-
     # Note: mue is an array full of the mue values for each bin. On a normal day, mue will be
     # filled entirely with mue_val. In aircraft mode, though, mue will be filled with a variety of different
     # values dictated by the rolling baseline algorithm in calculate_rolling_baseline
-    mue = np.full(len(bins_allday)-1, mue_val)
-    sigma = np.full(len(bins_allday)-1, np.sqrt(mue_val))
 
-    # Calculating rolling baseline in aircraft mode
-    if modes['aircraft']:
+    if modes['aircraft']:  # Calculating rolling baseline in aircraft mode
+        mue_val = calculate_mue(hist_allday)
+        mue = np.full(len(bins_allday), mue_val)
+        sigma = np.full(len(bins_allday), np.sqrt(mue_val))
         mue, sigma = calculate_rolling_baseline(bins_allday, hist_allday, mue, sigma)
+    else:
+        fit = sp.optimize.curve_fit(tl.third_order_poly, bins_allday, hist_allday)[0]
+        mue = tl.third_order_poly(bins_allday, fit[0], fit[1], fit[2], fit[3])
+        sigma = np.sqrt(mue)
 
     # Finding potential events with the search algorithm in find_long_events
     potential_glows = long_event_search(modes, bins_allday, hist_allday, mue, sigma)
@@ -828,11 +830,11 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
     ax4 = figure.add_subplot(5, 1, 4)
     ax5 = figure.add_subplot(5, 1, 5)
 
-    ax1.bar(bins_allday[:-1], hist_allday, alpha=params.LE_MAIN_BAR_ALPHA,
+    ax1.bar(bins_allday, hist_allday, alpha=params.LE_MAIN_BAR_ALPHA,
             color=params.LE_MAIN_BAR_COLOR, width=params.BIN_SIZE)
     ax1.set_xlabel('Seconds of Day (UT)')
     ax1.set_ylabel('Counts/bin')
-    ax1.plot(bins_allday[:-1], mue + params.FLAG_THRESH * sigma, color=params.LE_THRESH_LINE_COLOR, linestyle='dashed')
+    ax1.plot(bins_allday, mue + params.FLAG_THRESH * sigma, color=params.LE_THRESH_LINE_COLOR, linestyle='dashed')
 
     # Creates legend
     allday_data = mpatches.Patch(color=params.LE_MAIN_BAR_COLOR, label='All Energies')

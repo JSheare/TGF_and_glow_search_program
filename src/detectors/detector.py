@@ -808,7 +808,7 @@ class Detector:
             energy_bins = np.arange(0.0, self.calibration_params['bin_range'], self.calibration_params['bin_size'])
             data = self.get_attribute(scintillator, 'lm_frame', deepcopy=False)
             energy_hist, _ = np.histogram(data['energy'], bins=energy_bins)
-            return energy_bins, energy_hist
+            return energy_bins[:-1], energy_hist  # Bins is always longer than hist by one
         else:
             raise ValueError(f"data for '{scintillator}' is either missing or hasn't been imported yet.")
 
@@ -893,7 +893,7 @@ class Detector:
         indices = np.zeros(len(energy_bins) - 1)  # Histogram array is shorter than bin array by 1
         indices[0] = edge1_slider.val
         indices[1] = edge2_slider.val
-        template = pd.DataFrame(data={'energy_hist': energy_hist, 'bins': energy_bins[:-1],
+        template = pd.DataFrame(data={'energy_hist': energy_hist, 'bins': energy_bins,
                                       'indices': indices})
         template_path = f'{self._results_loc}/Templates'.replace(f'/Results/{self.unit}/{self.date_str}', '')
         tl.make_path(template_path)
@@ -993,7 +993,7 @@ class Detector:
         ax.set_ylabel('Counts / bin')
         ax.set_yscale('log')
         # Histogram array is shorter than bin array by 1 (no idea why)
-        ax.bar(energy_bins[:-1], energy_hist, color='r',
+        ax.bar(energy_bins, energy_hist, color='r',
                width=self.calibration_params['bin_size'] / 2, zorder=1)
 
         # Plots the energy bins corresponding to the desired energies as vertical lines
@@ -1021,11 +1021,11 @@ class Detector:
         """
 
         # Making the energy bins and setting up the calibration files
-        energy_bins = np.arange(0.0, self.calibration_params['bin_range'], self.calibration_params['bin_size'])
+        energy_bins = np.arange(0.0, self.calibration_params['bin_range'], self.calibration_params['bin_size'])[:-1]
         tl.make_path(self._results_loc)
         spectra_conversions = open(f'{self._results_loc}/spectra_conversions.txt', 'w')
         spectra_frame = pd.DataFrame()
-        spectra_frame['energy_bins'] = energy_bins[:-1]
+        spectra_frame['energy_bins'] = energy_bins
         if self or existing_spectra:
             if 'LP' in self._scintillators:
                 if self.data_present_in('LP') or (existing_spectra and len(existing_spectra['LP']) != 0):
