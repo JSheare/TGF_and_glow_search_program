@@ -36,7 +36,7 @@ def search(unit, checked_dates, data_path, results_path, auto_search_path):
         if unit == 'THOR1':
             # Control flow for THOR1 NOAA flights
             if 220930 <= int(day) <= 230208:
-                mode_info = ['aircraft', 'skcali']
+                mode_info = ['--aircraft', '--skcali']
 
         elif unit == 'SANTIS':
             # Control flow for SANTIS instrument becoming the CROATIA instrument
