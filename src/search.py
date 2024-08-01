@@ -595,7 +595,7 @@ def make_le_hist(detector, modes, scintillator):
     if detector.processed:
         times = times - detector.first_sec
 
-    hist_allday, _ = np.histogram(times, bins=bins_allday)
+    hist_allday = np.histogram(times, bins=bins_allday)[0]
     return bins_allday[:-1], hist_allday  # Bins is always longer than hist by one for some reason
 
 
@@ -1359,7 +1359,7 @@ def program(first_date, second_date, unit, mode_info):
                         chunk = tl.unpickle_chunk(chunk_path)
                         for scintillator in chunk_scint_list:
                             if chunk.data_present_in(scintillator):
-                                _, chunk_hist = chunk.make_spectra(scintillator)
+                                chunk_hist = chunk.make_spectra(scintillator)[1]
                                 if len(existing_spectra[scintillator]) == 0:
                                     existing_spectra[scintillator] = chunk_hist
                                 else:

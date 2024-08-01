@@ -807,7 +807,7 @@ class Detector:
         if self.data_present_in(scintillator):
             energy_bins = np.arange(0.0, self.calibration_params['bin_range'], self.calibration_params['bin_size'])
             data = self.get_attribute(scintillator, 'lm_frame', deepcopy=False)
-            energy_hist, _ = np.histogram(data['energy'], bins=energy_bins)
+            energy_hist = np.histogram(data['energy'], bins=energy_bins)[0]
             return energy_bins[:-1], energy_hist  # Bins is always longer than hist by one
         else:
             raise ValueError(f"data for '{scintillator}' is either missing or hasn't been imported yet.")
@@ -1033,7 +1033,7 @@ class Detector:
                     if existing_spectra:
                         energy_hist = existing_spectra['LP']
                     else:
-                        _, energy_hist = self.make_spectra('LP')
+                        energy_hist = self.make_spectra('LP')[1]
 
                     if make_template:
                         self._make_template(energy_bins, energy_hist)
@@ -1055,7 +1055,7 @@ class Detector:
                     if existing_spectra:
                         energy_hist = existing_spectra['NaI']
                     else:
-                        _, energy_hist = self.make_spectra('NaI')
+                        energy_hist = self.make_spectra('NaI')[1]
 
                     # Calibrates the NaI scintillator (if possible) and plots the calibration
                     flagged_indices = self._calibrate_NaI(energy_bins, energy_hist, spectra_conversions, spectra_frame)

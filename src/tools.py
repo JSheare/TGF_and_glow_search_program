@@ -935,7 +935,7 @@ def align_trace(trace, lm_frame, buff_no=0, trigspot=None):
     trace_energies = np.array(trace['pulse']) * 16
 
     # Simulating eMorpho response to trace data (effectively gives us a list mode analogue of the trace)
-    sim_times, _, _, _, _ = trace_to_counts(trace_energies)
+    sim_times = trace_to_counts(trace_energies)[0]
     if len(sim_times) < 2:
         raise ValueError('insufficient trace data to align.')
 
