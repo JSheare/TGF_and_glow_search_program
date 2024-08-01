@@ -1,7 +1,7 @@
 """A class used to keep track of and process long events."""
 import numpy as np
 
-import tgfsearch.parameters as params
+import src.parameters as params
 
 
 class LongEvent:

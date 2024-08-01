@@ -12,7 +12,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
 
-import tgfsearch.parameters as params
+import src.parameters as params
 
 
 def first_order_poly(x, a=0., b=0.):

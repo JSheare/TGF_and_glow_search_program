@@ -14,10 +14,10 @@ parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-import tgfsearch.tools as tl
-from tgfsearch.search import program
-from tgfsearch.helpers.communicator import Communicator
-from tgfsearch.helpers.pipestdout import PipeStdout
+import src.tools as tl
+from src.search import program
+from src.helpers.communicator import Communicator
+from src.helpers.pipestdout import PipeStdout
 
 
 # Creates a directory selection dialogue box and then puts the selected directory in the specified text entry box

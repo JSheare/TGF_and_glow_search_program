@@ -14,10 +14,10 @@ import matplotlib as matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 
-import tgfsearch.utilities.DataReaderTimetrack2 as Dr
-import tgfsearch.tools as tl
-import tgfsearch.parameters as params
-from tgfsearch.detectors.scintillator import Scintillator
+import src.utilities.DataReaderTimetrack2 as Dr
+import src.tools as tl
+import src.parameters as params
+from src.detectors.scintillator import Scintillator
 
 
 class Detector:

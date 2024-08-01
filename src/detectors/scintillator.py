@@ -3,8 +3,8 @@ import copy as copy
 import pandas as pd
 import numpy as np
 
-import tgfsearch.parameters as params
-import tgfsearch.tools as tl
+import src.parameters as params
+import src.tools as tl
 
 
 class Scintillator:

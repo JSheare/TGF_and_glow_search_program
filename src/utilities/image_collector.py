@@ -9,7 +9,7 @@ grandparent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpa
 if grandparent_dir not in sys.path:
     sys.path.append(grandparent_dir)
 
-import tgfsearch.tools as tl
+import src.tools as tl
 
 
 def main():
