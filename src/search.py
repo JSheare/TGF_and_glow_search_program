@@ -801,10 +801,7 @@ def make_hist_subplot(ax, event, day_bins, hist_allday, mue, sigma):
 
 # Runs the long event search
 def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
-    # Calculates mean
-    # Note: mue is an array full of the mue values for each bin. On a normal day, mue will be
-    # filled entirely with mue_val. In aircraft mode, though, mue will be filled with a variety of different
-    # values dictated by the rolling baseline algorithm in calculate_rolling_baseline
+    # Note: mue is an array full of the mue values for each bin
 
     if modes['aircraft']:  # Calculating rolling baseline in aircraft mode
         mue_val = calculate_mue(hist_allday)
