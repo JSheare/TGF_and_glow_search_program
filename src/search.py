@@ -812,8 +812,8 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
         sigma = np.full(len(bins_allday), np.sqrt(mue_val))
         mue, sigma = calculate_rolling_baseline(bins_allday, hist_allday, mue, sigma)
     else:
-        fit = sp.optimize.curve_fit(tl.third_order_poly, bins_allday, hist_allday)[0]
-        mue = tl.third_order_poly(bins_allday, fit[0], fit[1], fit[2], fit[3])
+        fit = sp.optimize.curve_fit(tl.o3_poly, bins_allday, hist_allday)[0]
+        mue = tl.o3_poly(bins_allday, fit[0], fit[1], fit[2], fit[3])
         sigma = np.sqrt(mue)
 
     # Finding potential events with the search algorithm in find_long_events
