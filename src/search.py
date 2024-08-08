@@ -818,7 +818,7 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
 
     # Making histogram
     figure = plt.figure(figsize=[20, 11.0])
-    figure.suptitle(f'{detector.unit} at {detector.location["Location"]}, {detector.full_date_str}')
+    figure.suptitle(f'{detector.unit} at {detector.location["location"]}, {detector.full_date_str}')
 
     ax1 = figure.add_subplot(5, 1, 1)  # Daily histogram
     # The 4 top events in descending order (if they exist)

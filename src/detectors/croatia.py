@@ -9,7 +9,6 @@ class Croatia(Detector):
 
         self.calibration_params = {'bin_range': 15008.0, 'bin_size': 16, 'template_bin_plot_edge': 400}
         self.default_data_loc = '/media/tgfdata/Detectors/SANTIS/Data'
-        self.location = self.get_location(self.default_data_loc[:-5])
         self._import_loc = f'{self.default_data_loc}/{self.date_str}'
         self._scintillators = {'MP': Scintillator('MP', '4193'), 'LP': Scintillator('LP', '2549')}
         self.scint_list = list(self._scintillators.keys())

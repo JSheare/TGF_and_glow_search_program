@@ -374,7 +374,7 @@ def convert_to_local(detector, event_time):
     """
 
     date_str = detector.date_str
-    timezone_conversion = detector.location['UTC conversion to local time']
+    timezone_conversion = detector.location['utc_to_local']
 
     # Just in case the event happened in the ~300 seconds of the next day typically included in the dataset
     if event_time > params.SEC_PER_DAY:
@@ -382,7 +382,7 @@ def convert_to_local(detector, event_time):
         date_str = roll_date_forward(date_str)
 
     # Corrects the UTC conversion if we're in daylight savings time
-    if detector.location['Daylight savings?'].lower() in ['yes', 'true']:  # Not sure which we're using yet
+    if detector.location['dst_in_region']:
         timezone_conversion = dst_conversion(date_str, event_time, timezone_conversion)
 
     # If the event happened the next day local time
@@ -397,6 +397,42 @@ def convert_to_local(detector, event_time):
         event_time = event_time + (params.SEC_PER_HOUR * timezone_conversion)
 
     return short_to_full_date(date_str), event_time
+
+
+def scrape_weather(full_date_str, station):
+    """Scrapes weather from weather underground and returns the results as a pandas data frame.
+
+    Parameters
+    ----------
+    full_date_str : str
+        The date that weather data is being requested for in yyyy-mm-dd format.
+    station : str
+        The four-letter name of the weather station that data is being requested for.
+
+    Returns
+    -------
+    pandas.core.frame.DataFrame
+        A pandas dataframe with weather information for the specified day.
+
+    """
+
+    try:
+        chrome_options = Options()
+        chrome_options.add_argument('--headless=new')  # Runs the chrome client in headless mode
+        with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):  # Prevents selenium from printing status stuff
+            driver = webdriver.Chrome(options=chrome_options)
+
+            url = f'https://www.wunderground.com/history/daily/{station.upper()}/date/{full_date_str}'
+
+            driver.get(url)
+            tables = WebDriverWait(driver, 20).until(ec.presence_of_all_elements_located((By.CSS_SELECTOR, "table")))
+
+        table = pd.read_html(tables[1].get_attribute('outerHTML'))[0]
+
+        return table  # This is a dataframe containing the table we want
+
+    except:
+        return pd.DataFrame()
 
 
 def get_weather_conditions(detector, weather_cache, full_date_str, event_time):
@@ -424,7 +460,7 @@ def get_weather_conditions(detector, weather_cache, full_date_str, event_time):
     if full_date_str in weather_cache and weather_cache[full_date_str] is not None:
         weather_table = weather_cache[full_date_str]
     else:
-        weather_table = scrape_weather(full_date_str, detector.location['Station'])
+        weather_table = scrape_weather(full_date_str, detector.location['weather_station'])
         weather_cache[full_date_str] = weather_table
 
     if not weather_table.empty:
@@ -474,42 +510,6 @@ def get_weather_conditions(detector, weather_cache, full_date_str, event_time):
         return 0
     else:
         return -1
-
-
-def scrape_weather(full_date_str, station):
-    """Scrapes weather from weather underground and returns the results as a pandas data frame.
-
-    Parameters
-    ----------
-    full_date_str : str
-        The date that weather data is being requested for in yyyy-mm-dd format.
-    station : str
-        The four-letter name of the weather station that data is being requested for.
-
-    Returns
-    -------
-    pandas.core.frame.DataFrame
-        A pandas dataframe with weather information for the specified day.
-
-    """
-
-    try:
-        chrome_options = Options()
-        chrome_options.add_argument('--headless=new')  # Runs the chrome client in headless mode
-        with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):  # Prevents selenium from printing status stuff
-            driver = webdriver.Chrome(options=chrome_options)
-
-            url = f'https://www.wunderground.com/history/daily/{station.upper()}/date/{full_date_str}'
-
-            driver.get(url)
-            tables = WebDriverWait(driver, 20).until(ec.presence_of_all_elements_located((By.CSS_SELECTOR, "table")))
-
-        table = pd.read_html(tables[1].get_attribute('outerHTML'))[0]
-
-        return table  # This is a dataframe containing the table we want
-
-    except:
-        return pd.DataFrame()
 
 
 def dst_status(date_str):

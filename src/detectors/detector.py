@@ -195,17 +195,20 @@ class Detector:
         else:
             raise TypeError('loc must be a string.')
 
-    def get_location(self, deployment_file_loc):
+    def get_location(self):
         """Returns a dictionary full of location information for the instrument on its specified date."""
-        for file in glob.glob(f'{deployment_file_loc}/{self.unit}_*_*.json'):
-            if int(file[6:12]) <= int(self.date_str) <= int(file[13:19]):
+        for file in glob.glob(
+                f'{os.path.dirname(os.path.dirname(os.path.realpath(__file__)))}/deployments/'
+                f'{self.unit}_deployment_*.json'):
+            file_dates = file.split('deployment')[-1][1:].split('.')[0].split('_')
+            if int(file_dates[0]) <= int(self.date_str) <= int(file_dates[1]):
                 with open(file, 'r') as deployment:
                     return json.load(deployment)
 
-        return {'Location': 'no location listed', 'Instrument': self.unit, 'Start date': '', 'End date': '',
-                'UTC conversion to local time': '', 'Nearest weather station': '', 'Daylight Savings?': '',
-                'Latitude (N)': '', 'Longitude (E, 0-360)': '', 'Altitude (km)': '',
-                'Notes': ''}
+        return {'location': 'no location listed', 'instrument': self.unit, 'start_date': '000000', 'end_date': '000000',
+                'utc_to_local': 0.0, 'dst_in_region': False, 'weather_station': '', 'sounding_station': '',
+                'latitude': 0., 'longitude': 0., 'altitude': 0.,
+                'notes': ''}
 
     def use_processed(self, overwrite_import_loc=True):
         """Tells the Detector to import processed data instead of normal raw data. Only available for Godot."""
