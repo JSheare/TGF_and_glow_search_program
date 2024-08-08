@@ -19,15 +19,15 @@ parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-import src.tools as tl
-import src.parameters as params
-from src.detectors.godot import Godot
-from src.detectors.thor import Thor
-from src.detectors.santis import Santis
-from src.detectors.croatia import Croatia
-from src.events.shortevent import ShortEvent
-from src.events.longevent import LongEvent
-from src.helpers.traceinfo import TraceInfo
+import tgfsearch.tools as tl
+import tgfsearch.parameters as params
+from tgfsearch.detectors.godot import Godot
+from tgfsearch.detectors.thor import Thor
+from tgfsearch.detectors.santis import Santis
+from tgfsearch.detectors.croatia import Croatia
+from tgfsearch.events.shortevent import ShortEvent
+from tgfsearch.events.longevent import LongEvent
+from tgfsearch.helpers.traceinfo import TraceInfo
 
 
 # Returns the correct detector object based on the parameters provided

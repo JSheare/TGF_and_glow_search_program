@@ -19,19 +19,19 @@ def main():
     os.mkdir(docs_path)
 
     # Docs for tools
-    make_doc('tools', os.getcwd() + '/src')
+    make_doc('tools', os.getcwd() + '/tgfsearch')
 
     # Docs for detector
-    make_doc('detector', os.getcwd() + '/src/detectors')
+    make_doc('detector', os.getcwd() + '/tgfsearch/detectors')
 
     # Docs for scintillator
-    make_doc('scintillator', os.getcwd() + '/src/detectors')
+    make_doc('scintillator', os.getcwd() + '/tgfsearch/detectors')
 
     # Docs for shortevent
-    make_doc('shortevent', os.getcwd() + '/src/events')
+    make_doc('shortevent', os.getcwd() + '/tgfsearch/events')
 
     # Docs for longevent
-    make_doc('longevent', os.getcwd() + '/src/events')
+    make_doc('longevent', os.getcwd() + '/tgfsearch/events')
 
 
 if __name__ == '__main__':

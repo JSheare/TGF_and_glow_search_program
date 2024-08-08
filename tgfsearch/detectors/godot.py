@@ -1,6 +1,6 @@
 """Child class of Detector customized to handle data from GODOT."""
-from src.detectors.detector import Detector
-from src.detectors.scintillator import Scintillator
+from tgfsearch.detectors.detector import Detector
+from tgfsearch.detectors.scintillator import Scintillator
 
 
 class Godot(Detector):

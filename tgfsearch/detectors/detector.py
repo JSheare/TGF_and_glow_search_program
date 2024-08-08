@@ -14,10 +14,10 @@ import matplotlib as matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 
-import src.utilities.DataReaderTimetrack2 as Dr
-import src.tools as tl
-import src.parameters as params
-from src.detectors.scintillator import Scintillator
+import tgfsearch.utilities.DataReaderTimetrack2 as Dr
+import tgfsearch.tools as tl
+import tgfsearch.parameters as params
+from tgfsearch.detectors.scintillator import Scintillator
 
 
 class Detector:
@@ -76,7 +76,7 @@ class Detector:
         self.first_sec = tl.get_first_sec(self.date_str)
         self.full_date_str = dt.datetime.utcfromtimestamp(int(self.first_sec)).strftime('%Y-%m-%d')  # yyyy-mm-dd
         self.dates_stored = [date_str]
-        self.location = {}
+        self.location = self.get_location()
         self.default_scintillator = 'LP'  # Don't change this unless you have a really good reason
 
         # Detector-specific information

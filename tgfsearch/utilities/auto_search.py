@@ -11,8 +11,8 @@ grandparent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpa
 if grandparent_dir not in sys.path:
     sys.path.append(grandparent_dir)
 
-import src.tools as tl
-from src.search import program
+import tgfsearch.tools as tl
+from tgfsearch.search import program
 
 
 def search(unit, checked_dates, data_path, results_path, auto_search_path):
