@@ -17,7 +17,7 @@ import scipy as sp
 # Adds parent directory to sys.path. Necessary to make the imports below work when running this file as a script
 parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 if parent_dir not in sys.path:
-    sys.path.append(parent_dir)
+    sys.path.insert(0, parent_dir)
 
 import tgfsearch.tools as tl
 import tgfsearch.parameters as params
