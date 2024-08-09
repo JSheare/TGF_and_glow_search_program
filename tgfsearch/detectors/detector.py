@@ -45,8 +45,8 @@ class Detector:
         The timestamp for the requested in day in yyyy-mm-dd format.
     dates_stored : list
         A list of dates currently being stored in the Detector.
-    location : dict
-        Location information for the instrument on the requested day.
+    deployment : dict
+        Deployment information for the instrument on the requested day (if available).
     default_scintillator : str
         A string representing the default scintillator.
     calibration_params : dict
@@ -76,7 +76,7 @@ class Detector:
         self.first_sec = tl.get_first_sec(self.date_str)
         self.full_date_str = dt.datetime.utcfromtimestamp(int(self.first_sec)).strftime('%Y-%m-%d')  # yyyy-mm-dd
         self.dates_stored = [date_str]
-        self.location = self.get_location()
+        self.deployment = self._get_deployment()
         self.default_scintillator = 'LP'  # Don't change this unless you have a really good reason
 
         # Detector-specific information
@@ -121,6 +121,21 @@ class Detector:
         """Addition operator overload. Returns a new Detector containing data from the current Detector
         and the provided one. See splice() method documentation for more information."""
         return self.splice(operand_detector)
+
+    def _get_deployment(self):
+        """Returns a dictionary full of deployment information for the instrument on its specified date."""
+        for file in glob.glob(
+                f'{os.path.dirname(os.path.dirname(os.path.realpath(__file__)))}/deployments/'
+                f'{self.unit}_deployment_*.json'):
+            file_dates = file.split('deployment')[-1][1:].split('.')[0].split('_')
+            if int(file_dates[0]) <= int(self.date_str) <= int(file_dates[1]):
+                with open(file, 'r') as deployment:
+                    return json.load(deployment)
+
+        return {'location': 'no location listed', 'instrument': self.unit, 'start_date': '000000', 'end_date': '000000',
+                'utc_to_local': 0.0, 'dst_in_region': False, 'weather_station': '', 'sounding_station': '',
+                'latitude': 0., 'longitude': 0., 'altitude': 0.,
+                'notes': ''}
 
     def file_form(self, eRC):
         """Returns the regex for a scintillator's files given the scintillator's eRC serial number."""
@@ -194,21 +209,6 @@ class Detector:
                 self._results_loc = loc
         else:
             raise TypeError('loc must be a string.')
-
-    def get_location(self):
-        """Returns a dictionary full of location information for the instrument on its specified date."""
-        for file in glob.glob(
-                f'{os.path.dirname(os.path.dirname(os.path.realpath(__file__)))}/deployments/'
-                f'{self.unit}_deployment_*.json'):
-            file_dates = file.split('deployment')[-1][1:].split('.')[0].split('_')
-            if int(file_dates[0]) <= int(self.date_str) <= int(file_dates[1]):
-                with open(file, 'r') as deployment:
-                    return json.load(deployment)
-
-        return {'location': 'no location listed', 'instrument': self.unit, 'start_date': '000000', 'end_date': '000000',
-                'utc_to_local': 0.0, 'dst_in_region': False, 'weather_station': '', 'sounding_station': '',
-                'latitude': 0., 'longitude': 0., 'altitude': 0.,
-                'notes': ''}
 
     def use_processed(self, overwrite_import_loc=True):
         """Tells the Detector to import processed data instead of normal raw data. Only available for Godot."""
@@ -817,7 +817,7 @@ class Detector:
 
     def _make_template(self, energy_bins, energy_hist):
         """Makes a template that can be used in the LP calibration algorithm's cross-correlation."""
-        if self.location['Location'] == 'no location listed':
+        if self.deployment['Location'] == 'no location listed':
             if self.log is not None:
                 print('No location specified. Cannot make template...', file=self.log)
 
@@ -900,7 +900,7 @@ class Detector:
                                       'indices': indices})
         template_path = f'{self._results_loc}/Templates'.replace(f'/Results/{self.unit}/{self.date_str}', '')
         tl.make_path(template_path)
-        template.to_csv(f'{template_path}/{self.unit}_{self.location["Location"]}_template.csv', index=False)
+        template.to_csv(f'{template_path}/{self.unit}_{self.deployment["Location"]}_template.csv', index=False)
 
         if self.print_feedback:
             print('Template made.')
@@ -961,7 +961,7 @@ class Detector:
         flagged_indices = []
         try:
             template_path = f'{self._results_loc}/Templates'.replace(f'/Results/{self.unit}/{self.date_str}', '')
-            template = pd.read_csv(f'{template_path}/{self.unit}_{self.location["Location"]}_template.csv')
+            template = pd.read_csv(f'{template_path}/{self.unit}_{self.deployment["Location"]}_template.csv')
             correlation = signal.correlate(template['energy_hist'].to_numpy(), energy_hist, 'full')
             shift_amount = (-len(template) + 1) + np.argmax(correlation)
 

@@ -255,6 +255,7 @@ unit = detector.unit  # The name of the instrument (string).
 date_str = detector.date_str  # The date in yymmdd format (string).
 full_date_str = detector.full_date_str  # The date in yyyy-mm-dd format (string).
 first_sec = detector.first_sec  # The first second of the day in epoch time.
+deployment = detector.deployment  # Deployment information for the instrument on the requested day (if available).
 scint_list = detector.scint_list  # A list of abbreviations corresponding to the instrument's scintillators.
 ```
 These are the most likely to be useful, but there are several others too. See the Detector documentation (linked at the 

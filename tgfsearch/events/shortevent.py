@@ -122,7 +122,7 @@ class ShortEvent:
         self.hel_subscore = np.e ** -(5.3 * high_energy_lead)
 
         # Getting weather subscore
-        if detector.location['Nearest weather station'] != '':
+        if detector.deployment['weather_station'] != '':
             local_date, local_time = tl.convert_to_local(detector.full_date_str, times[self.start])
             self.weather_subscore = tl.get_weather_conditions(detector, weather_cache, local_date, local_time)
         else:

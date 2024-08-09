@@ -78,8 +78,8 @@ full_date_str&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;timestamp&nbsp;for&nbsp;the&nbsp;requested&nbsp;in&nbsp;day&nbsp;in&nbsp;yyyy-mm-dd&nbsp;format.<br>
 dates_stored&nbsp;:&nbsp;list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;dates&nbsp;currently&nbsp;being&nbsp;stored&nbsp;in&nbsp;the&nbsp;<a href="#Detector">Detector</a>.<br>
-location&nbsp;:&nbsp;dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;Location&nbsp;information&nbsp;for&nbsp;the&nbsp;instrument&nbsp;on&nbsp;the&nbsp;requested&nbsp;day.<br>
+deployment&nbsp;:&nbsp;dict<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Deployment&nbsp;information&nbsp;for&nbsp;the&nbsp;instrument&nbsp;on&nbsp;the&nbsp;requested&nbsp;day&nbsp;(if&nbsp;available).<br>
 default_scintillator&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;string&nbsp;representing&nbsp;the&nbsp;default&nbsp;scintillator.<br>
 calibration_params&nbsp;:&nbsp;dict<br>
@@ -265,8 +265,6 @@ Returns<br>
 -------<br>
 pandas.core.frame.DataFrame<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dataframe&nbsp;with&nbsp;the&nbsp;data&nbsp;for&nbsp;the&nbsp;requested&nbsp;list&nbsp;mode&nbsp;file.</span></dd></dl>
-
-<dl><dt><a name="Detector-get_location"><strong>get_location</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;a&nbsp;dictionary&nbsp;full&nbsp;of&nbsp;location&nbsp;information&nbsp;for&nbsp;the&nbsp;instrument&nbsp;on&nbsp;its&nbsp;specified&nbsp;date.</span></dd></dl>
 
 <dl><dt><a name="Detector-get_results_loc"><strong>get_results_loc</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;the&nbsp;directory&nbsp;where&nbsp;all&nbsp;results&nbsp;will&nbsp;be&nbsp;stored.<br>
 &nbsp;<br>

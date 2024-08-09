@@ -258,8 +258,7 @@ def short_event_search(detector, modes, scintillator, rollgap, times, energies):
 
 
 # Calculates subscores, then uses them to calculate a final score for each event and then rank all the events
-def rank_events(detector, potential_events, times, energies):
-    weather_cache = {}
+def rank_events(detector, potential_events, times, energies, weather_cache):
     for event in potential_events:
         event.calculate_score(detector, weather_cache, times, energies)
 
@@ -439,7 +438,7 @@ def make_se_json(detector, event, times, energies, wallclock, count_scints):
 
 
 # Runs the short event search
-def find_short_events(detector, modes, trace_dict, prev_event_numbers=None):
+def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_numbers=None):
     if modes['aircraft']:
         rollgap = params.AIRCRAFT_ROLLGAP
     elif modes['combo']:
@@ -493,7 +492,7 @@ def find_short_events(detector, modes, trace_dict, prev_event_numbers=None):
                 max_plots = len(potential_events)
 
             # Updates each event object to include its accurate subscores, total score, and rank
-            rank_events(detector, potential_events, times, energies)
+            rank_events(detector, potential_events, times, energies, weather_cache)
 
             plots_made = 0
             filecount_switch = True
@@ -818,7 +817,7 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
 
     # Making histogram
     figure = plt.figure(figsize=[20, 11.0])
-    figure.suptitle(f'{detector.unit} at {detector.location["location"]}, {detector.full_date_str}')
+    figure.suptitle(f'{detector.unit} at {detector.deployment["location"]}, {detector.full_date_str}')
 
     ax1 = figure.add_subplot(5, 1, 1)  # Daily histogram
     # The 4 top events in descending order (if they exist)
@@ -1188,7 +1187,8 @@ def program(first_date, second_date, unit, mode_info):
                 tl.print_logger('Starting search for short events...', detector.log)
 
                 # Calling the short event search algorithm
-                find_short_events(detector, modes, trace_dict)
+                weather_cache = {}
+                find_short_events(detector, modes, trace_dict, weather_cache)
 
                 tl.print_logger('Done.', detector.log)
 
@@ -1380,6 +1380,7 @@ def program(first_date, second_date, unit, mode_info):
                     tl.print_logger('', detector.log)
                     prev_event_numbers = {scintillator: 0 for scintillator in chunk_scint_list}
 
+                    weather_cache = {}
                     chunk_num = 1
                     for chunk_path in chunk_path_list:
                         chunk = tl.unpickle_chunk(chunk_path)
@@ -1387,7 +1388,7 @@ def program(first_date, second_date, unit, mode_info):
                         tl.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
                         # Calling the short event search algorithm
                         prev_event_numbers = find_short_events(chunk, modes, chunk_trace_dicts[chunk_path],
-                                                               prev_event_numbers=prev_event_numbers)
+                                                               weather_cache, prev_event_numbers=prev_event_numbers)
 
                         del chunk
                         gc.collect()

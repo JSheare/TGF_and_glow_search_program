@@ -1,6 +1,5 @@
 """Tools for use by the TGF search program and its modules."""
 import os as os
-import contextlib as contextlib
 import pickle as pickle
 import datetime as dt
 import numpy as np
@@ -374,7 +373,7 @@ def convert_to_local(detector, event_time):
     """
 
     date_str = detector.date_str
-    timezone_conversion = detector.location['utc_to_local']
+    timezone_conversion = detector.deployment['utc_to_local']
 
     # Just in case the event happened in the ~300 seconds of the next day typically included in the dataset
     if event_time > params.SEC_PER_DAY:
@@ -382,7 +381,7 @@ def convert_to_local(detector, event_time):
         date_str = roll_date_forward(date_str)
 
     # Corrects the UTC conversion if we're in daylight savings time
-    if detector.location['dst_in_region']:
+    if detector.deployment['dst_in_region']:
         timezone_conversion = dst_conversion(date_str, event_time, timezone_conversion)
 
     # If the event happened the next day local time
@@ -418,18 +417,22 @@ def scrape_weather(full_date_str, station):
 
     try:
         chrome_options = Options()
-        chrome_options.add_argument('--headless=new')  # Runs the chrome client in headless mode
-        with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):  # Prevents selenium from printing status stuff
-            driver = webdriver.Chrome(options=chrome_options)
+        chrome_options.add_argument("--headless")  # Runs chrome in headless mode (no browser tab)
+        # The below options prevent an annoying logging entry from being printed to stdout
+        chrome_options.add_experimental_option("excludeSwitches", ['enable-logging'])
+        chrome_options.add_argument("--log-level=3")
+        chrome_options.set_capability("browserVersion", "117")
+        chrome_options.add_argument("start-maximized")
 
-            url = f'https://www.wunderground.com/history/daily/{station.upper()}/date/{full_date_str}'
+        driver = webdriver.Chrome(options=chrome_options)
 
-            driver.get(url)
-            tables = WebDriverWait(driver, 20).until(ec.presence_of_all_elements_located((By.CSS_SELECTOR, "table")))
+        url = f'https://www.wunderground.com/history/daily/{station.upper()}/date/{full_date_str}'
+        driver.get(url)
+        tables = WebDriverWait(driver, 20).until(ec.presence_of_all_elements_located((By.CSS_SELECTOR, "table")))
 
         table = pd.read_html(tables[1].get_attribute('outerHTML'))[0]
 
-        return table  # This is a dataframe containing the table we want
+        return table.dropna()  # This is a dataframe containing the table we want
 
     except:
         return pd.DataFrame()
@@ -460,7 +463,7 @@ def get_weather_conditions(detector, weather_cache, full_date_str, event_time):
     if full_date_str in weather_cache and weather_cache[full_date_str] is not None:
         weather_table = weather_cache[full_date_str]
     else:
-        weather_table = scrape_weather(full_date_str, detector.location['weather_station'])
+        weather_table = scrape_weather(full_date_str, detector.deployment['weather_station'])
         weather_cache[full_date_str] = weather_table
 
     if not weather_table.empty:
