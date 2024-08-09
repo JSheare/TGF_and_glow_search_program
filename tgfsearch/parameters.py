@@ -5,7 +5,7 @@ SEC_PER_DAY = 86400  # Number of seconds in a day
 SEC_PER_HOUR = 3600  # Number of seconds in an hour
 CENTURY = '20'  # The current century (numerically)
 TWO_AM = 7200  # Number of seconds of the day corresponding to 2:00AM
-TOTAL_MEMORY_ALLOWANCE_FRAC = 0.25  # Fraction of available memory on the system that the program can use
+TOTAL_MEMORY_ALLOWANCE_FRAC = 0.25  # Fraction of available memory on the system that the program can use for data
 
 K40_EDGE_ENERGY = 1.242  # The Compton edge energy for Potassium 40 (MeV)
 T_EDGE_ENERGY = 2.381  # The Compton edge energy for Thorium (MeV)
