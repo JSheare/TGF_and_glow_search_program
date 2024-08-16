@@ -631,8 +631,13 @@ def calculate_mue(hist_allday):
 
 
 # Calculates rolling mue/sigma baseline for the long event search algorithm
-def calculate_rolling_baseline(bins_allday, hist_allday, mue, sigma):
-    num_bins = len(bins_allday)
+def calculate_rolling_baseline(bins_allday, hist_allday):
+    # Average baseline for bins where the fit can't happen
+    mue_val = calculate_mue(hist_allday)
+    mue = np.full(len(bins_allday), mue_val)
+    sigma = np.full(len(bins_allday), np.sqrt(mue_val))
+
+    max_index = len(bins_allday) - 1
     center_index = 0
 
     l_bins = []
@@ -645,29 +650,43 @@ def calculate_rolling_baseline(bins_allday, hist_allday, mue, sigma):
     r_bool = []
     r_zeros = 0
 
-    # Setting up the initial right window
-    for i in range(params.WINDOW_SIZE - 1):
-        too_short = True if len(r_bool) == 0 else False
-        index = center_index + params.WINDOW_GAP + 1 + i
-        if hist_allday[index] > 0 and (too_short or hist_allday[i - 1]):
-            r_bins.append(bins_allday[index])
-            r_counts.append(hist_allday[index])
+    # Setting up the initial right window:
+    # First bin (no neighbors, so it's a special case)
+    r_index = params.WINDOW_GAP + 1  # + center_index (zero at this stage, so we'll skip the extra operation)
+    if hist_allday[params.WINDOW_GAP + 1] > 0:
+        r_bins.append(bins_allday[r_index])
+        r_counts.append(hist_allday[r_index])
+        r_bool.append(True)
+    else:
+        r_zeros += 1
+        r_bool.append(False)
+
+    r_index += 1
+    # All the other bins
+    # We've added one bin so far, and the very last one will be done by the beginning of the main loop below this
+    # section, hence window_size - 2
+    for i in range(params.WINDOW_SIZE - 2):
+        # Bin gets added to the window if both it AND its neighbors are nonzero
+        if hist_allday[r_index] > 0 and hist_allday[r_index - 1] > 0 and hist_allday[r_index + 1] > 0:
+            r_bins.append(bins_allday[r_index])
+            r_counts.append(hist_allday[r_index])
             r_bool.append(True)
         else:
             r_zeros += 1
             r_bool.append(False)
 
+        r_index += 1
+
     # Traversing the bins:
-    while center_index < num_bins:
-        # Advancing the left window
+    l_index = center_index - (params.WINDOW_GAP + 1)
+    r_index = center_index + params.WINDOW_GAP + params.WINDOW_SIZE
+    while center_index < len(bins_allday):
+        # Advancing the left window:
         # Adding to the front of the window
-        l_index = center_index - (params.WINDOW_GAP + 1)
         if l_index >= 0:
-            on_end = True if l_index - 1 < 0 else False
-            # The bin being examined must be nonzero itself and have nonzero neighbors in order to be added
-            # Neighbors are not checked for those bins on the ends, though
-            if hist_allday[l_index] > 0 and (on_end or (
-                    hist_allday[l_index - 1] > 0 and hist_allday[l_index + 1] > 0)):
+            # Bin gets added to the window if both it AND its neighbors are nonzero
+            if (hist_allday[l_index] > 0 and
+                    (l_index == 0 or (hist_allday[l_index - 1] > 0) and hist_allday[l_index + 1] > 0)):
                 l_bins.append(bins_allday[l_index])
                 l_counts.append(hist_allday[l_index])
                 l_bool.append(True)
@@ -685,13 +704,11 @@ def calculate_rolling_baseline(bins_allday, hist_allday, mue, sigma):
 
             l_bool.pop(0)
 
-        # Advancing the right window
+        # Advancing the right window:
         # Adding to the front of the window
-        r_index = center_index + params.WINDOW_GAP + params.WINDOW_SIZE
-        if r_index < num_bins:
-            on_end = True if r_index + 1 >= num_bins else False
-            if hist_allday[r_index] > 0 and (on_end or (
-                    hist_allday[r_index - 1] > 0 and hist_allday[r_index + 1] > 0)):
+        if r_index < len(bins_allday):
+            if (hist_allday[r_index] > 0 and
+                    (hist_allday[r_index - 1] > 0 and (r_index == max_index or hist_allday[r_index + 1] > 0))):
                 r_bins.append(bins_allday[r_index])
                 r_counts.append(hist_allday[r_index])
                 r_bool.append(True)
@@ -709,12 +726,11 @@ def calculate_rolling_baseline(bins_allday, hist_allday, mue, sigma):
 
             r_bool.pop(0)
 
-        # Fitting curve is linear if either of the windows contains a zero-value bin
-        fit_curve = tl.o1_poly if l_zeros != 0 or r_zeros != 0 else tl.o2_poly
-
-        if len(l_bins) + len(r_bins) >= 3:
-            result = sp.optimize.curve_fit(fit_curve, l_bins + r_bins, l_counts + r_counts)
-            fit = result[0]
+        # Only doing a fit for nonzero bins, and optimize curve fit needs at least three values
+        if hist_allday[center_index] and len(l_bins) + len(r_bins) >= 3:
+            # Fitting curve is linear if either of the windows contains a zero-value bin
+            fit_curve = tl.o1_poly if l_zeros or r_zeros else tl.o2_poly
+            fit = sp.optimize.curve_fit(fit_curve, l_bins + r_bins, l_counts + r_counts)[0]
             if fit_curve == tl.o2_poly:
                 # Float casting is necessary for later parts of the day due to integer overflow
                 mue[center_index] = fit_curve(float(bins_allday[center_index]), fit[0], fit[1], fit[2])
@@ -724,6 +740,8 @@ def calculate_rolling_baseline(bins_allday, hist_allday, mue, sigma):
             sigma[center_index] = np.sqrt(mue[center_index])
 
         center_index += 1
+        l_index += 1
+        r_index += 1
 
     return mue, sigma
 
@@ -803,10 +821,7 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
     # Note: mue is an array full of the mue values for each bin
 
     if modes['aircraft']:  # Calculating rolling baseline in aircraft mode
-        mue_val = calculate_mue(hist_allday)
-        mue = np.full(len(bins_allday), mue_val)
-        sigma = np.full(len(bins_allday), np.sqrt(mue_val))
-        mue, sigma = calculate_rolling_baseline(bins_allday, hist_allday, mue, sigma)
+        mue, sigma = calculate_rolling_baseline(bins_allday, hist_allday)
     else:
         fit = sp.optimize.curve_fit(tl.o3_poly, bins_allday, hist_allday)[0]
         mue = tl.o3_poly(bins_allday, fit[0], fit[1], fit[2], fit[3])
