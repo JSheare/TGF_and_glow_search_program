@@ -24,11 +24,6 @@ def o2_poly(x, a=0., b=0., c=0.):
     return a * x**2 + b * x + c
 
 
-def o3_poly(x, a=0., b=0., c=0., d=0.):
-    """Returns the y value at the given x for a third-order polynomial with terms a, b, c, and d."""
-    return a * x**3 + b * x**2 + c * x + d
-
-
 def print_logger(string, logfile):
     """Prints the specified string to both stdout and the specified file.
 
@@ -752,7 +747,7 @@ def is_good_trace(trace):
     Parameters
     ----------
     trace : pandas.core.frame.DataFrame
-        A dataframe containing the trace data to be aligned.
+        A dataframe containing the trace data.
 
     Returns
     -------

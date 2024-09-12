@@ -85,14 +85,20 @@ DOT_ALPHA = 0.5  # Controls dot transparency
 # Search algorithm parameters
 ENERGY_CUTOFF = 1.9  # MeV. If calibration was possible, all energies below this are cut out of the data during
 # the long event search
-CHANNEL_CUTOFF = 2000  # If calibration wasn't possible, all channels below this are cut
-BIN_SIZE = 4  # The size of each bin (in seconds)
+LP_CHANNEL_CUTOFF = 2000  # If large plastic calibration wasn't possible, all channels below this are cut
+NAI_CHANNEL_CUTOFF = 6000  # If sodium iodide calibration wasn't possible, all channels below this are cut
+SHORT_BIN_SIZE = 4  # The size of each short bin (in seconds)
+LONG_BIN_SIZE = 60  # The size of each long bin (in seconds)
 FLAG_THRESH = 5  # The number of standard deviations above the mean at which a bin is flagged
 LONG_EVENT_MIN_COUNTS = 1000  # Only in aircraft mode
 
-# Rolling baseline parameters
-WINDOW_SIZE = 20  # The number of bins in the window on each side
-WINDOW_GAP = 5  # The number of bins between the center bin and the start of the window on each side
+# Normal baseline parameters
+N_WINDOW_SIZE = 21600  # The size of the window to be used in the savgol filter (in seconds)
+POLY_ORDER = 3  # The order of the polynomial to be used in the savgol filter
+
+# Aircraft baseline parameters
+A_WINDOW_SIZE = 80  # The (approximate) number of seconds in the window on each side
+A_WINDOW_GAP = 20  # The (approximate) number of seconds between the center bin and the start of the window on each side
 
 # Histogram subplot formatting parameters
 LE_MAIN_BAR_COLOR = 'r'  # The color of the bars on the whole-day subplot

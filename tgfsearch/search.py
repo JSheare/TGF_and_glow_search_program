@@ -464,6 +464,9 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
         # Normal operating mode (one scintillator at a time)
         else:
             scintillator = detector.scint_list[i]
+            if not detector.data_present_in(scintillator):
+                continue
+
             tl.print_logger(f'Searching eRC {detector.get_attribute(scintillator, "eRC")} '
                             f'({scintillator})...', detector.log)
             times = detector.get_lm_data(scintillator, 'SecondsOfDay')
@@ -570,9 +573,9 @@ def get_le_scints(detector):
 
 
 # Makes histogram used in long event search. If possible, cuts out counts below a certain energy
-def make_le_hist(detector, modes, scintillator):
+def make_le_hist(detector, modes, scintillator, bin_size):
     # Makes one bin for every binsize seconds of the day (plus around 300 seconds more for the next day)
-    bins_allday = np.arange(0, params.SEC_PER_DAY + 200 + params.BIN_SIZE, params.BIN_SIZE)
+    bins_allday = np.arange(0, params.SEC_PER_DAY + 200 + bin_size, bin_size)
 
     calibrated = True
     times = detector.get_lm_data(scintillator, 'SecondsOfDay')
@@ -587,7 +590,11 @@ def make_le_hist(detector, modes, scintillator):
 
     # Removes counts that are below the cutoff energy
     if not calibrated or modes['skcali']:
-        times = np.delete(times, np.where(energies < params.CHANNEL_CUTOFF))
+        if scintillator == 'NaI':
+            times = np.delete(times, np.where(energies < params.NAI_CHANNEL_CUTOFF))
+        else:
+            times = np.delete(times, np.where(energies < params.LP_CHANNEL_CUTOFF))
+
     else:
         times = np.delete(times, np.where(energies < params.ENERGY_CUTOFF))
 
@@ -630,14 +637,52 @@ def calculate_mue(hist_allday):
     return hist_sum / low
 
 
-# Calculates rolling mue/sigma baseline for the long event search algorithm
-def calculate_rolling_baseline(bins_allday, hist_allday):
-    # Average baseline for bins where the fit can't happen
-    mue_val = calculate_mue(hist_allday)
-    mue = np.full(len(bins_allday), mue_val)
-    sigma = np.full(len(bins_allday), np.sqrt(mue_val))
+# Calculates normal rolling baseline
+def normal_baseline(mue, hist_allday, bin_size):
+    window_size = params.N_WINDOW_SIZE // bin_size
+    data_gap_locs = np.where(hist_allday == 0)[0]
+    # Savgol can't handle data gaps, so here we find sections where data exists and only apply it to those
+    # Checks against window size are necessary because savgol only accepts arrays of >= window size
+    if len(data_gap_locs) > 0:
+        prev = data_gap_locs[0]
+        # Data present at the very beginning of the day
+        if prev != 0 and prev >= window_size:
+            new_mue = sp.signal.savgol_filter(hist_allday[0: prev], window_size, params.POLY_ORDER)
+            for i in range(len(new_mue)):
+                mue[i] = new_mue[i]
 
+        # Data in the middle of the day
+        for i in range(1, len(data_gap_locs)):
+            curr = data_gap_locs[i]
+            diff = curr - prev
+            if diff > 1 and diff - 1 >= window_size:
+                data_start = prev + 1
+                new_mue = sp.signal.savgol_filter(hist_allday[data_start: curr],
+                                                  window_size, params.POLY_ORDER)
+                for j in range(len(new_mue)):
+                    mue[j + data_start] = new_mue[j]
+
+            prev = curr
+
+        # Data present at the very end of the day
+        data_start = prev + 1
+        if data_start != len(hist_allday) and (len(hist_allday) - data_start) >= window_size:
+            new_mue = sp.signal.savgol_filter(hist_allday[data_start:], window_size, params.POLY_ORDER)
+            for i in range(len(new_mue)):
+                mue[i + data_start] = new_mue[i]
+
+    else:
+        mue = sp.signal.savgol_filter(hist_allday, window_size, params.POLY_ORDER)
+
+    return mue
+
+
+# Calculates rolling baseline for aircraft mode
+def aircraft_baseline(mue, bins_allday, hist_allday, bin_size):
     max_index = len(bins_allday) - 1
+    # Getting the window size and gap in units of bins
+    window_size = params.A_WINDOW_SIZE // bin_size
+    window_gap = params.A_WINDOW_GAP // bin_size
     center_index = 0
 
     l_bins = []
@@ -652,8 +697,8 @@ def calculate_rolling_baseline(bins_allday, hist_allday):
 
     # Setting up the initial right window:
     # First bin (no neighbors, so it's a special case)
-    r_index = params.WINDOW_GAP + 1  # + center_index (zero at this stage, so we'll skip the extra operation)
-    if hist_allday[params.WINDOW_GAP + 1] > 0:
+    r_index = window_gap + 1  # + center_index (zero at this stage, so we'll skip the extra operation)
+    if hist_allday[window_gap + 1] > 0:
         r_bins.append(bins_allday[r_index])
         r_counts.append(hist_allday[r_index])
         r_bool.append(True)
@@ -665,7 +710,7 @@ def calculate_rolling_baseline(bins_allday, hist_allday):
     # All the other bins
     # We've added one bin so far, and the very last one will be done by the beginning of the main loop below this
     # section, hence window_size - 2
-    for i in range(params.WINDOW_SIZE - 2):
+    for i in range(window_size - 2):
         # Bin gets added to the window if both it AND its neighbors are nonzero
         if hist_allday[r_index] > 0 and hist_allday[r_index - 1] > 0 and hist_allday[r_index + 1] > 0:
             r_bins.append(bins_allday[r_index])
@@ -678,8 +723,8 @@ def calculate_rolling_baseline(bins_allday, hist_allday):
         r_index += 1
 
     # Traversing the bins:
-    l_index = center_index - (params.WINDOW_GAP + 1)
-    r_index = center_index + params.WINDOW_GAP + params.WINDOW_SIZE
+    l_index = center_index - (window_gap + 1)
+    r_index = center_index + window_gap + window_size
     while center_index < len(bins_allday):
         # Advancing the left window:
         # Adding to the front of the window
@@ -695,7 +740,7 @@ def calculate_rolling_baseline(bins_allday, hist_allday):
                 l_zeros += 1
 
         # Removing from the back of the window
-        if len(l_bool) > params.WINDOW_SIZE:
+        if len(l_bool) > window_size:
             if l_bool[0]:
                 l_bins.pop(0)
                 l_counts.pop(0)
@@ -737,17 +782,15 @@ def calculate_rolling_baseline(bins_allday, hist_allday):
             else:
                 mue[center_index] = fit_curve(bins_allday[center_index], fit[0], fit[1])
 
-            sigma[center_index] = np.sqrt(mue[center_index])
-
         center_index += 1
         l_index += 1
         r_index += 1
 
-    return mue, sigma
+    return mue
 
 
 # Long event search algorithm
-def long_event_search(modes, day_bins, hist_allday, mue, sigma):
+def long_event_search(modes, day_bins, hist_allday, mue, sigma, bin_size):
     z_scores = []  # The z-scores themselves
     z_flags = []
     # Flags only those z-scores > params.FLAG_THRESH
@@ -767,9 +810,9 @@ def long_event_search(modes, day_bins, hist_allday, mue, sigma):
         if glow_length == 0:  # First zscore only
             glow_start = flag
             glow_length += 1
-        elif glow_length > 0 and day_bins[flag] - params.BIN_SIZE == previous_time:
+        elif glow_length > 0 and day_bins[flag] - bin_size == previous_time:
             glow_length += 1
-        elif (glow_length > 0 and day_bins[flag] - params.BIN_SIZE > previous_time) or i == len(z_flags) - 1:
+        elif (glow_length > 0 and day_bins[flag] - bin_size > previous_time) or i == len(z_flags) - 1:
             # Makes glow object
             potential_glows.append(LongEvent(glow_start, glow_length, z_scores, day_bins))
             glow_start = flag
@@ -801,14 +844,14 @@ def find_le_files(detector, le_scint_list, event):
 
 
 # Makes the histogram subplots for long events
-def make_hist_subplot(ax, event, day_bins, hist_allday, mue, sigma):
+def make_hist_subplot(ax, event, day_bins, hist_allday, mue, sigma, bin_size):
     left = 0 if (event.peak_index - params.LE_SUBPLOT_PADDING) < 0 else (event.peak_index - params.LE_SUBPLOT_PADDING)
     right = (len(day_bins) - 2) if (event.peak_index + params.LE_SUBPLOT_PADDING) > (len(day_bins) - 2) else \
         (event.peak_index + params.LE_SUBPLOT_PADDING)
 
     sub_bins = day_bins[left:right]
     ax.bar(sub_bins, hist_allday[left:right], alpha=params.LE_SUBPLOT_BAR_ALPHA,
-           color=params.LE_SUBPLOT_BAR_COLOR, width=params.BIN_SIZE)
+           color=params.LE_SUBPLOT_BAR_COLOR, width=bin_size)
     ax.set_xlabel('Seconds of Day (UT)')
     ax.set_ylabel('Counts/bin')
     ax.plot(sub_bins, mue[left:right] + params.FLAG_THRESH * sigma[left:right],
@@ -818,21 +861,25 @@ def make_hist_subplot(ax, event, day_bins, hist_allday, mue, sigma):
 
 # Runs the long event search
 def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
+    bin_size = int(bins_allday[1] - bins_allday[0])  # Bin size in seconds
     # Note: mue is an array full of the mue values for each bin
+    mue_val = calculate_mue(hist_allday)
+    mue = np.full(len(bins_allday), mue_val)
 
-    if modes['aircraft']:  # Calculating rolling baseline in aircraft mode
-        mue, sigma = calculate_rolling_baseline(bins_allday, hist_allday)
+    if modes['aircraft']:
+        mue = aircraft_baseline(mue, bins_allday, hist_allday, bin_size)
     else:
-        fit = sp.optimize.curve_fit(tl.o3_poly, bins_allday, hist_allday)[0]
-        mue = tl.o3_poly(bins_allday, fit[0], fit[1], fit[2], fit[3])
-        sigma = np.sqrt(mue)
+        mue = normal_baseline(mue, hist_allday, bin_size)
+
+    sigma = np.sqrt(mue)
 
     # Finding potential events with the search algorithm in find_long_events
-    potential_glows = long_event_search(modes, bins_allday, hist_allday, mue, sigma)
+    potential_glows = long_event_search(modes, bins_allday, hist_allday, mue, sigma, bin_size)
 
     # Making histogram
     figure = plt.figure(figsize=[20, 11.0])
-    figure.suptitle(f'{detector.unit} at {detector.deployment["location"]}, {detector.full_date_str}')
+    figure.suptitle(f'{detector.unit} at {detector.deployment["location"]}, {detector.full_date_str}, '
+                    f'{bin_size} sec bins')
 
     ax1 = figure.add_subplot(5, 1, 1)  # Daily histogram
     # The 4 top events in descending order (if they exist)
@@ -842,7 +889,7 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
     ax5 = figure.add_subplot(5, 1, 5)
 
     ax1.bar(bins_allday, hist_allday, alpha=params.LE_MAIN_BAR_ALPHA,
-            color=params.LE_MAIN_BAR_COLOR, width=params.BIN_SIZE)
+            color=params.LE_MAIN_BAR_COLOR, width=bin_size)
     ax1.set_xlabel('Seconds of Day (UT)')
     ax1.set_ylabel('Counts/bin')
     ax1.plot(bins_allday, mue + params.FLAG_THRESH * sigma, color=params.LE_THRESH_LINE_COLOR, linestyle='dashed')
@@ -861,7 +908,7 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
         print('', file=detector.log)
         print('Potential glows:', file=detector.log)
 
-        event_path = f'{detector.get_results_loc()}/event_files/long_events'
+        event_path = f'{detector.get_results_loc()}/event_files/long_events/{bin_size}_sec_bins/'
         tl.make_path(event_path)
 
         files_made = 0
@@ -876,7 +923,7 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
             glow = potential_glows[i]
             info = (f'{dt.datetime.utcfromtimestamp(glow.start_sec + detector.first_sec)} UTC ({glow.start_sec} '
                     f'seconds of day), {glow.stop_sec - glow.start_sec} seconds long, highest z-score: '
-                    f'{glow.highest_score}')
+                    f'{glow.highest_score}, {bin_size} sec bins')
 
             # Logging the event
             print(info, file=detector.log)
@@ -907,10 +954,10 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
                 break
 
             glow = potential_glows[i]
-            make_hist_subplot(ax_list[i], glow, bins_allday, hist_allday, mue, sigma)
+            make_hist_subplot(ax_list[i], glow, bins_allday, hist_allday, mue, sigma, bin_size)
 
     else:
-        tl.print_logger(f'There were no potential glows on {detector.full_date_str}', detector.log)
+        tl.print_logger(f'No glows found', detector.log)
 
     figure.tight_layout()
 
@@ -918,7 +965,7 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
     tl.print_logger('Saving Histogram...', detector.log)
     hist_path = f'{detector.get_results_loc()}'
     tl.make_path(hist_path)
-    figure.savefig(f'{hist_path}/{detector.date_str}_histogram.png', dpi=500)
+    figure.savefig(f'{hist_path}/{detector.date_str}_histogram_{bin_size}_sec_bins.png', dpi=500)
     figure.clf()
     plt.close(figure)
     gc.collect()
@@ -1224,16 +1271,20 @@ def program(first_date, second_date, unit, mode_info):
 
                 print(f'Using the following scintillators: {", ".join(le_scint_list)}', file=detector.log)
 
-                # Makes daily histogram with each scintillator's contribution
-                bins_allday = None
-                hist_allday = None
-                for scintillator in le_scint_list:
-                    bins_allday, scint_hist = make_le_hist(detector, modes, scintillator)
-                    hist_allday = scint_hist if hist_allday is None else hist_allday + scint_hist
+                for bin_size in [params.SHORT_BIN_SIZE, params.LONG_BIN_SIZE]:
+                    tl.print_logger('', detector.log)
+                    tl.print_logger(f'Searching with {bin_size} second bins...', detector.log)
+                    # Makes daily histogram with each scintillator's contribution
+                    bins_allday = None
+                    hist_allday = None
+                    for scintillator in le_scint_list:
+                        bins_allday, scint_hist = make_le_hist(detector, modes, scintillator, bin_size)
+                        hist_allday = scint_hist if hist_allday is None else hist_allday + scint_hist
 
-                # Calling the long event search algorithm
-                find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday)
+                    # Calling the long event search algorithm
+                    find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday)
 
+                tl.print_logger('', detector.log)
                 tl.print_logger('Done.', detector.log)
 
         except MemoryError:
@@ -1415,8 +1466,6 @@ def program(first_date, second_date, unit, mode_info):
                 if not modes['skglow']:
                     tl.print_logger('\n', detector.log)
                     tl.print_logger('Starting search for glows...', detector.log)
-                    bins_allday = None
-                    hist_allday = None
                     le_scint_list = []
                     # Scintillator will be used if it has data in at least one chunk
                     for scintillator in get_le_scints(detector):
@@ -1428,28 +1477,33 @@ def program(first_date, second_date, unit, mode_info):
                         le_scint_list.append(detector.default_scintillator)
 
                     print(f'Using the following scintillators: {", ".join(le_scint_list)}', file=detector.log)
+                    for bin_size in [params.SHORT_BIN_SIZE, params.LONG_BIN_SIZE]:
+                        tl.print_logger('', detector.log)
+                        tl.print_logger(f'Searching with {bin_size} second bins...', detector.log)
+                        bins_allday = None
+                        hist_allday = None
+                        for chunk_path in chunk_path_list:
+                            chunk = tl.unpickle_chunk(chunk_path)
+                            for scintillator in le_scint_list:
+                                if chunk.data_present_in(scintillator):
+                                    chunk.set_attribute(scintillator, 'calibration_energies',
+                                                        detector.get_attribute(scintillator, 'calibration_energies'),
+                                                        deepcopy=False)
+                                    chunk.set_attribute(scintillator, 'calibration_bins',
+                                                        detector.get_attribute(scintillator, 'calibration_bins'),
+                                                        deepcopy=False)
+                                    chunk.log = log
+                                    # Histograms the counts from each scintillator and combines them with the main one
+                                    bins_allday, scint_hist = make_le_hist(chunk, modes, scintillator, bin_size)
+                                    hist_allday = scint_hist if hist_allday is None else hist_allday + scint_hist
 
-                    for chunk_path in chunk_path_list:
-                        chunk = tl.unpickle_chunk(chunk_path)
-                        for scintillator in le_scint_list:
-                            if chunk.data_present_in(scintillator):
-                                chunk.set_attribute(scintillator, 'calibration_energies',
-                                                    detector.get_attribute(scintillator, 'calibration_energies'),
-                                                    deepcopy=False)
-                                chunk.set_attribute(scintillator, 'calibration_bins',
-                                                    detector.get_attribute(scintillator, 'calibration_bins'),
-                                                    deepcopy=False)
-                                chunk.log = log
-                                # Histograms the counts from each scintillator and combines them with the main one
-                                bins_allday, scint_hist = make_le_hist(chunk, modes, scintillator)
-                                hist_allday = scint_hist if hist_allday is None else hist_allday + scint_hist
+                            del chunk
+                            gc.collect()
 
-                        del chunk
-                        gc.collect()
+                        # Calling the long event search algorithm
+                        find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday)
 
-                    # Calling the long event search algorithm
-                    find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday)
-
+                    tl.print_logger('', detector.log)
                     tl.print_logger('Done.', detector.log)
 
             except MemoryError:

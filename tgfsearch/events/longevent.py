@@ -1,8 +1,6 @@
 """A class used to keep track of and process long events."""
 import numpy as np
 
-import tgfsearch.parameters as params
-
 
 class LongEvent:
     """A class used to store all relevant information about a potential long event.
@@ -67,6 +65,6 @@ class LongEvent:
         """Calculates the beginning and end of an event in seconds."""
         glow_times = day_bins[self.start:self.stop]
         first_sec = glow_times[0]
-        length = self.length * params.BIN_SIZE
+        length = self.length * int(day_bins[1] - day_bins[0])
         last_sec = first_sec + length
         return first_sec, last_sec
