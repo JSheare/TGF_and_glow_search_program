@@ -817,7 +817,7 @@ class Detector:
 
     def _make_template(self, energy_bins, energy_hist):
         """Makes a template that can be used in the LP calibration algorithm's cross-correlation."""
-        if self.deployment['Location'] == 'no location listed':
+        if self.deployment['location'] == 'no location listed':
             if self.log is not None:
                 print('No location specified. Cannot make template...', file=self.log)
 
@@ -900,7 +900,8 @@ class Detector:
                                       'indices': indices})
         template_path = f'{self._results_loc}/Templates'.replace(f'/Results/{self.unit}/{self.date_str}', '')
         tl.make_path(template_path)
-        template.to_csv(f'{template_path}/{self.unit}_{self.deployment["Location"]}_template.csv', index=False)
+        template.to_csv(f'{template_path}/{self.unit}_'
+                        f'{self.deployment["location"].replace(" ", "_")}_template.csv', index=False)
 
         if self.print_feedback:
             print('Template made.')
@@ -961,7 +962,8 @@ class Detector:
         flagged_indices = []
         try:
             template_path = f'{self._results_loc}/Templates'.replace(f'/Results/{self.unit}/{self.date_str}', '')
-            template = pd.read_csv(f'{template_path}/{self.unit}_{self.deployment["Location"]}_template.csv')
+            template = pd.read_csv(f'{template_path}/{self.unit}_'
+                                   f'{self.deployment["location"].replace(" ", "_")}_template.csv')
             correlation = signal.correlate(template['energy_hist'].to_numpy(), energy_hist, 'full')
             shift_amount = (-len(template) + 1) + np.argmax(correlation)
 
