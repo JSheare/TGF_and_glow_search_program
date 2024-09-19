@@ -4,6 +4,7 @@ import datetime as dt
 import glob as glob
 import os as os
 import traceback as traceback
+import warnings as warnings
 import psutil as psutil
 import gc as gc
 import heapq
@@ -50,16 +51,8 @@ def get_detector(unit, date_str, print_feedback=False):
 # Makes the modes dict used by many of the program's functions
 def get_modes(mode_info):
     modes = dict()
-    # Modes for skipping over certain algorithms (mostly to speed up testing)
-    modes['skcali'] = True if '--skcali' in mode_info else False  # Skip detector calibration
-    modes['skshort'] = True if '--skshort' in mode_info else False  # Skip short event search
-    modes['skglow'] = True if '--skglow' in mode_info else False  # SKip long event search
-
     # Aircraft mode
     modes['aircraft'] = True if '--aircraft' in mode_info else False
-
-    # Pickle mode
-    modes['pickle'] = True if '--pickle' in mode_info else False
 
     # All scintillators mode (all the scintillators will be checked by the short event search algorithm)
     modes['allscints'] = True if '--allscints' in mode_info else False
@@ -67,17 +60,25 @@ def get_modes(mode_info):
     # Combo mode (all scintillator data is combined into one set of arrays and examined by the short event search algo)
     modes['combo'] = True if '--combo' in mode_info else False
 
-    # Template mode (make LP template)
-    modes['template'] = True if '--template' in mode_info else False
+    # Custom mode (use custom import and/or export directories
+    modes['custom'] = True if '-c' in mode_info else False
 
     # GUI mode (running script from gui)
     modes['gui'] = True if '-g' in mode_info else False
 
-    # Custom mode (use custom import and/or export directories
-    modes['custom'] = True if '-c' in mode_info else False
+    # Pickle mode
+    modes['pickle'] = True if '--pickle' in mode_info else False
 
     # Processed mode (use processed data). Only available for Godot
     modes['processed'] = True if '-p' in mode_info else False
+
+    # Modes for skipping over certain algorithms (mostly to speed up testing)
+    modes['skcali'] = True if '--skcali' in mode_info else False  # Skip detector calibration
+    modes['skshort'] = True if '--skshort' in mode_info else False  # Skip short event search
+    modes['skglow'] = True if '--skglow' in mode_info else False  # SKip long event search
+
+    # Template mode (make LP template)
+    modes['template'] = True if '--template' in mode_info else False
 
     return modes
 
@@ -775,7 +776,12 @@ def aircraft_baseline(mue, bins_allday, hist_allday, bin_size):
         if hist_allday[center_index] and len(l_bins) + len(r_bins) >= 3:
             # Fitting curve is linear if either of the windows contains a zero-value bin
             fit_curve = tl.o1_poly if l_zeros or r_zeros else tl.o2_poly
-            fit = sp.optimize.curve_fit(fit_curve, l_bins + r_bins, l_counts + r_counts)[0]
+            with warnings.catch_warnings():
+                # Context manager to catch and ignore the warning that's raised when curve_fit can't calculate
+                # uncertainties on the fitting parameters for whatever reason
+                warnings.simplefilter('ignore')
+                fit = sp.optimize.curve_fit(fit_curve, l_bins + r_bins, l_counts + r_counts)[0]
+
             if fit_curve == tl.o2_poly:
                 # Float casting is necessary for later parts of the day due to integer overflow
                 mue[center_index] = fit_curve(float(bins_allday[center_index]), fit[0], fit[1], fit[2])
@@ -1300,7 +1306,9 @@ def program(first_date, second_date, unit, mode_info):
             with open(f'{log_path}/err.txt', 'w') as err_file:
                 print('Info:', file=err_file)
                 print(f'{detector.date_str} {detector.unit}', file=err_file)
-                print(modes, file=err_file)
+                for mode in modes:
+                    print(f'{mode}: {modes[mode]}', file=err_file)
+
                 print('', file=err_file)
                 err_file.write(traceback.format_exc())
 
@@ -1520,7 +1528,9 @@ def program(first_date, second_date, unit, mode_info):
                 with open(f'{log_path}/err.txt', 'w') as err_file:
                     print('Info:', file=err_file)
                     print(f'{detector.date_str} {detector.unit}', file=err_file)
-                    print(modes, file=err_file)
+                    for mode in modes:
+                        print(f'{mode}: {modes[mode]}', file=err_file)
+
                     print('', file=err_file)
                     err_file.write(traceback.format_exc())
 
