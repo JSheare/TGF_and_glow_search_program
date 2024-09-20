@@ -1,8 +1,8 @@
 """A class used to keep track of and process short events."""
 import numpy as np
 
-import tgfsearch.tools as tl
 import tgfsearch.parameters as params
+import tgfsearch.tools as tl
 
 
 class ShortEvent:

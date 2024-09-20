@@ -1,33 +1,34 @@
 """A script that searches for TGFs and glows."""
-import sys as sys
 import datetime as dt
+import gc as gc
 import glob as glob
+import heapq
+import matplotlib as matplotlib
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+import numpy as np
 import os as os
+import pandas as pd
+import psutil as psutil
+import scipy as sp
+import sys as sys
 import traceback as traceback
 import warnings as warnings
-import psutil as psutil
-import gc as gc
-import heapq
-import numpy as np
-import pandas as pd
-import matplotlib as matplotlib
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import scipy as sp
+
 
 # Adds parent directory to sys.path. Necessary to make the imports below work when running this file as a script
 parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-import tgfsearch.tools as tl
 import tgfsearch.parameters as params
-from tgfsearch.detectors.godot import Godot
-from tgfsearch.detectors.thor import Thor
-from tgfsearch.detectors.santis import Santis
+import tgfsearch.tools as tl
 from tgfsearch.detectors.croatia import Croatia
-from tgfsearch.events.shortevent import ShortEvent
+from tgfsearch.detectors.godot import Godot
+from tgfsearch.detectors.santis import Santis
+from tgfsearch.detectors.thor import Thor
 from tgfsearch.events.longevent import LongEvent
+from tgfsearch.events.shortevent import ShortEvent
 from tgfsearch.helpers.traceinfo import TraceInfo
 
 
@@ -901,9 +902,9 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
     ax1.plot(bins_allday, mue + params.FLAG_THRESH * sigma, color=params.LE_THRESH_LINE_COLOR, linestyle='dashed')
 
     # Creates legend
-    allday_data = mpatches.Patch(color=params.LE_MAIN_BAR_COLOR, label='All Energies')
-    allday_thresh_sigma = mpatches.Patch(color=params.LE_THRESH_LINE_COLOR,
-                                         label=f'{params.FLAG_THRESH} Sigma Above All Energies', linestyle='dashed')
+    allday_data = patches.Patch(color=params.LE_MAIN_BAR_COLOR, label='All Energies')
+    allday_thresh_sigma = patches.Patch(color=params.LE_THRESH_LINE_COLOR,
+                                        label=f'{params.FLAG_THRESH} Sigma Above All Energies', linestyle='dashed')
     ax1.legend(handles=[allday_data, allday_thresh_sigma, ], bbox_to_anchor=(1.05, 1), loc=1,
                borderaxespad=0.)
     ax1.grid(True)

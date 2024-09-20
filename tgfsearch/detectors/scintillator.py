@@ -1,7 +1,7 @@
 """A class for keeping track of a particular scintillator's data."""
 import copy as copy
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 import tgfsearch.parameters as params
 import tgfsearch.tools as tl

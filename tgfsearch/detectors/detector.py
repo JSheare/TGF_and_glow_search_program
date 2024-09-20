@@ -1,22 +1,22 @@
 """A base class for keeping track of lightning data and associated information."""
-import glob as glob
-import os as os
-import gc as gc
 import contextlib as contextlib
-import psutil as psutil
-import numpy as np
-import pandas as pd
-import json as json
-import scipy.signal as signal
 import datetime as dt
-import warnings
+import gc as gc
+import glob as glob
+import json as json
 import matplotlib as matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
+import os as os
+import pandas as pd
+import psutil as psutil
+import scipy.signal as signal
+import warnings
 from matplotlib.widgets import Slider
 
-import tgfsearch.utilities.DataReaderTimetrack2 as Dr
-import tgfsearch.tools as tl
 import tgfsearch.parameters as params
+import tgfsearch.tools as tl
+import tgfsearch.utilities.DataReaderTimetrack2 as Dr
 from tgfsearch.detectors.scintillator import Scintillator
 
 

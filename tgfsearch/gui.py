@@ -1,13 +1,13 @@
 """A graphical user interface for running the TGF search program."""
-import tkinter as tk
-import sys as sys
-import os as os
-import threading as threading
 import multiprocessing as multiprocessing
-import traceback as traceback
+import os as os
 import platform as platform
-from queue import Queue
+import sys as sys
+import threading as threading
+import tkinter as tk
+import traceback as traceback
 from tkinter import filedialog
+from queue import Queue
 
 # Adds parent directory to sys.path. Necessary to make the imports below work when running this file as a script
 parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))

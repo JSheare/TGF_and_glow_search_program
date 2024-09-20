@@ -1,9 +1,9 @@
 """A script that automatically runs searches on unexamined data."""
-import os as os
-import sys as sys
-import json as json
 import glob as glob
+import json as json
+import os as os
 import psutil as psutil
+import sys as sys
 import traceback as traceback
 
 # Adds grandparent directory to sys.path. Necessary to make the imports below work when running this file as a script

@@ -1,7 +1,7 @@
-import pydoc
 import os
-import sys
+import pydoc
 import shutil
+import sys
 
 
 def make_doc(name, parent_dir):

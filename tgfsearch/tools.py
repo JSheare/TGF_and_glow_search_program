@@ -1,15 +1,15 @@
 """Tools for use by the TGF search program and its modules."""
-import os as os
-import pickle as pickle
 import datetime as dt
 import numpy as np
+import os as os
 import pandas as pd
+import pickle as pickle
 import struct as struct
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium import webdriver as webdriver
 from selenium.webdriver.support import expected_conditions as ec
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
 
 import tgfsearch.parameters as params
 

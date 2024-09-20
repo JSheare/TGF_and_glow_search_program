@@ -1,6 +1,6 @@
 """A class for conveniently writing stdout to a multiprocessing connection object. Used by the GUI."""
-import sys as sys
 import multiprocessing as multiprocessing
+import sys as sys
 
 
 class PipeStdout:
