@@ -9,6 +9,7 @@ grandparent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpa
 if grandparent_dir not in sys.path:
     sys.path.insert(0, grandparent_dir)
 
+import tgfsearch.parameters as params
 import tgfsearch.tools as tl
 
 
@@ -18,22 +19,61 @@ def main():
         second_date = str(sys.argv[2])
         unit = str(sys.argv[3])
     else:
-        print('Please provide a first date, a second date, and a unit name.')
+        print('Please provide a first date, a second date, and an unit name.')
         exit()
 
+    # Makes sure inputs are valid
+    if not first_date.isdigit() or not second_date.isdigit() \
+            or len(first_date) != 6 or len(second_date) != 6:
+        print('Invalid date(s).')
+        exit()
+    elif int(second_date) < int(first_date):
+        print('Not a valid date range.')
+        exit()
+
+    if len(sys.argv) > 4:
+        mode_info = sys.argv[4:]
+    else:
+        mode_info = []
+
+    results_loc = os.getcwd()
+    export_loc = os.getcwd()
+    # Flag for Using custom import/export directories
+    if '-c' in mode_info:
+        index = mode_info.index('-c')
+        if index + 2 < len(mode_info):
+            results_index = index + 1
+            if mode_info[results_index] != 'none' and mode_info[results_index] != '/':
+                results_loc = mode_info[results_index]
+
+            export_index = index + 2
+            if mode_info[export_index] != 'none' and mode_info[export_index] != '/':
+                export_loc = mode_info[export_index]
+
+    detector_path = f'{results_loc}/Results/{unit}'
+    export_path = f'{export_loc}/Collected Images'
+
+    # Flag for only including top-ranked short events
+    if '-t' in mode_info:
+        top_only = True
+        padding = (len(str(params.MAX_PLOTS_PER_SCINT)) - 1) * '0'
+    else:
+        top_only = False
+        padding = ''
+
     # For the traces
-    t_path = f'{os.getcwd()}/Collected Images/Traces'
-    tl.make_path(t_path)
+    trace_path = f'{export_path}/Traces'
+    tl.make_path(trace_path)
 
     # For the scatter plots
-    s_path = f'{os.getcwd()}/Collected Images/Scatter Plots'
-    tl.make_path(s_path)
+    short_event_path = f'{export_path}/Scatter Plots'
+    tl.make_path(short_event_path)
 
     # For the histograms
-    h_path = f'{os.getcwd()}/Collected Images/Histograms'
-    tl.make_path(h_path)
-
-    detector_path = f'{os.getcwd()}/Results/{unit}'
+    short_hist_path = f'{export_path}/Histograms/{params.SHORT_BIN_SIZE} Sec Bins'
+    tl.make_path(short_hist_path)
+    long_hist_path = f'{export_path}/Histograms/{params.LONG_BIN_SIZE} Sec Bins'
+    tl.make_path(long_hist_path)
 
     requested_dates = tl.make_date_list(first_date, second_date)
     for date_str in requested_dates:
@@ -41,21 +81,30 @@ def main():
 
         # Traces
         trace_list = glob.glob(f'{path}/traces/*xtr*.png')
-        for t_file in trace_list:
-            t_filename = t_file.replace(path, '')[8:]
-            shutil.copyfile(t_file, f'{t_path}/{t_filename}')
+        for trace in trace_list:
+            t_filename = trace.split('/')[-1].split('\\')[-1]
+            shutil.copyfile(trace, f'{trace_path}/{t_filename}')
 
         # Scatter plots:
-        scatter_plot_list = glob.glob(f'{path}/scatter_plots/*event*.png')
-        for s_file in scatter_plot_list:
-            s_filename = s_file.replace(path, '')[14:]
-            shutil.copyfile(s_file, f'{s_path}/{s_filename}')
+        if top_only:
+            scatter_plot_list = glob.glob(f'{path}/scatter_plots/*_rank{padding}1.png')
+        else:
+            scatter_plot_list = glob.glob(f'{path}/scatter_plots/*.png')
+
+        for plot in scatter_plot_list:
+            s_filename = plot.split('/')[-1].split('\\')[-1]
+            shutil.copyfile(plot, f'{short_event_path}/{s_filename}')
 
         # Histograms
-        histogram_list = glob.glob(f'{path}/*histogram.png')
-        for h_file in histogram_list:
-            h_filename = h_file.replace(path, '')[1:]
-            shutil.copyfile(h_file, f'{h_path}/{h_filename}')
+        short_hist_list = glob.glob(f'{path}/*histogram_{params.SHORT_BIN_SIZE}_sec_bins.png')
+        for hist in short_hist_list:
+            hist_filename = hist.split('/')[-1].split('\\')[-1]
+            shutil.copyfile(hist, f'{short_hist_path}/{hist_filename}')
+
+        long_hist_list = glob.glob(f'{path}/*histogram_{params.LONG_BIN_SIZE}_sec_bins.png')
+        for hist in long_hist_list:
+            hist_filename = hist.split('/')[-1].split('\\')[-1]
+            shutil.copyfile(hist, f'{long_hist_path}/{hist_filename}')
 
 
 if __name__ == '__main__':

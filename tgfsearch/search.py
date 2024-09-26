@@ -1189,14 +1189,12 @@ def program(first_date, second_date, unit, mode_info):
             index = mode_info.index('-c')
             if index + 2 < len(mode_info):
                 import_index = index + 1
-                if mode_info[import_index] != 'none':
-                    if mode_info[import_index] != '/':
-                        detector.set_import_loc(mode_info[import_index])
+                if mode_info[import_index] != 'none' and mode_info[import_index] != '/':
+                    detector.set_import_loc(mode_info[import_index])
 
                 export_index = index + 2
-                if mode_info[export_index] != 'none':
-                    if mode_info[export_index] != '/':
-                        detector.set_results_loc(mode_info[export_index])
+                if mode_info[export_index] != 'none' and mode_info[export_index] != '/':
+                    detector.set_results_loc(mode_info[export_index])
 
         # Logs relevant data files and events in a .txt File
         log_path = f'{detector.get_results_loc()}'
@@ -1337,14 +1335,12 @@ def program(first_date, second_date, unit, mode_info):
                         index = mode_info.index('-c')
                         if index + 2 < len(mode_info):
                             import_index = index + 1
-                            if mode_info[import_index] != 'none':
-                                if mode_info[import_index] != '/':
-                                    chunk.set_import_loc(mode_info[import_index])
+                            if mode_info[import_index] != 'none' and mode_info[import_index] != '/':
+                                chunk.set_import_loc(mode_info[import_index])
 
                             export_index = index + 2
-                            if mode_info[export_index] != 'none':
-                                if mode_info[export_index] != '/':
-                                    chunk.set_results_loc(mode_info[export_index])
+                            if mode_info[export_index] != 'none' and mode_info[export_index] != '/':
+                                chunk.set_results_loc(mode_info[export_index])
 
                 chunk_scint_list = chunk_list[0].scint_list
 
