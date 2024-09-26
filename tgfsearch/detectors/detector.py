@@ -758,12 +758,12 @@ class Detector:
                     complete_filelist = glob.glob(f'{self._import_loc}/{self.date_str}'
                                                   f'/{self.file_form(eRC)}'.replace('\\', '/'))
 
-                lm_filelist, trace_filelist = tl.separate_files(tl.filter_files(complete_filelist))
+                lm_filelist, trace_filelist = tl.separate_data_files(tl.filter_data_files(complete_filelist))
                 if import_lm:
-                    self.set_attribute(scintillator, 'lm_filelist', lm_filelist, deepcopy=False)
+                    self._scintillators[scintillator].lm_filelist = lm_filelist
 
                 if import_traces:
-                    self.set_attribute(scintillator, 'trace_filelist', trace_filelist, deepcopy=False)
+                    self._scintillators[scintillator].trace_filelist = trace_filelist
 
         # Checking to make sure that currently listed data won't go over the memory limit
         if self.get_fileset_size() > psutil.virtual_memory()[1] * mem_frac:

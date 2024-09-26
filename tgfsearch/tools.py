@@ -308,8 +308,8 @@ def unpickle_chunk(chunk_path):
     return chunk
 
 
-def filter_files(complete_filelist):
-    """Returns an ordered list of files with duplicate/invalid files filtered out."""
+def filter_data_files(complete_filelist):
+    """Returns an ordered list of data files with duplicate/invalid files filtered out."""
     unique_files = set()
     file_names = []
     extensions = []
@@ -332,7 +332,7 @@ def filter_files(complete_filelist):
     return [file_names[s] + extensions[s] for s in np.argsort(file_names)]  # Puts the files back in order
 
 
-def separate_files(filelist):
+def separate_data_files(filelist):
     """Returns a pair of ordered lists: one with list mode files, the other with trace files."""
     lm_filelist = []
     trace_filelist = []

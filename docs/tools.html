@@ -155,7 +155,7 @@ Returns<br>
 int<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;size&nbsp;of&nbsp;the&nbsp;file&nbsp;in&nbsp;bytes.</span></dd></dl>
  <dl><dt><a name="-file_timestamp"><strong>file_timestamp</strong></a>(file)</dt><dd><span class="code">Returns&nbsp;the&nbsp;timestamp&nbsp;of&nbsp;the&nbsp;given&nbsp;file&nbsp;as&nbsp;a&nbsp;string&nbsp;of&nbsp;the&nbsp;form&nbsp;hhmmss.</span></dd></dl>
- <dl><dt><a name="-filter_files"><strong>filter_files</strong></a>(complete_filelist)</dt><dd><span class="code">Returns&nbsp;an&nbsp;ordered&nbsp;list&nbsp;of&nbsp;files&nbsp;with&nbsp;duplicate/invalid&nbsp;files&nbsp;filtered&nbsp;out.</span></dd></dl>
+ <dl><dt><a name="-filter_data_files"><strong>filter_data_files</strong></a>(complete_filelist)</dt><dd><span class="code">Returns&nbsp;an&nbsp;ordered&nbsp;list&nbsp;of&nbsp;data&nbsp;files&nbsp;with&nbsp;duplicate/invalid&nbsp;files&nbsp;filtered&nbsp;out.</span></dd></dl>
  <dl><dt><a name="-filter_traces"><strong>filter_traces</strong></a>(detector, scintillator)</dt><dd><span class="code">Returns&nbsp;a&nbsp;list&nbsp;of&nbsp;traces&nbsp;that&nbsp;are&nbsp;likely&nbsp;to&nbsp;be&nbsp;interesting&nbsp;for&nbsp;the&nbsp;given&nbsp;scintillator.<br>
 &nbsp;<br>
 Parameters<br>
@@ -302,7 +302,7 @@ Returns<br>
 -------<br>
 dict<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;with&nbsp;separated&nbsp;data&nbsp;for&nbsp;each&nbsp;scintillator&nbsp;in&nbsp;count_scints.</span></dd></dl>
- <dl><dt><a name="-separate_files"><strong>separate_files</strong></a>(filelist)</dt><dd><span class="code">Returns&nbsp;a&nbsp;pair&nbsp;of&nbsp;ordered&nbsp;lists:&nbsp;one&nbsp;with&nbsp;list&nbsp;mode&nbsp;files,&nbsp;the&nbsp;other&nbsp;with&nbsp;trace&nbsp;files.</span></dd></dl>
+ <dl><dt><a name="-separate_data_files"><strong>separate_data_files</strong></a>(filelist)</dt><dd><span class="code">Returns&nbsp;a&nbsp;pair&nbsp;of&nbsp;ordered&nbsp;lists:&nbsp;one&nbsp;with&nbsp;list&nbsp;mode&nbsp;files,&nbsp;the&nbsp;other&nbsp;with&nbsp;trace&nbsp;files.</span></dd></dl>
  <dl><dt><a name="-short_to_full_date"><strong>short_to_full_date</strong></a>(date_str)</dt><dd><span class="code">Converts&nbsp;a&nbsp;date&nbsp;string&nbsp;of&nbsp;the&nbsp;form&nbsp;yymmdd&nbsp;to&nbsp;the&nbsp;form&nbsp;yyyy-mm-dd.</span></dd></dl>
  <dl><dt><a name="-trace_to_counts"><strong>trace_to_counts</strong></a>(trace_energies)</dt><dd><span class="code">Simulates&nbsp;the&nbsp;eMorpho&nbsp;response&nbsp;to&nbsp;trace&nbsp;data&nbsp;and&nbsp;returns&nbsp;the&nbsp;results.</span></dd></dl>
  <dl><dt><a name="-unpickle_chunk"><strong>unpickle_chunk</strong></a>(chunk_path)</dt><dd><span class="code">Unpickles&nbsp;and&nbsp;loads&nbsp;daily&nbsp;chunks&nbsp;for&nbsp;the&nbsp;program's&nbsp;low&nbsp;memory&nbsp;mode.</span></dd></dl>

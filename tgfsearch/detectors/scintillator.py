@@ -91,7 +91,10 @@ class Scintillator:
             info_type = type(info)
             if info_type == attribute_type:
                 if attribute == 'lm_filelist':
-                    info = tl.filter_files(info)  # To ensure that find_lm_file_index works properly
+                    # To ensure that find_lm_file_index works properly
+                    info = tl.separate_data_files(tl.filter_data_files(info))[0]
+                elif attribute == 'trace_filelist':
+                    info = tl.separate_data_files(tl.filter_data_files(info))[1]
 
                 if deepcopy:
                     setattr(self, attribute, copy.deepcopy(info))
