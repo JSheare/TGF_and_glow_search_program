@@ -192,6 +192,7 @@ a command of the following form in the command line:
     tgf-collect yymmdd yymmdd detector
 
 where the first 'yymmdd' is the first date in the desired collection range and the second 'yymmdd' is the last. 
+Images will be copied from the "Results" directory to a new directory called "collected_images".
 
 ### **Specifying Custom Result and Image Collection Locations:**
 By default, the image files are gathered from and collected in the present working directory, but if you'd like to use 
@@ -199,8 +200,11 @@ custom locations you can use the '-c' flag:
 
     tgf-collect yymmdd yymmdd detector -c "results_loc" "collection_loc"
 
+Where "results_loc" is the location of the "Results" directory and "collection_loc" is the location where the new 
+directory "collected_images" will be created.
+
 Note: if you don't wish to specify one of the locations, simply use the word 'none' instead. Here's an example
-where we omit a custom collection location:
+where a custom collection location has been omitted:
 
     tgf-collect yymmdd yymmdd detector -c "results_loc" none
 
@@ -209,6 +213,13 @@ where we omit a custom collection location:
 To include only the top-ranked short events, you can use the '-t' flag:
 
     tgf-collect yymmdd yymmdd detector -t
+
+By default, only events with a rank of one are included, but if you'd like to include events with ranks that are equal
+to or higher than a particular value, you can do so by supplying the value as an argument. Here's an example where only 
+events with rank 13 or higher are included:
+
+    tgf-collect yymmdd yymmdd detector -t 13
+
 
 # **Using Data Tools:**
 In addition to the search program and associated utilities, the package also includes data handling tools that you can 

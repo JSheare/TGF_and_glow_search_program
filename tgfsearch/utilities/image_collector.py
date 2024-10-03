@@ -17,9 +17,9 @@ def main():
     if len(sys.argv) >= 4:
         first_date = str(sys.argv[1])
         second_date = str(sys.argv[2])
-        unit = str(sys.argv[3])
+        unit = str(sys.argv[3]).upper()
     else:
-        print('Please provide a first date, a second date, and an unit name.')
+        print('Please provide a first date, a second date, and a unit name.')
         exit()
 
     # Makes sure inputs are valid
@@ -51,28 +51,49 @@ def main():
                 export_loc = mode_info[export_index]
 
     detector_path = f'{results_loc}/Results/{unit}'
-    export_path = f'{export_loc}/Collected Images'
+    export_path = f'{export_loc}/collected_images'
 
-    # Flag for only including top-ranked short events
+    # Flag for only including short events above or equal to a certain rank
+    top_only = False
+    max_rank = 0
+    max_rank_order = 0
+    rank_len = 0
+    padding_len = 0
     if '-t' in mode_info:
-        top_only = True
-        padding = (len(str(params.MAX_PLOTS_PER_SCINT)) - 1) * '0'
-    else:
-        top_only = False
-        padding = ''
+        index = mode_info.index('-t')
+        # Default argument (top-ranked plots only)
+        if index + 1 >= len(mode_info):
+            max_rank = 1
+            max_rank_order = 1
+            top_only = True
+        else:
+            if not mode_info[index + 1].isnumeric():
+                print('Error: ranking argument must be a positive integer.')
+                exit()
+
+            max_rank = int(mode_info[index + 1])
+            if max_rank < 0:
+                print('Error: ranking argument must be a positive integer')
+                exit()
+
+            max_rank_order = len(mode_info[index + 1])
+            top_only = True
+
+        rank_len = len(str(params.MAX_PLOTS_PER_SCINT))
+        padding_len = rank_len - max_rank_order
 
     # For the traces
-    trace_path = f'{export_path}/Traces'
+    trace_path = f'{export_path}/traces'
     tl.make_path(trace_path)
 
     # For the scatter plots
-    short_event_path = f'{export_path}/Scatter Plots'
+    short_event_path = f'{export_path}/scatter_plots'
     tl.make_path(short_event_path)
 
     # For the histograms
-    short_hist_path = f'{export_path}/Histograms/{params.SHORT_BIN_SIZE} Sec Bins'
+    short_hist_path = f'{export_path}/histograms/{params.SHORT_BIN_SIZE}_sec_bins'
     tl.make_path(short_hist_path)
-    long_hist_path = f'{export_path}/Histograms/{params.LONG_BIN_SIZE} Sec Bins'
+    long_hist_path = f'{export_path}/histograms/{params.LONG_BIN_SIZE}_sec_bins'
     tl.make_path(long_hist_path)
 
     requested_dates = tl.make_date_list(first_date, second_date)
@@ -87,7 +108,15 @@ def main():
 
         # Scatter plots:
         if top_only:
-            scatter_plot_list = glob.glob(f'{path}/scatter_plots/*_rank{padding}1.png')
+            maybe_plot_list = glob.glob(f'{path}/scatter_plots/'
+                                        f'*_rank{"0" * padding_len}{"[0-9]" * max_rank_order}.png')
+            scatter_plot_list = []
+            for plot in maybe_plot_list:
+                rank_index = plot.find('rank') + 4
+                rank = int(plot[rank_index: rank_index + rank_len])
+                if rank <= max_rank:
+                    scatter_plot_list.append(plot)
+
         else:
             scatter_plot_list = glob.glob(f'{path}/scatter_plots/*.png')
 
