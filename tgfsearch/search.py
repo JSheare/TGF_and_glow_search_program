@@ -1353,17 +1353,16 @@ def program(first_date, second_date, unit, mode_info):
                 chunk_num = 1
                 has_data = True
                 le_scint_data = {scintillator: False for scintillator in get_le_scints(detector)}
-                # Keeps timings consistent between chunks
-                passtime_dict = {scintillator: chunk_list[0].get_attribute(scintillator, 'passtime', deepcopy=True)
-                                 for scintillator in chunk_scint_list}
+                # Passes reader objects between chunks
+                reader_dict = {scintillator: chunk_list[0].get_attribute(scintillator, 'reader', deepcopy=False)
+                               for scintillator in chunk_scint_list}
 
                 while chunk_list:
                     chunk = chunk_list.pop(0)
-                    # Updates chunk to include previous chunk's passtime
+                    # Updates chunk to include previous chunk's reader
                     if chunk_num != 1:
                         for scintillator in chunk:
-                            chunk.set_attribute(scintillator, 'passtime', passtime_dict[scintillator],
-                                                deepcopy=True)
+                            chunk.set_attribute(scintillator, 'reader', reader_dict[scintillator], deepcopy=False)
 
                     tl.print_logger('', detector.log)
                     tl.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
@@ -1379,14 +1378,10 @@ def program(first_date, second_date, unit, mode_info):
                             le_scint_data[scintillator] = chunk.data_present_in(scintillator)
 
                     # Makes a full list of filetime extrema for long event search
-                    # Also updates passtime_dict for the next chunk
                     for scintillator in chunk:
                         extrema = detector.get_attribute(scintillator, 'lm_file_ranges')
                         extrema += chunk.get_attribute(scintillator, 'lm_file_ranges')
                         detector.set_attribute(scintillator, 'lm_file_ranges', extrema)
-                        if chunk_list:
-                            passtime_dict[scintillator] = chunk.get_attribute(scintillator, 'passtime',
-                                                                              deepcopy=True)
 
                     # Pickle chunk and add its path to the list
                     chunk_path_list.append(tl.pickle_chunk(chunk, f'chunk{chunk_num}'))

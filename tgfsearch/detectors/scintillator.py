@@ -5,6 +5,7 @@ import pandas as pd
 
 import tgfsearch.parameters as params
 import tgfsearch.tools as tl
+from tgfsearch.helpers.reader import Reader
 
 
 class Scintillator:
@@ -37,8 +38,8 @@ class Scintillator:
         A list of trace files for the day.
     traces : dict
         A dictionary containing trace data for each of the day's trace files.
-    passtime : dict
-        A dictionary containing information needed to import the subsequent list mode files properly (if applicable).
+    reader : tgfsearch.helpers.reader.Reader
+        A Reader object for reading the scintillator's data files.
 
     """
 
@@ -53,8 +54,7 @@ class Scintillator:
         self.lm_file_indices = {}
         self.trace_filelist = []
         self.traces = {}
-        self.passtime = {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0, 'ppsunix': -1.0, 'lastwc': 0,
-                         'ppswc': 0, 'hz': 8e7, 'started': 0}
+        self.reader = Reader()
 
     def __str__(self):
         return f'Scintillator({self.name}, {self.eRC})'
@@ -235,8 +235,7 @@ class Scintillator:
         self.calibration_bins = []
         self.lm_file_ranges = []
         self.lm_file_indices = {}
-        self.passtime = {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0, 'ppsunix': -1.0, 'lastwc': 0,
-                         'ppswc': 0, 'hz': 8e7, 'started': 0}
+        self.reader.reset()
         if clear_filelists:
             self.lm_filelist = []
             self.trace_filelist = []

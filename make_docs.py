@@ -33,6 +33,9 @@ def main():
     # Docs for longevent
     make_doc('longevent', os.getcwd() + '/tgfsearch/events')
 
+    # Docs for reader
+    make_doc('reader', os.getcwd() + '/tgfsearch/helpers')
+
 
 if __name__ == '__main__':
     main()

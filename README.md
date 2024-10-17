@@ -240,6 +240,32 @@ data = tgf.fileNameToData('/media/tgfdata/Detectors/THOR/THOR1/220831/eRC4195lpl
 # where data is just a dataframe like you're probably used to.
 ```
 
+### **Using the Reader Class:**
+The package also includes a convenient, object-oriented interface to the data reader through a class called Reader. To use it, 
+create a reader object like so:
+```python3
+reader = tgf.Reader()
+```
+To read data, use the read() method:
+```python3
+data = reader.read('/media/tgfdata/Detectors/THOR/THOR1/220831/eRC4195lpl_lm_220831_235435.txt.gz')
+```
+Where data is a pandas dataframe. No passtime required; it's kept internal, which can be particularly useful when 
+reading several consecutive files.
+
+If you need to, though, you can still get at passtime like this:
+```python3
+passtime = reader.passtime
+```
+And, if desired, you can also opt to reset passtime to default after reading a file:
+```python3
+data = reader.read('/media/tgfdata/Detectors/THOR/THOR1/220831/eRC4195lpl_lm_220831_235435.txt.gz', reset_after=True)
+```
+Or at an arbitrary time using the reset() method:
+```python3
+reader.reset()
+```
+
 ### **Basic Detector Class Usage:**
 Detector is a class that's designed to quickly and efficiently import and provide access to all data (list mode and 
 trace) for a single day. Throughout these examples, we'll be using August 31st, 2022 on Thor 1 as a test day.
@@ -310,8 +336,7 @@ As above, these are the most common attributes, but you can request any on the f
         out of lm_frame.
 - trace_filelist - A list of trace files for the day.
 - traces - A dictionary containing trace data for each of the day's trace files.
-- passtime - A dictionary containing information needed to import the subsequent list mode files properly
-        (if applicable).
+- reader - The Reader object used to read the scintillator's data files.
 
 Additionally, you can also assign new information to these attributes using the Detector's set_attribute() method:
 ```python3
@@ -547,3 +572,4 @@ Full tools documentation for these functions (and others) can be found [here](ht
 - [Scintillator](https://html-preview.github.io/?url=https://github.com/JSheare/TGF_and_glow_search_program/blob/master/docs/scintillator.html)
 - [Short Event Helper](https://html-preview.github.io/?url=https://github.com/JSheare/TGF_and_glow_search_program/blob/master/docs/shortevent.html)
 - [Long Event Helper](https://html-preview.github.io/?url=https://github.com/JSheare/TGF_and_glow_search_program/blob/master/docs/longevent.html)
+- [Reader Helper](https://html-preview.github.io/?url=https://github.com/JSheare/TGF_and_glow_search_program/blob/master/docs/reader.html)

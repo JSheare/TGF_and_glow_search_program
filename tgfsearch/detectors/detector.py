@@ -16,7 +16,7 @@ from matplotlib.widgets import Slider
 
 import tgfsearch.parameters as params
 import tgfsearch.tools as tl
-import tgfsearch.utilities.DataReaderTimetrack2 as Dr
+import tgfsearch.DataReaderTimetrack2 as Dr
 from tgfsearch.detectors.scintillator import Scintillator
 
 
@@ -278,7 +278,7 @@ class Detector:
         -------
         str || list || numpy.ndarray || dict || pandas.core.frame.DataFrame
             String if 'eRC' is requested; list if 'lm_filelist', 'calibration', or 'lm_file_ranges' is requested;
-            numpy array  if 'time', 'energy', or 'wc' is requested; dictionary if 'passtime' is requested; dataframe
+            numpy array  if 'time', 'energy', or 'wc' is requested; Reader if 'reader' is requested; dataframe
             if 'lm_frame' is requested, etc.
 
         """
@@ -577,6 +577,7 @@ class Detector:
                 data = pd.DataFrame.from_dict({'time': time, 'energy': energy})
                 file_frames.append(data)
             else:
+                reader = self.get_attribute(scintillator, 'reader', deepcopy=False)
                 # Try-except block to handle reader errors
                 try:
                     # The first with disables prints from the data reader; The second with suppresses annoying
@@ -584,8 +585,7 @@ class Detector:
                     with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
                         with warnings.catch_warnings():
                             warnings.simplefilter('ignore', category=RuntimeWarning)
-                            data, passtime = Dr.fileNameToData(file,
-                                                               self.get_attribute(scintillator, 'passtime'))
+                            data = reader.read(file)
 
                 except Exception as ex:
                     # Files that generate reader errors are skipped
@@ -595,7 +595,6 @@ class Detector:
 
                     continue
 
-                self.set_attribute(scintillator, 'passtime', passtime, deepcopy=False)
                 if 'energies' in data.columns:
                     data.rename(columns={'energies': 'energy'}, inplace=True)
 
