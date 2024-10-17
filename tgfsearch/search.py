@@ -84,6 +84,21 @@ def get_modes(mode_info):
     return modes
 
 
+# Logs errors that occur during daily searches
+def log_error(detector, modes, ex):
+    tl.print_logger('\n', detector.log)
+    tl.print_logger(f'Search could not be completed due to the following error: {ex}', detector.log)
+    tl.print_logger('See error log for details.', detector.log)
+    with open(f'{detector.get_results_loc()}/err.txt', 'w') as err_file:
+        print('Info:', file=err_file)
+        print(f'{detector.date_str} {detector.unit}', file=err_file)
+        for mode in modes:
+            print(f'{mode}: {modes[mode]}', file=err_file)
+
+        print('', file=err_file)
+        err_file.write(traceback.format_exc())
+
+
 # Plots the given list of traces
 def plot_traces(detector, scintillator, trace_names):
     if trace_names:
@@ -797,35 +812,33 @@ def aircraft_baseline(mue, bins_allday, hist_allday, bin_size):
 
 
 # Long event search algorithm
-def long_event_search(modes, day_bins, hist_allday, mue, sigma, bin_size):
-    z_scores = []  # The z-scores themselves
-    z_flags = []
-    # Flags only those z-scores > params.FLAG_THRESH
-    for i in range(len(hist_allday)):
-        z_score = (hist_allday[i] - mue[i]) / sigma[i]
-        z_scores.append(z_score)
-        if z_score >= params.FLAG_THRESH:
-            z_flags.append(i)
+def long_event_search(modes, day_bins, hist_allday, mue, sigma):
+    z_scores = (hist_allday - mue) / sigma
+    z_flags = np.where(z_scores > params.FLAG_THRESH)[0]  # Flags only those z-scores > params.FLAG_THRESH
 
     # Sorts z-flags into actual potential glows
     potential_glows = []
     glow_start = 0
     glow_length = 0
-    previous_time = 0
+    previous_flag = -1
     for i in range(len(z_flags)):
         flag = z_flags[i]
+        prev_bin = flag - 1
         if glow_length == 0:  # First zscore only
             glow_start = flag
             glow_length += 1
-        elif glow_length > 0 and day_bins[flag] - bin_size == previous_time:
+        elif prev_bin == previous_flag:  # Adding to the length of the glow
             glow_length += 1
-        elif (glow_length > 0 and day_bins[flag] - bin_size > previous_time) or i == len(z_flags) - 1:
-            # Makes glow object
+        elif prev_bin > previous_flag:  # Recording the previous glow and starting to record a new one
             potential_glows.append(LongEvent(glow_start, glow_length, z_scores, day_bins))
             glow_start = flag
             glow_length = 1
 
-        previous_time = day_bins[flag]
+        previous_flag = flag
+
+    # Recording the last glow (if there is one)
+    if glow_length > 0:
+        potential_glows.append(LongEvent(glow_start, glow_length, z_scores, day_bins))
 
     # Rejects events whose bins don't have enough counts (aircraft only)
     if modes['aircraft']:
@@ -881,7 +894,7 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
     sigma = np.sqrt(mue)
 
     # Finding potential events with the search algorithm in find_long_events
-    potential_glows = long_event_search(modes, bins_allday, hist_allday, mue, sigma, bin_size)
+    potential_glows = long_event_search(modes, bins_allday, hist_allday, mue, sigma)
 
     # Making histogram
     figure = plt.figure(figsize=[20, 11.0])
@@ -1299,17 +1312,7 @@ def program(first_date, second_date, unit, mode_info):
             pass
 
         except Exception as ex:  # Logging errors
-            tl.print_logger('\n', log)
-            tl.print_logger(f'Search could not be completed due to the following error: {ex}', log)
-            tl.print_logger('See error log for details.', log)
-            with open(f'{log_path}/err.txt', 'w') as err_file:
-                print('Info:', file=err_file)
-                print(f'{detector.date_str} {detector.unit}', file=err_file)
-                for mode in modes:
-                    print(f'{mode}: {modes[mode]}', file=err_file)
-
-                print('', file=err_file)
-                err_file.write(traceback.format_exc())
+            log_error(detector, modes, ex)
 
         # Low memory mode
         if low_memory_mode:
@@ -1519,17 +1522,7 @@ def program(first_date, second_date, unit, mode_info):
                 pass
 
             except Exception as ex:  # Logging errors
-                tl.print_logger('\n', log)
-                tl.print_logger(f'Search could not be completed due to the following error: {ex}', log)
-                tl.print_logger('See error log for details.', log)
-                with open(f'{log_path}/err.txt', 'w') as err_file:
-                    print('Info:', file=err_file)
-                    print(f'{detector.date_str} {detector.unit}', file=err_file)
-                    for mode in modes:
-                        print(f'{mode}: {modes[mode]}', file=err_file)
-
-                    print('', file=err_file)
-                    err_file.write(traceback.format_exc())
+                log_error(detector, modes, ex)
 
             finally:
                 # Deletes chunk .pickle files

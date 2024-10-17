@@ -11,8 +11,8 @@ class LongEvent:
         The index of the histogram bin which corresponds to the start of the event.
     length : int
         The number of histogram bins that make up the event.
-    z_scores : list
-        A list containing the z-scores for each bin in the daily histogram.
+    z_scores : numpy.ndarray
+        An array containing the z-scores for each bin in the daily histogram.
     day_bins : numpy.ndarray
         An array containing the bins for the daily histogram.
 
@@ -41,8 +41,7 @@ class LongEvent:
         self.start = int(start)
         self.length = int(length)
         self.stop = int(start + length - 1) if self.length > 1 else int(start + length)
-        self.peak_index = 0
-        self.highest_score = self._highest_zscore(z_scores)
+        self.peak_index, self.highest_score = self._highest_zscore(z_scores)
         self.start_sec, self.stop_sec = self._beginning_and_end_seconds(day_bins)
         self.lm_files = {}
 
@@ -58,8 +57,8 @@ class LongEvent:
         """Identifies the highest z-score and its corresponding bin for the event."""
         glow_scores = z_scores[self.start:self.stop]
         highest_score = np.max(glow_scores)
-        self.peak_index = np.argmax(glow_scores) + self.start
-        return highest_score
+        peak_index = np.argmax(glow_scores) + self.start
+        return peak_index, highest_score
 
     def _beginning_and_end_seconds(self, day_bins):
         """Calculates the beginning and end of an event in seconds."""

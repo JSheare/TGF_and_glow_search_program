@@ -816,9 +816,11 @@ def is_good_trace(trace):
                 # If the average slope is positive and gradual (small) enough, we've found a valid rising edge
                 if 0 < slope_sum / num_slopes <= params.RISING_EDGE_MAX_SLOPE:
                     return True
-                else:
+                else:  # This might be an error
                     return False
 
+            # If the above isn't an error, this should be flipped to True because otherwise traces that
+            # never reach the max count value will be auto rejected
             return False
 
     else:
