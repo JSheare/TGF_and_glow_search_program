@@ -756,75 +756,70 @@ def is_good_trace(trace):
 
     """
 
-    value_freq = trace['pulse'].value_counts(sort=False)
-    pulse_mode = trace['pulse'].mode()
-    if len(pulse_mode) > 0:  # If there is a mode, use it as the baseline. Otherwise, use the median
+    # Calculating the trace baseline using the first NUM_BINS_BASELINE bins of the trace
+    if trace.size >= params.NUM_BINS_BASELINE:
+        baseline_slice = trace['pulse'][0:params.NUM_BINS_BASELINE - 1]
+    else:
+        baseline_slice = trace['pulse']
+
+    # If there is a mode, use it as the baseline. Otherwise, use the median
+    pulse_mode = baseline_slice.mode()
+    if len(pulse_mode) > 0:
         baseline = int(pulse_mode.iloc[0])
     else:
-        baseline = int(trace['pulse'].median())
+        baseline = int(baseline_slice.median())
 
-    trigger_thresh = baseline + params.TRIGGER_ABOVE_BASELINE
+    # Lower and upper bound for a count to be considered "in the vicinity" of the baseline
+    lower_bound = baseline - params.TRIGGER_ABOVE_BASELINE
+    upper_bound = baseline + params.TRIGGER_ABOVE_BASELINE
 
-    # "Bad" counts are those that are either at the minimum or maximum pulse value. Extra weight for those at the min
-    num_bad_counts = 0
-    if 0 in value_freq.index:
-        num_bad_counts += value_freq[0] * params.ZERO_WEIGHT
+    above_baseline = 0
+    below_baseline = 0
+    for i in trace.index:
+        value = trace['pulse'].iloc[i]
+        # Adding up above and below baseline counts for the no saturation filter
+        if value > upper_bound:
+            above_baseline += 1
+        elif value < lower_bound:
+            below_baseline += 1
 
-    if 255 in value_freq.index:
-        num_bad_counts += value_freq[255]
+        # Getting to the first saturated count we can find and checking for a valid rising edge
+        if value == 255:
+            num_bins = 0
+            # Working backwards from the saturated count
+            for j in range(i - 1, i - params.LARGE_TRIGSPOT - 1, -1):
+                # Loop will only traverse LARGE_TRIGSPOT bins or to the beginning of the trace, whichever is closer
+                if j < 0:
+                    break
 
-    # "Good" counts are those that are above the trace trigger threshold (not including those at the max value)
-    num_good_counts = 0
-    for val in value_freq.index:
-        if trigger_thresh <= val < 255:
-            num_good_counts += value_freq[val]
+                # Counting the number of bins that are above the baseline
+                if trace['pulse'].iloc[j] > upper_bound:
+                    num_bins += 1
 
-    if num_bad_counts > 0:
-        ratio = num_good_counts / num_bad_counts
-        # Ratio of good counts to bad counts must be above threshold for the trace to pass
-        if ratio >= params.GOOD_TRACE_THRESH:
-            return True
-        # Otherwise check for a valid rising edge
-        else:
-            # Lower and upper bound for a count to be considered in the vicinity of the baseline
-            lower_bound = baseline - params.TRIGGER_ABOVE_BASELINE
-            upper_bound = baseline + params.TRIGGER_ABOVE_BASELINE
+            # Traces with valid rising edges (those that are gradual enough) pass
+            if num_bins >= params.MIN_RISING_EDGE_BINS:
+                return True
+            else:
+                return False
 
-            for i in trace.index:
-                # For all indices with saturated counts
-                if trace['pulse'].iloc[i] != 255:
-                    continue
-
-                # Skipping over counts that aren't the first in the saturated region
-                if i - 1 >= 0 and trace['pulse'].iloc[i - 1] == 255:
-                    continue
-
-                slope_sum = 0
-                num_slopes = 0
-                pointer = i - 1
-                # Working backwards from the saturated count to a count at either near baseline or zero
-                while pointer >= 0:
-                    pointer_val = trace['pulse'].iloc[pointer]
-                    slope_sum += trace['pulse'].iloc[pointer + 1] - pointer_val
-                    num_slopes += 1
-                    # If True, we've found the beginning of the rising edge
-                    if lower_bound <= pointer_val <= upper_bound or pointer_val == 0:
-                        break
-
-                    pointer -= 1
-
-                # If the average slope is positive and gradual (small) enough, we've found a valid rising edge
-                if 0 < slope_sum / num_slopes <= params.RISING_EDGE_MAX_SLOPE:
-                    return True
-                else:  # This might be an error
-                    return False
-
-            # If the above isn't an error, this should be flipped to True because otherwise traces that
-            # never reach the max count value will be auto rejected
-            return False
-
-    else:
+    # Traces that never reach saturation (and thus pass through the above loop unscathed) are checked further
+    # Here we filter out traces that are mostly noise by checking the ratio of counts above the baseline to counts
+    # below the baseline
+    # Traces with no counts below the baseline are passed immediately
+    if below_baseline == 0:
         return True
+
+    # Noise spends about the same amount of time on either side, so if the trace is noisy this should be approximately 1
+    ratio = above_baseline / below_baseline
+    # Everything with a ratio that's suitably larger than 1 gets passed
+    if ratio - 1 >= params.ABOVE_BASELINE_RATIO_THRESH:
+        return True
+    # Traces with a significant number of counts below the baseline (unusual) are also passed
+    elif 1 - ratio >= params.BELOW_BASELINE_RATIO_THRESH:
+        return True
+
+    # Everything else is failed
+    return False
 
 
 def filter_traces(detector, scintillator):
