@@ -7,7 +7,7 @@ class Thor(Detector):
     def __init__(self, unit, date_str, print_feedback=False):
         super().__init__(unit, date_str, print_feedback)
 
-        self.calibration_params = {'bin_range': 65535.0, 'bin_size': 1, 'template_bin_plot_edge': 8000}
+        self.spectra_params = {'bin_range': 65535.0, 'bin_size': 1}
         self.default_data_loc = '/media/tgfdata/Detectors/THOR'
         self._import_loc = f'{self.default_data_loc}/{self.unit}/Data/{self.date_str}'
         serial_nums = self._get_eRC()

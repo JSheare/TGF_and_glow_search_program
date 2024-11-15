@@ -61,10 +61,8 @@ def change_elements(gui, action):
     gui.nametowidget('results_entrybox')['state'] = action
 
     gui.nametowidget('allscints')['state'] = action
-    gui.nametowidget('template')['state'] = action
     gui.nametowidget('aircraft')['state'] = action
     gui.nametowidget('combo')['state'] = action
-    gui.nametowidget('skcali')['state'] = action
     gui.nametowidget('skshort')['state'] = action
     gui.nametowidget('skglow')['state'] = action
     gui.nametowidget('pickle')['state'] = action
@@ -339,11 +337,6 @@ def main():
                                   command=lambda: tick_untick(ascb, program_modes, '--allscints'))
     variables.append(ascb)
 
-    tcb = tk.IntVar()
-    template_cb = tk.Checkbutton(gui, text='template', variable=tcb, onvalue=1, offvalue=0, name='template',
-                                 command=lambda: tick_untick(tcb, program_modes, '--template'))
-    variables.append(tcb)
-
     acb = tk.IntVar()
     aircraft_cb = tk.Checkbutton(gui, text='aircraft', variable=acb, onvalue=1, offvalue=0, name='aircraft',
                                  command=lambda: tick_untick(acb, program_modes, '--aircraft'))
@@ -358,15 +351,9 @@ def main():
     combo_cb.place(x=correct_coord(220, 217), y=correct_coord(600, 630))
     allscints_cb.place(x=correct_coord(300, 307), y=correct_coord(600, 630))
     aircraft_cb.place(x=correct_coord(380, 397), y=correct_coord(600, 630))
-    template_cb.place(x=correct_coord(460, 487), y=correct_coord(600, 630))
 
     # Making and placing developer mode checkboxes
     dev_checkbox_label = tk.Label(gui, text='Dev Modes:')
-
-    sccb = tk.IntVar()
-    skcali_cb = tk.Checkbutton(gui, text='skcali', variable=sccb, onvalue=1, offvalue=0, name='skcali',
-                               command=lambda: tick_untick(sccb, program_modes, '--skcali'))
-    variables.append(sccb)
 
     sscb = tk.IntVar()
     skshort_cb = tk.Checkbutton(gui, text='skshort', variable=sscb, onvalue=1, offvalue=0, name='skshort',
@@ -385,9 +372,8 @@ def main():
 
     dev_checkbox_label.place(x=correct_coord(150, 137), y=correct_coord(630, 660))
     pickle_cb.place(x=correct_coord(220, 217), y=correct_coord(630, 660))
-    skcali_cb.place(x=correct_coord(300, 307), y=correct_coord(630, 660))
-    skshort_cb.place(x=correct_coord(380, 397), y=correct_coord(630, 660))
-    skglow_cb.place(x=correct_coord(460, 487), y=correct_coord(630, 660))
+    skshort_cb.place(x=correct_coord(300, 307), y=correct_coord(630, 660))
+    skglow_cb.place(x=correct_coord(380, 397), y=correct_coord(630, 660))
 
     # Making and placing detector entry box
     detector_label = tk.Label(gui, text='Detector:')

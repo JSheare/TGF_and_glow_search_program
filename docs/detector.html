@@ -22,15 +22,13 @@
 <a href="gc.html">gc</a><br>
 </td><td class="multicolumn"><a href="glob.html">glob</a><br>
 <a href="json.html">json</a><br>
-<a href="matplotlib.html">matplotlib</a><br>
 <a href="numpy.html">numpy</a><br>
-</td><td class="multicolumn"><a href="os.html">os</a><br>
-<a href="tgfsearch.parameters.html">tgfsearch.parameters</a><br>
+<a href="os.html">os</a><br>
+</td><td class="multicolumn"><a href="tgfsearch.parameters.html">tgfsearch.parameters</a><br>
 <a href="pandas.html">pandas</a><br>
 <a href="matplotlib.pyplot.html">matplotlib.pyplot</a><br>
-</td><td class="multicolumn"><a href="psutil.html">psutil</a><br>
-<a href="scipy.signal.html">scipy.signal</a><br>
-<a href="tgfsearch.tools.html">tgfsearch.tools</a><br>
+<a href="psutil.html">psutil</a><br>
+</td><td class="multicolumn"><a href="tgfsearch.tools.html">tgfsearch.tools</a><br>
 <a href="warnings.html">warnings</a><br>
 </td></tr></table></td></tr></table><p>
 <table class="section">
@@ -82,8 +80,8 @@ deployment&nbsp;:&nbsp;dict<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Deployment&nbsp;information&nbsp;for&nbsp;the&nbsp;instrument&nbsp;on&nbsp;the&nbsp;requested&nbsp;day&nbsp;(if&nbsp;available).<br>
 default_scintillator&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;string&nbsp;representing&nbsp;the&nbsp;default&nbsp;scintillator.<br>
-calibration_params&nbsp;:&nbsp;dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;various&nbsp;parameters&nbsp;used&nbsp;to&nbsp;calibrate&nbsp;the&nbsp;<a href="#Detector">Detector</a>.<br>
+spectra_params&nbsp;:&nbsp;dict<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;various&nbsp;parameters&nbsp;used&nbsp;to&nbsp;make&nbsp;spectra&nbsp;for&nbsp;the&nbsp;<a href="#Detector">Detector</a>.<br>
 default_data_loc&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;default&nbsp;directory&nbsp;for&nbsp;an&nbsp;instrument's&nbsp;raw&nbsp;data.<br>
 _import_loc&nbsp;:&nbsp;str<br>
@@ -112,17 +110,6 @@ and&nbsp;the&nbsp;provided&nbsp;one.&nbsp;See&nbsp;<a href="#Detector-splice">sp
 with&nbsp;some&nbsp;info&nbsp;about&nbsp;which&nbsp;Scintillators&nbsp;have&nbsp;data.</span></dd></dl>
 
 <dl><dt><a name="Detector-__str__"><strong>__str__</strong></a>(self)</dt><dd><span class="code">String&nbsp;casting&nbsp;overload.&nbsp;Returns&nbsp;a&nbsp;string&nbsp;of&nbsp;the&nbsp;form&nbsp;'<a href="#Detector">Detector</a>(unit,&nbsp;date_str)'.</span></dd></dl>
-
-<dl><dt><a name="Detector-calibrate"><strong>calibrate</strong></a>(self, plot_spectra=False, make_template=False, existing_spectra=None)</dt><dd><span class="code">Makes&nbsp;energy&nbsp;spectra&nbsp;histograms&nbsp;and&nbsp;calibrates&nbsp;the&nbsp;large&nbsp;plastic&nbsp;and&nbsp;sodium&nbsp;iodide&nbsp;scintillators.<br>
-&nbsp;<br>
-Parameters<br>
-------<br>
-plot_spectra&nbsp;:&nbsp;bool<br>
-&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;Specifies&nbsp;whether&nbsp;to&nbsp;make&nbsp;and&nbsp;export&nbsp;spectra&nbsp;histograms.<br>
-make_template&nbsp;:&nbsp;bool<br>
-&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;Specifies&nbsp;whether&nbsp;to&nbsp;run&nbsp;the&nbsp;large&nbsp;plastic&nbsp;scintillator&nbsp;template&nbsp;maker.<br>
-existing_spectra&nbsp;:&nbsp;dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;Existing&nbsp;energy&nbsp;spectra&nbsp;histograms&nbsp;for&nbsp;each&nbsp;scintillator.</span></dd></dl>
 
 <dl><dt><a name="Detector-clear"><strong>clear</strong></a>(self, clear_filelists=True)</dt><dd><span class="code">Clears&nbsp;all&nbsp;data&nbsp;currently&nbsp;stored&nbsp;in&nbsp;the&nbsp;<a href="#Detector">Detector</a>.<br>
 &nbsp;<br>
@@ -214,7 +201,7 @@ deepcopy&nbsp;:&nbsp;bool<br>
 Returns<br>
 -------<br>
 str&nbsp;||&nbsp;list&nbsp;||&nbsp;numpy.ndarray&nbsp;||&nbsp;dict&nbsp;||&nbsp;pandas.core.frame.DataFrame<br>
-&nbsp;&nbsp;&nbsp;&nbsp;String&nbsp;if&nbsp;'eRC'&nbsp;is&nbsp;requested;&nbsp;list&nbsp;if&nbsp;'lm_filelist',&nbsp;'calibration',&nbsp;or&nbsp;'lm_file_ranges'&nbsp;is&nbsp;requested;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;String&nbsp;if&nbsp;'eRC'&nbsp;is&nbsp;requested;&nbsp;list&nbsp;if&nbsp;'lm_filelist'&nbsp;or&nbsp;'lm_file_ranges'&nbsp;is&nbsp;requested;<br>
 &nbsp;&nbsp;&nbsp;&nbsp;numpy&nbsp;array&nbsp;&nbsp;if&nbsp;'time',&nbsp;'energy',&nbsp;or&nbsp;'wc'&nbsp;is&nbsp;requested;&nbsp;Reader&nbsp;if&nbsp;'reader'&nbsp;is&nbsp;requested;&nbsp;dataframe<br>
 &nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;'lm_frame'&nbsp;is&nbsp;requested,&nbsp;etc.</span></dd></dl>
 
@@ -227,7 +214,7 @@ Returns<br>
 str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;import&nbsp;directory&nbsp;as&nbsp;a&nbsp;string.</span></dd></dl>
 
-<dl><dt><a name="Detector-get_lm_data"><strong>get_lm_data</strong></a>(self, scintillator, column, file_name=None, to_mev=False)</dt><dd><span class="code">Returns&nbsp;a&nbsp;single&nbsp;column&nbsp;of&nbsp;list&nbsp;mode&nbsp;data&nbsp;as&nbsp;a&nbsp;numpy&nbsp;array.<br>
+<dl><dt><a name="Detector-get_lm_data"><strong>get_lm_data</strong></a>(self, scintillator, column, file_name=None)</dt><dd><span class="code">Returns&nbsp;a&nbsp;single&nbsp;column&nbsp;of&nbsp;list&nbsp;mode&nbsp;data&nbsp;as&nbsp;a&nbsp;numpy&nbsp;array.<br>
 &nbsp;<br>
 Parameters<br>
 ----------<br>
@@ -239,9 +226,6 @@ column&nbsp;:&nbsp;str<br>
 file_name&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;file&nbsp;to&nbsp;get&nbsp;data&nbsp;for.&nbsp;If&nbsp;not&nbsp;specified,<br>
 &nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;will&nbsp;be&nbsp;retrieved&nbsp;for&nbsp;the&nbsp;whole&nbsp;day.<br>
-to_mev&nbsp;:&nbsp;bool<br>
-&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;and&nbsp;if&nbsp;'energy'&nbsp;is&nbsp;the&nbsp;column&nbsp;of&nbsp;interest,&nbsp;energies&nbsp;will&nbsp;be&nbsp;converted&nbsp;to&nbsp;MeV&nbsp;before<br>
-&nbsp;&nbsp;&nbsp;&nbsp;being&nbsp;returned.&nbsp;Raises&nbsp;an&nbsp;error&nbsp;if&nbsp;no&nbsp;calibration&nbsp;can&nbsp;be&nbsp;found&nbsp;for&nbsp;the&nbsp;scintillator.<br>
 &nbsp;<br>
 Returns<br>
 -------<br>
@@ -315,7 +299,7 @@ import_traces&nbsp;:&nbsp;bool<br>
 import_lm&nbsp;:&nbsp;bool<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;the&nbsp;function&nbsp;will&nbsp;import&nbsp;any&nbsp;list&nbsp;mode&nbsp;data&nbsp;it&nbsp;finds.&nbsp;True&nbsp;by&nbsp;default.<br>
 mem_frac&nbsp;:&nbsp;float<br>
-&nbsp;&nbsp;&nbsp;&nbsp;Optional:&nbsp;The&nbsp;maximum&nbsp;fraction&nbsp;of&nbsp;currently-available&nbsp;system&nbsp;memory&nbsp;that&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;is&nbsp;allowed&nbsp;to&nbsp;use&nbsp;for<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional:&nbsp;The&nbsp;maximum&nbsp;fraction&nbsp;of&nbsp;currently&nbsp;available&nbsp;system&nbsp;memory&nbsp;that&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;is&nbsp;allowed&nbsp;to&nbsp;use&nbsp;for<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;(not&nbsp;including&nbsp;overhead).&nbsp;If&nbsp;the&nbsp;dataset&nbsp;is&nbsp;larger&nbsp;than&nbsp;this&nbsp;limit,&nbsp;a&nbsp;MemoryError&nbsp;will&nbsp;be&nbsp;raised.<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.0&nbsp;(100%&nbsp;of&nbsp;system&nbsp;memory)&nbsp;by&nbsp;default.<br>
 gui&nbsp;:&nbsp;bool<br>
@@ -346,6 +330,14 @@ Returns<br>
 -------<br>
 tuple[numpy.ndarray,&nbsp;numpy.ndarray]<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Two&nbsp;numpy&nbsp;arrays:&nbsp;the&nbsp;energy&nbsp;bins,&nbsp;and&nbsp;the&nbsp;energy&nbsp;histogram.</span></dd></dl>
+
+<dl><dt><a name="Detector-plot_spectra"><strong>plot_spectra</strong></a>(self, scintillator)</dt><dd><span class="code">Plots&nbsp;and&nbsp;saves&nbsp;the&nbsp;energy&nbsp;spectra&nbsp;histogram&nbsp;for&nbsp;the&nbsp;given&nbsp;scintillator<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+scintillator&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;scintillator&nbsp;of&nbsp;interest.&nbsp;Allowed&nbsp;values&nbsp;(detector&nbsp;dependent):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'NaI',&nbsp;'SP',&nbsp;'MP',&nbsp;'LP'.</span></dd></dl>
 
 <dl><dt><a name="Detector-set_attribute"><strong>set_attribute</strong></a>(self, scintillator, attribute, new_info, deepcopy=True)</dt><dd><span class="code">Updates&nbsp;the&nbsp;requested&nbsp;attribute&nbsp;for&nbsp;a&nbsp;particular&nbsp;scintillator.<br>
 Note:&nbsp;new&nbsp;info&nbsp;must&nbsp;be&nbsp;of&nbsp;the&nbsp;same&nbsp;type&nbsp;as&nbsp;the&nbsp;old.<br>

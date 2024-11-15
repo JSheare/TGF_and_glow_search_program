@@ -22,10 +22,6 @@ class Scintillator:
     ----------
     lm_frame : pandas.core.frame.Dataframe
         A pandas dataframe containing all the scintillator's list mode data.
-    calibration_bins : list
-        A list containing the energy bins corresponding to Compton edges/photo peaks used for calibration.
-    calibration_energies : list
-        A list containing the energies of Compton edges/photo peaks used for calibration.
     lm_filelist : list
         A list of list mode files for the day.
     lm_file_ranges : list
@@ -47,8 +43,6 @@ class Scintillator:
         self.name = name
         self.eRC = eRC
         self.lm_frame = pd.DataFrame()
-        self.calibration_energies = []
-        self.calibration_bins = []
         self.lm_filelist = []
         self.lm_file_ranges = []
         self.lm_file_indices = {}
@@ -108,7 +102,7 @@ class Scintillator:
         else:
             raise ValueError(f"'{attribute}' is not a valid attribute.")
 
-    def get_lm_data(self, column, file_name=None, to_mev=False):
+    def get_lm_data(self, column, file_name=None):
         """Returns a single column of list mode data as a numpy array."""
         if file_name is None:
             frame = self.lm_frame
@@ -116,15 +110,7 @@ class Scintillator:
             frame = self.get_lm_file(file_name, deepcopy=False)
 
         if column in frame:
-            data = np.array(frame[column])
-            if to_mev and column == 'energy':
-                if len(self.calibration_bins) != 2:
-                    raise ValueError("no calibration found. Scintillator either hasn't been calibrated or calibration"
-                                     "was unsuccessful.")
-
-                data = tl.channel_to_mev(data, self.calibration_bins, self.calibration_energies)
-
-            return data
+            return np.array(frame[column])
         else:
             raise ValueError(f"'{column}' is either not a valid column or data hasn't been imported.")
 
@@ -231,8 +217,6 @@ class Scintillator:
         """Clears all data currently stored in the Scintillator."""
         self.lm_frame = pd.DataFrame()
         self.traces = {}
-        self.calibration_energies = []
-        self.calibration_bins = []
         self.lm_file_ranges = []
         self.lm_file_indices = {}
         self.reader.reset()

@@ -7,14 +7,6 @@ CENTURY = '20'  # The current century (numerically)
 TWO_AM = 7200  # Number of seconds of the day corresponding to 2:00AM
 TOTAL_MEMORY_ALLOWANCE_FRAC = 0.25  # Fraction of available memory on the system that the program can use for data
 
-K40_EDGE_ENERGY = 1.242  # The Compton edge energy for Potassium 40 (MeV)
-T_EDGE_ENERGY = 2.381  # The Compton edge energy for Thorium (MeV)
-K40_PHOTOPEAK_ENERGY = 1.46  # The Photo-peak energy for Potassium 40 (MeV)
-T_PHOTOPEAK_ENERGY = 2.60  # The Photo-peak energy for Thorium (MeV)
-T_K40_RATIO = 1.781  # The ratio of the decay energies of Thorium and Potassium 40. Used for NaI calibration.
-NAI_CALI_RATIO_TOLERANCE = 0.001  # Used in NaI calibration. The max tolerance for the ratio between two peaks' energies
-# to be considered "the same" as the desired ratio.
-
 
 """Trace-Related Parameters"""
 LARGE_TRIGSPOT = 4092  # The usual trigspot for the large buffer
@@ -86,10 +78,8 @@ DOT_ALPHA = 0.5  # Controls dot transparency
 
 """Long Event Search Parameters"""
 # Search algorithm parameters
-ENERGY_CUTOFF = 1.9  # MeV. If calibration was possible, all energies below this are cut out of the data during
-# the long event search
-LP_CHANNEL_CUTOFF = 2000  # If large plastic calibration wasn't possible, all channels below this are cut
-NAI_CHANNEL_CUTOFF = 6000  # If sodium iodide calibration wasn't possible, all channels below this are cut
+LP_CHANNEL_CUTOFF = 2000  # All large plastic channels below this are cut during the long event search
+NAI_CHANNEL_CUTOFF = 6000  # All sodium iodide channels below this are cut during the long event search
 SHORT_BIN_SIZE = 4  # The size of each short bin (in seconds)
 LONG_BIN_SIZE = 60  # The size of each long bin (in seconds)
 FLAG_THRESH = 5  # The number of standard deviations above the mean at which a bin is flagged

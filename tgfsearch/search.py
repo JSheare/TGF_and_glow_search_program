@@ -74,12 +74,8 @@ def get_modes(mode_info):
     modes['processed'] = True if '-p' in mode_info else False
 
     # Modes for skipping over certain algorithms (mostly to speed up testing)
-    modes['skcali'] = True if '--skcali' in mode_info else False  # Skip detector calibration
     modes['skshort'] = True if '--skshort' in mode_info else False  # Skip short event search
     modes['skglow'] = True if '--skglow' in mode_info else False  # SKip long event search
-
-    # Template mode (make LP template)
-    modes['template'] = True if '--template' in mode_info else False
 
     return modes
 
@@ -590,30 +586,14 @@ def get_le_scints(detector):
 
 
 # Makes histogram used in long event search. If possible, cuts out counts below a certain energy
-def make_le_hist(detector, modes, scintillator, bin_size):
-    # Makes one bin for every binsize seconds of the day (plus around 300 seconds more for the next day)
+def make_le_hist(detector, scintillator, bin_size):
     bins_allday = np.arange(0, params.SEC_PER_DAY + 200 + bin_size, bin_size)
-
-    calibrated = True
     times = detector.get_lm_data(scintillator, 'SecondsOfDay')
-    if modes['skcali']:
-        energies = detector.get_lm_data(scintillator, 'energy')
+    energies = detector.get_lm_data(scintillator, 'energy')
+    if scintillator == 'NaI':
+        times = np.delete(times, np.where(energies < params.NAI_CHANNEL_CUTOFF))
     else:
-        try:
-            energies = detector.get_lm_data(scintillator, 'energy', to_mev=True)
-        except ValueError:
-            calibrated = False
-            energies = detector.get_lm_data(scintillator, 'energy')
-
-    # Removes counts that are below the cutoff energy
-    if not calibrated or modes['skcali']:
-        if scintillator == 'NaI':
-            times = np.delete(times, np.where(energies < params.NAI_CHANNEL_CUTOFF))
-        else:
-            times = np.delete(times, np.where(energies < params.LP_CHANNEL_CUTOFF))
-
-    else:
-        times = np.delete(times, np.where(energies < params.ENERGY_CUTOFF))
+        times = np.delete(times, np.where(energies < params.LP_CHANNEL_CUTOFF))
 
     if detector.processed:
         times = times - detector.first_sec
@@ -1251,16 +1231,6 @@ def program(first_date, second_date, unit, mode_info):
                 tl.print_logger('No/missing necessary data for specified day.', detector.log)
                 raise FileNotFoundError('data missing for one or more scintillators.')
 
-            # Calibrates each scintillator
-            if not modes['skcali']:
-                tl.print_logger('\n', detector.log)
-                tl.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
-
-                # Calling the calibration algorithm
-                detector.calibrate(plot_spectra=True, make_template=modes['template'])
-
-                tl.print_logger('Done.', detector.log)
-
             # Short event search
             if not modes['skshort']:
                 tl.print_logger('\n', detector.log)
@@ -1296,7 +1266,7 @@ def program(first_date, second_date, unit, mode_info):
                     bins_allday = None
                     hist_allday = None
                     for scintillator in le_scint_list:
-                        bins_allday, scint_hist = make_le_hist(detector, modes, scintillator, bin_size)
+                        bins_allday, scint_hist = make_le_hist(detector, scintillator, bin_size)
                         hist_allday = scint_hist if hist_allday is None else hist_allday + scint_hist
 
                     # Calling the long event search algorithm
@@ -1415,30 +1385,6 @@ def program(first_date, second_date, unit, mode_info):
                     tl.print_logger('No/missing necessary data for specified day.', detector.log)
                     raise FileNotFoundError('data missing for one or more scintillators.')
 
-                # Calibrates each scintillator
-                if not modes['skcali']:
-                    tl.print_logger('\n', detector.log)
-                    tl.print_logger('Calibrating scintillators and generating energy spectra...', detector.log)
-                    # Keeps track of spectra contributions for each chunk
-                    existing_spectra = {scintillator: np.array([]) for scintillator in chunk_scint_list}
-                    for chunk_path in chunk_path_list:
-                        chunk = tl.unpickle_chunk(chunk_path)
-                        for scintillator in chunk_scint_list:
-                            if chunk.data_present_in(scintillator):
-                                chunk_hist = chunk.make_spectra(scintillator)[1]
-                                if len(existing_spectra[scintillator]) == 0:
-                                    existing_spectra[scintillator] = chunk_hist
-                                else:
-                                    existing_spectra[scintillator] = existing_spectra[scintillator] + chunk_hist
-
-                        del chunk
-
-                    # Calling the calibration algorithm
-                    detector.calibrate(plot_spectra=True, make_template=modes['template'],
-                                       existing_spectra=existing_spectra)
-
-                    tl.print_logger('Done.', detector.log)
-
                 # Short event search
                 if not modes['skshort']:
                     tl.print_logger('\n', detector.log)
@@ -1489,15 +1435,8 @@ def program(first_date, second_date, unit, mode_info):
                             chunk = tl.unpickle_chunk(chunk_path)
                             for scintillator in le_scint_list:
                                 if chunk.data_present_in(scintillator):
-                                    chunk.set_attribute(scintillator, 'calibration_energies',
-                                                        detector.get_attribute(scintillator, 'calibration_energies'),
-                                                        deepcopy=False)
-                                    chunk.set_attribute(scintillator, 'calibration_bins',
-                                                        detector.get_attribute(scintillator, 'calibration_bins'),
-                                                        deepcopy=False)
-                                    chunk.log = log
                                     # Histograms the counts from each scintillator and combines them with the main one
-                                    bins_allday, scint_hist = make_le_hist(chunk, modes, scintillator, bin_size)
+                                    bins_allday, scint_hist = make_le_hist(chunk, scintillator, bin_size)
                                     hist_allday = scint_hist if hist_allday is None else hist_allday + scint_hist
 
                             del chunk

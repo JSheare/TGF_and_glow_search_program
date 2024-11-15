@@ -7,7 +7,7 @@ class Santis(Detector):
     def __init__(self, unit, date_str, print_feedback=False):
         super().__init__(unit, date_str, print_feedback)
 
-        self.calibration_params = {'bin_range': 15008.0, 'bin_size': 16, 'template_bin_plot_edge': 400}
+        self.spectra_params = {'bin_range': 15008.0, 'bin_size': 16}
         self.default_data_loc = '/media/tgfdata/Detectors/SANTIS/Data'
         self._import_loc = f'{self.default_data_loc}/{self.date_str}'
         self._scintillators = {'LP': Scintillator('LP', '2549')}

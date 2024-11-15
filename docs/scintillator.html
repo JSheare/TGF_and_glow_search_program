@@ -56,10 +56,6 @@ Attributes<br>
 ----------<br>
 lm_frame&nbsp;:&nbsp;pandas.core.frame.Dataframe<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;pandas&nbsp;dataframe&nbsp;containing&nbsp;all&nbsp;the&nbsp;scintillator's&nbsp;list&nbsp;mode&nbsp;data.<br>
-calibration_bins&nbsp;:&nbsp;list<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;containing&nbsp;the&nbsp;energy&nbsp;bins&nbsp;corresponding&nbsp;to&nbsp;Compton&nbsp;edges/photo&nbsp;peaks&nbsp;used&nbsp;for&nbsp;calibration.<br>
-calibration_energies&nbsp;:&nbsp;list<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;containing&nbsp;the&nbsp;energies&nbsp;of&nbsp;Compton&nbsp;edges/photo&nbsp;peaks&nbsp;used&nbsp;for&nbsp;calibration.<br>
 lm_filelist&nbsp;:&nbsp;list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;list&nbsp;mode&nbsp;files&nbsp;for&nbsp;the&nbsp;day.<br>
 lm_file_ranges&nbsp;:&nbsp;list<br>
@@ -96,7 +92,7 @@ reader&nbsp;:&nbsp;tgfsearch.helpers.reader.Reader<br>
 
 <dl><dt><a name="Scintillator-get_attribute"><strong>get_attribute</strong></a>(self, attribute, deepcopy=True)</dt><dd><span class="code">Returns&nbsp;the&nbsp;requested&nbsp;attribute.</span></dd></dl>
 
-<dl><dt><a name="Scintillator-get_lm_data"><strong>get_lm_data</strong></a>(self, column, file_name=None, to_mev=False)</dt><dd><span class="code">Returns&nbsp;a&nbsp;single&nbsp;column&nbsp;of&nbsp;list&nbsp;mode&nbsp;data&nbsp;as&nbsp;a&nbsp;numpy&nbsp;array.</span></dd></dl>
+<dl><dt><a name="Scintillator-get_lm_data"><strong>get_lm_data</strong></a>(self, column, file_name=None)</dt><dd><span class="code">Returns&nbsp;a&nbsp;single&nbsp;column&nbsp;of&nbsp;list&nbsp;mode&nbsp;data&nbsp;as&nbsp;a&nbsp;numpy&nbsp;array.</span></dd></dl>
 
 <dl><dt><a name="Scintillator-get_lm_file"><strong>get_lm_file</strong></a>(self, file_name, deepcopy=True)</dt><dd><span class="code">Returns&nbsp;the&nbsp;list&nbsp;mode&nbsp;data&nbsp;for&nbsp;the&nbsp;specified&nbsp;list&nbsp;mode&nbsp;file.</span></dd></dl>
 

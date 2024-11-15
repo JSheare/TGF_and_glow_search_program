@@ -4,15 +4,12 @@ import datetime as dt
 import gc as gc
 import glob as glob
 import json as json
-import matplotlib as matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import os as os
 import pandas as pd
 import psutil as psutil
-import scipy.signal as signal
 import warnings
-from matplotlib.widgets import Slider
 
 import tgfsearch.parameters as params
 import tgfsearch.tools as tl
@@ -49,8 +46,8 @@ class Detector:
         Deployment information for the instrument on the requested day (if available).
     default_scintillator : str
         A string representing the default scintillator.
-    calibration_params : dict
-        A dictionary containing various parameters used to calibrate the Detector.
+    spectra_params : dict
+        A dictionary containing various parameters used to make spectra for the Detector.
     default_data_loc : str
         The default directory for an instrument's raw data.
     _import_loc : str
@@ -80,7 +77,7 @@ class Detector:
         self.default_scintillator = 'LP'  # Don't change this unless you have a really good reason
 
         # Detector-specific information
-        self.calibration_params = {'bin_range': 0, 'bin_size': 0, 'template_bin_plot_edge': 0}
+        self.spectra_params = {'bin_range': 0, 'bin_size': 0}
         self.default_data_loc = ''
         self._import_loc = ''
         self._results_loc = os.getcwd() + f'/Results/{self.unit}/{self.date_str}'
@@ -277,7 +274,7 @@ class Detector:
         Returns
         -------
         str || list || numpy.ndarray || dict || pandas.core.frame.DataFrame
-            String if 'eRC' is requested; list if 'lm_filelist', 'calibration', or 'lm_file_ranges' is requested;
+            String if 'eRC' is requested; list if 'lm_filelist' or 'lm_file_ranges' is requested;
             numpy array  if 'time', 'energy', or 'wc' is requested; Reader if 'reader' is requested; dataframe
             if 'lm_frame' is requested, etc.
 
@@ -312,7 +309,7 @@ class Detector:
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
-    def get_lm_data(self, scintillator, column, file_name=None, to_mev=False):
+    def get_lm_data(self, scintillator, column, file_name=None):
         """Returns a single column of list mode data as a numpy array.
 
         Parameters
@@ -325,9 +322,6 @@ class Detector:
         file_name : str
             Optional. The name of the file to get data for. If not specified,
             data will be retrieved for the whole day.
-        to_mev : bool
-            Optional. If True, and if 'energy' is the column of interest, energies will be converted to MeV before
-            being returned. Raises an error if no calibration can be found for the scintillator.
 
         Returns
         -------
@@ -337,7 +331,7 @@ class Detector:
         """
 
         if scintillator in self._scintillators:
-            return self._scintillators[scintillator].get_lm_data(column, file_name, to_mev)
+            return self._scintillators[scintillator].get_lm_data(column, file_name)
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
@@ -675,7 +669,7 @@ class Detector:
 
         if self.log is not None:
             print('Trace Files:', file=self.log)
-            print('File|Import Success', file=self.log)
+            print('File|Import Success|', file=self.log)
 
         # Importing the data
         filecount_switch = True
@@ -698,14 +692,14 @@ class Detector:
             except Exception as ex:
                 # Files that generate reader errors are skipped
                 if self.log is not None:
-                    print(f'{file}|False', file=self.log)
+                    print(f'{file}|False|', file=self.log)
                     print(f'    Error importing file: {ex}', file=self.log)
 
                 continue
 
             traces[file] = data
             if self.log is not None:
-                print(f'{file}|True', file=self.log)
+                print(f'{file}|True|', file=self.log)
 
             files_imported += 1
 
@@ -732,7 +726,7 @@ class Detector:
         import_lm : bool
             Optional. If True, the function will import any list mode data it finds. True by default.
         mem_frac : float
-            Optional: The maximum fraction of currently-available system memory that the Detector is allowed to use for
+            Optional: The maximum fraction of currently available system memory that the Detector is allowed to use for
              data (not including overhead). If the dataset is larger than this limit, a MemoryError will be raised.
              1.0 (100% of system memory) by default.
         gui : bool
@@ -807,278 +801,39 @@ class Detector:
         """
 
         if self.data_present_in(scintillator):
-            energy_bins = np.arange(0.0, self.calibration_params['bin_range'], self.calibration_params['bin_size'])
+            energy_bins = np.arange(0.0, self.spectra_params['bin_range'], self.spectra_params['bin_size'])
             data = self.get_attribute(scintillator, 'lm_frame', deepcopy=False)
             energy_hist = np.histogram(data['energy'], bins=energy_bins)[0]
             return energy_bins[:-1], energy_hist  # Bins is always longer than hist by one
         else:
             raise ValueError(f"data for '{scintillator}' is either missing or hasn't been imported yet.")
 
-    def _make_template(self, energy_bins, energy_hist):
-        """Makes a template that can be used in the LP calibration algorithm's cross-correlation."""
-        if self.deployment['location'] == 'no location listed':
-            if self.log is not None:
-                print('No location specified. Cannot make template...', file=self.log)
+    def plot_spectra(self, scintillator):
+        """Plots and saves the energy spectra histogram for the given scintillator
 
-            if self.print_feedback:
-                print('No location specified. Cannot make template...')
+        Parameters
+        ----------
+        scintillator : str
+            The name of the scintillator of interest. Allowed values (detector dependent):
+            'NaI', 'SP', 'MP', 'LP'.
 
-            return
+        """
 
-        # Temporarily setting the matplotlib backend to an interactive one
-        backend = matplotlib.get_backend()
-        matplotlib.use('TkAgg')
-
-        template_bin_plot_edge = self.calibration_params['template_bin_plot_edge']
-        template_bins = energy_bins[0:template_bin_plot_edge]
-        template_hist = energy_hist[0:template_bin_plot_edge]
-
-        if self.log is not None:
-            print('Entering template mode...', file=self.log)
-
-        if self.print_feedback:
-            print('Entering template mode...')
-            print('Use the sliders to adjust the line positions. The K40 line comes first.')
-
-        # Setting up the plot
-        # This plot is laggy right now because every time the sliders are updated it redraws the entire hist.
-        # I haven't found a way to make it stop doing that yet
-        fig, ax = plt.subplots()
-        fig.canvas.manager.set_window_title('Template Maker')
-        ax.set_xlabel('Energy Channel')
-        ax.set_ylabel('Counts/bin')
-        ax.set_yscale('log')
-        fig.subplots_adjust(bottom=0.30)
-
-        # Initial vertical line positions
-        edge1 = 0
-        edge2 = 0
-
-        # Slider for the Potassium 40 line
-        ax1 = fig.add_axes([0.25, 0.15, 0.65, 0.03])
-        edge1_slider = Slider(
-            ax=ax1,
-            label='K40',
-            valmin=0,
-            valmax=template_bin_plot_edge - 1,
-            valinit=edge1,
-            valstep=1
-        )
-
-        # Slider for the Thorium line
-        ax2 = fig.add_axes([0.25, 0.1, 0.65, 0.03])
-        edge2_slider = Slider(
-            ax=ax2,
-            label='T',
-            valmin=0,
-            valmax=template_bin_plot_edge - 1,
-            valinit=edge2,
-            valstep=1
-        )
-
-        # Initial plotting
-        ax.bar(template_bins, template_hist, color='r', width=self.calibration_params['bin_size'] / 2, zorder=1)
-        line1 = ax.axvline(edge1, 0, 1, zorder=2, alpha=0.75)
-        line2 = ax.axvline(edge2, 0, 1, zorder=2, alpha=0.75)
-
-        # Updates lines when sliders are adjusted
-        def update(event):
-            line1.set_xdata(edge1_slider.val)
-            line2.set_xdata(edge2_slider.val)
-
-        edge1_slider.on_changed(update)
-        edge2_slider.on_changed(update)
-
-        plt.show()
-
-        # Exporting the template as a csv file
-        indices = np.zeros(len(energy_bins) - 1)  # Histogram array is shorter than bin array by 1
-        indices[0] = edge1_slider.val
-        indices[1] = edge2_slider.val
-        template = pd.DataFrame(data={'energy_hist': energy_hist, 'bins': energy_bins,
-                                      'indices': indices})
-        template_path = f'{self._results_loc}/Templates'.replace(f'/Results/{self.unit}/{self.date_str}', '')
-        tl.make_path(template_path)
-        template.to_csv(f'{template_path}/{self.unit}_'
-                        f'{self.deployment["location"].replace(" ", "_")}_template.csv', index=False)
-
-        if self.print_feedback:
-            print('Template made.')
-
-        if self.log is not None:
-            print('Template made.', file=self.log)
-
-        # Setting the matplotlib backend back to what it was before
-        matplotlib.use(backend)
-
-    def _calibrate_NaI(self, energy_bins, energy_hist, spectra_conversions, spectra_frame):
-        """Calibration algorithm for the sodium iodide scintillators."""
-        flagged_indices = []
-        calibration_energies = []
-        calibration_bins = []
-
-        features, _ = signal.find_peaks(energy_hist, prominence=400)
-
-        # Checking all possible peak combos for a valid ratio
-        found = False
-        for right in range(len(features) - 1, -1, -1):
-            if features[right] > len(energy_bins) / 2:  # Only checking peaks in the lower half of the spectrum
-                continue
-
-            for left in range(right - 1, -1, -1):
-                combo_ratio = energy_bins[features[right]] / energy_bins[features[left]]
-                if abs(combo_ratio - params.T_K40_RATIO) <= params.NAI_CALI_RATIO_TOLERANCE:  # Valid ratio
-                    flagged_indices = [features[left], features[right]]
-                    calibration_energies = [params.K40_PHOTOPEAK_ENERGY, params.T_PHOTOPEAK_ENERGY]
-                    calibration_bins = [energy_bins[features[left]], energy_bins[features[right]]]
-                    found = True
-                    break
-                elif combo_ratio > params.T_K40_RATIO:  # We're not going to find a valid ratio past this point
-                    break
-
-            if found:
-                break
-
-        spectra_frame['NaI'] = energy_hist
-        if len(calibration_bins) == 2:
-            print('For NaI:', file=spectra_conversions)
-            for i in range(2):
-                print(f'{calibration_bins[i]} V = {calibration_energies[i]} MeV', file=spectra_conversions)
-
-            self.set_attribute('NaI', 'calibration_energies', calibration_energies, deepcopy=False)
-            self.set_attribute('NaI', 'calibration_bins', calibration_bins, deepcopy=False)
-        else:
-            if self.log is not None:
-                print('Cannot calibrate NaI (missing peaks)...', file=self.log)
-
-            if self.print_feedback:
-                print('Cannot calibrate NaI (missing peaks)...')
-
-        return flagged_indices
-
-    def _calibrate_LP(self, energy_bins, energy_hist, spectra_conversions, spectra_frame):
-        """Calibration algorithm for the large plastic scintillators."""
-        flagged_indices = []
-        try:
-            template_path = f'{self._results_loc}/Templates'.replace(f'/Results/{self.unit}/{self.date_str}', '')
-            template = pd.read_csv(f'{template_path}/{self.unit}_'
-                                   f'{self.deployment["location"].replace(" ", "_")}_template.csv')
-            correlation = signal.correlate(template['energy_hist'].to_numpy(), energy_hist, 'full')
-            shift_amount = (-len(template) + 1) + np.argmax(correlation)
-
-            flagged_indices = [int(template['indices'].iloc[0] + shift_amount),
-                               int(template['indices'].iloc[1] + shift_amount)]
-        except FileNotFoundError:
-            if self.log is not None:
-                print('Cannot calibrate LP (no template for this location)...', file=self.log)
-
-            if self.print_feedback:
-                print('Cannot calibrate LP (no template for this location)...')
-
-        spectra_frame['LP'] = energy_hist
-        calibration_energies = [params.K40_EDGE_ENERGY, params.T_EDGE_ENERGY]
-        calibration_bins = [energy_bins[s] for s in flagged_indices]
-        if len(calibration_bins) == 2:
-            print('For LP:', file=spectra_conversions)
-            for i in range(2):
-                print(f'{calibration_bins[i]} V = {calibration_energies[i]} MeV', file=spectra_conversions)
-
-            self.set_attribute('LP', 'calibration_energies', calibration_energies, deepcopy=False)
-            self.set_attribute('LP', 'calibration_bins', calibration_bins, deepcopy=False)
-
-        return flagged_indices
-
-    def _plot_spectra(self, scintillator, energy_bins, energy_hist, flagged_indices):
-        """Plots the histograms (with calibration lines, if applicable) for the given spectra."""
         figure = plt.figure(figsize=[20, 11.0])
         ax = figure.add_subplot()
         figure.suptitle(f'Energy Spectrum for {scintillator}, {self.full_date_str}')
         ax.set_xlabel('Energy Channel')
         ax.set_ylabel('Counts / bin')
         ax.set_yscale('log')
-        # Histogram array is shorter than bin array by 1 (no idea why)
+        energy_bins, energy_hist = self.make_spectra(scintillator)
         ax.bar(energy_bins, energy_hist, color='r',
-               width=self.calibration_params['bin_size'] / 2, zorder=1)
-
-        # Plots the energy bins corresponding to the desired energies as vertical lines
-        if len(flagged_indices) > 0:
-            ax.vlines([energy_bins[s] for s in flagged_indices], 0, np.amax(energy_hist), zorder=2, alpha=0.75)
+               width=self.spectra_params['bin_size'] / 2, zorder=1)
 
         # Saves the figure
         figure.savefig(f'{self._results_loc}/{scintillator}_Spectrum.png', dpi=500)
         figure.clf()
         plt.close(figure)
         gc.collect()
-
-    def calibrate(self, plot_spectra=False, make_template=False, existing_spectra=None):
-        """Makes energy spectra histograms and calibrates the large plastic and sodium iodide scintillators.
-
-        Parameters
-        ------
-        plot_spectra : bool
-            Optional. Specifies whether to make and export spectra histograms.
-        make_template : bool
-            Optional. Specifies whether to run the large plastic scintillator template maker.
-        existing_spectra : dict
-            Optional. Existing energy spectra histograms for each scintillator.
-
-        """
-
-        # Making the energy bins and setting up the calibration files
-        energy_bins = np.arange(0.0, self.calibration_params['bin_range'], self.calibration_params['bin_size'])[:-1]
-        tl.make_path(self._results_loc)
-        spectra_conversions = open(f'{self._results_loc}/spectra_conversions.txt', 'w')
-        spectra_frame = pd.DataFrame()
-        spectra_frame['energy_bins'] = energy_bins
-        if self or existing_spectra:
-            if 'LP' in self._scintillators:
-                if self.data_present_in('LP') or (existing_spectra and len(existing_spectra['LP']) != 0):
-                    # Putting this up here so that we don't have to do it again just for template mode
-                    if existing_spectra:
-                        energy_hist = existing_spectra['LP']
-                    else:
-                        energy_hist = self.make_spectra('LP')[1]
-
-                    if make_template:
-                        self._make_template(energy_bins, energy_hist)
-
-                    # Calibrates the LP scintillator (if possible) and plots the calibration
-                    flagged_indices = self._calibrate_LP(energy_bins, energy_hist, spectra_conversions, spectra_frame)
-                    if plot_spectra:
-                        self._plot_spectra('LP', energy_bins, energy_hist, flagged_indices)
-
-                else:
-                    if self.log is not None:
-                        print('Cannot calibrate LP (missing data)...', file=self.log)
-
-                    if self.print_feedback:
-                        print('Cannot calibrate LP (missing data)...')
-
-            if 'NaI' in self._scintillators:
-                if self.data_present_in('NaI') or (existing_spectra and len(existing_spectra['NaI']) != 0):
-                    if existing_spectra:
-                        energy_hist = existing_spectra['NaI']
-                    else:
-                        energy_hist = self.make_spectra('NaI')[1]
-
-                    # Calibrates the NaI scintillator (if possible) and plots the calibration
-                    flagged_indices = self._calibrate_NaI(energy_bins, energy_hist, spectra_conversions, spectra_frame)
-                    if plot_spectra:
-                        self._plot_spectra('NaI', energy_bins, energy_hist, flagged_indices)
-
-                else:
-                    if self.log is not None:
-                        print('Cannot calibrate NaI (missing data)...', file=self.log)
-
-                    if self.print_feedback:
-                        print('Cannot calibrate NaI (missing data)...')
-
-            if plot_spectra:
-                spectra_frame.to_json(f'{self._results_loc}/{self.date_str}_spectra.json')
-
-            spectra_conversions.close()
-        else:
-            raise ValueError("data necessary for calibration is either missing or hasn't been imported.")
 
     def splice(self, operand_detector):
         """Returns a new Detector with the combined data of the current Detector and the one provided.

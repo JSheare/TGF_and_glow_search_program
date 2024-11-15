@@ -50,24 +50,14 @@ individually (by default the program only searches the large plastic scintillato
 
 - **'aircraft' Mode** - If the detector you are searching was deployed to an aircraft or some other high-altitude 
 location during the search period, this is the mode that you want to use. It adds a special check to the short event 
-search algorithm that filters out false alarms caused by cosmic rays. Note: it's recommended that you use the mode 
-'skcali' in conjunction with this.
+search algorithm that filters out false alarms caused by cosmic rays.
 
-
-- **'template' Mode** - In order to accurately calibrate the large plastic scintillator, the program needs a template. 
-New templates must be made for each new detector location, and this mode allows you to make the template. To make 
-templates, follow the instructions given by the program and adjust the vertical lines to match the locations of
-the compton shoulders. A picture of what the template should look like is located in the program's GitHub repository:
-https://github.com/JSheare/TGF_and_glow_search_program (look for 'lp calibration example.JPG').
 
 #### **Developer Modes:**
 The program also includes several bonus modes that are largely intended for developer use; 
 they include:
 - **'pickle' mode** - Serializes and saves imported data for later use OR imports 
   previously-serialized data.
-
-
-- **'skcali' Mode** - Skips the scintillator calibration algorithm.
 
 
 - **'skshort' Mode** - Skips the short event search algorithm.
@@ -135,24 +125,11 @@ To run the program in this mode, run the program the same as above but add the f
 #### **'aircraft' Mode:**
 If the detector you are searching was deployed to an aircraft or some other high-altitude 
 location during the search period, this is the mode that you want to use. It adds a special check to the short event 
-search algorithm that filters out false alarms caused by cosmic rays. Note: it's recommended that you use the mode 
-'skcali' in conjunction with this.
+search algorithm that filters out false alarms caused by cosmic rays.
 
 To run the program in this mode, run the program the same as above but add the flag '--aircraft' to the end:
 
     tgf-search-cl yymmdd yymmdd detector --aircraft
-
-#### **'template' Mode:**
-In order to accurately calibrate the large plastic scintillator, the program needs a template. 
-New templates must be made for each new detector location, and this mode allows you to make the template.
-
-To run the program in this mode, run the program the same as above but add the flag '--template' to the end:
-
-    tgf-search-cl yymmdd yymmdd detector --template
-
-To make templates, follow the instructions given by the program to adjust the vertical lines to match the locations of
-the compton shoulders. A picture of what the template should look like is located in the program's GitHub repository:
-https://github.com/JSheare/TGF_and_glow_search_program (look for 'lp calibration example.JPG').
 
 #### **'processed' Mode:**
 In this mode (which is only available for GODOT) the program will search processed data instead of raw data. Note that
@@ -168,16 +145,13 @@ It is possible to use as many of these modes in tandem as the user needs
 <br/>
 (i.e. commands like this are possible):
 
-    tgf-search-cl yymmdd yymmdd detector -c --allscints --template
+    tgf-search-cl yymmdd yymmdd detector --combo --allscints --aircraft
 
 ### **Additional (developer) modes:**
 The program also includes several bonus modes that are largely intended for developer use; 
 they include:
 - **'pickle' mode** - Serializes and saves imported data for later use OR imports 
   previously-serialized data. Flag: --pickle
-
-
-- **'skcali' Mode** - Skips the scintillator calibration algorithm. Flag: --skcali
 
 
 - **'skshort' Mode** - Skips the short event search algorithm. Flag: --skshort
@@ -327,8 +301,6 @@ As above, these are the most common attributes, but you can request any on the f
 - name - The scintillator's name (abbreviated).
 - eRC - The scintillator's serial number.
 - lm_frame - A pandas dataframe containing all the scintillator's list mode data.
-- calibration_bins - A list containing the energy bins corresponding to Compton edges/photo peaks used for calibration.
-- calibration_energies - A list containing the energies of Compton edges/photo peaks used for calibration.
 - lm_files - A list of list mode files for the day.
 - lm_file_ranges - A list of lists. Each sublist contains a pair of numbers corresponding to the first and last second
         in each list mode file.
@@ -357,14 +329,6 @@ You can also request a column from only a single data file like so:
 ```python3
 file_time = detector.get_lm_data('LP', 'SecondsOfDay', file_name='/media/tgfdata/Detectors/THOR/THOR1/220831/'
                                                                  'eRC4195lpl_lm_220831_235435.txt.gz')
-```
-If you're interested in the energy column, you can also optionally convert the energies to units of MeV. Note that the 
-Detector must first be calibrated for this to work, though.
-```python3
-# Additional comment: only available for LP and NaI at the moment.
-
-detector.calibrate()  # calibrating the Detector
-mev_energy = detector.get_lm_data('LP', 'energy', to_mev=True)
 ```
 Finally, you can also set the data for a particular column using the set_lm_data() method:
 ```python3
@@ -521,8 +485,6 @@ This can be performant in some cases, but be careful not to modify your data by 
   - Returns the total size (in bytes) of all the currently listed files for the day.
 - Detector.clear()
   - Clears all data currently stored in the Detector.
-- Detector.calibrate()
-  - Makes energy spectra histograms and calibrates the large plastic and sodium iodide scintillators.
 
 Full Detector documentation for these methods (and more) can be found [here](https://html-preview.github.io/?url=https://github.com/JSheare/TGF_and_glow_search_program/blob/master/docs/detector.html).
 
