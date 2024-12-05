@@ -14,6 +14,39 @@ from selenium.webdriver.support.ui import WebDriverWait
 import tgfsearch.parameters as params
 
 
+def is_valid_detector(unit):
+    """Returns True if the provided unit is a valid detector name and False otherwise.
+
+    Parameters
+    ----------
+    unit : str
+        The detector name to check.
+
+    Returns
+    -------
+    bool
+        True if the unit string is a valid detector name, False otherwise.
+
+    """
+
+    # Remember to update get_detector() in the search module if updating this function
+    unit_upper = unit.upper()
+    if unit_upper == 'GODOT':
+        return True
+    elif unit_upper == 'SANTIS':
+        return True
+    elif unit_upper == 'CROATIA':
+        return True
+    elif 'THOR' in unit_upper:
+        if len(unit_upper) >= 5 and unit_upper[4].isnumeric() and int(unit_upper[4]) <= 6:  # only 6 of them right now
+            return True
+        else:
+            return False
+
+    else:
+        return False
+
+
 def o1_poly(x, a=0., b=0.):
     """Returns the y value at the given x for a first-order polynomial with terms a and b."""
     return x * a + b

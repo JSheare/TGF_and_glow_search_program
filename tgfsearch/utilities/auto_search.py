@@ -35,7 +35,7 @@ def search(unit, checked_dates, data_path, results_path, auto_search_path):
         mode_info = []
         if unit == 'THOR1':
             # Control flow for THOR1 NOAA flights
-            if 220930 <= int(day) <= 230208:
+            if 220830 <= int(day) <= 230208:
                 mode_info = ['--aircraft', '--skcali']
 
         elif unit == 'SANTIS':
@@ -69,6 +69,7 @@ def search(unit, checked_dates, data_path, results_path, auto_search_path):
 
 
 def main():
+    """Optional argument order: results_directory, autosearch_misc_directory, data_directory"""
     if len(sys.argv) >= 2:
         results_path = sys.argv[1].replace('\\', '/')
     else:

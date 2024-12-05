@@ -34,14 +34,16 @@ from tgfsearch.helpers.traceinfo import TraceInfo
 
 # Returns the correct detector object based on the parameters provided
 def get_detector(unit, date_str, print_feedback=False):
-    if unit.upper() == 'GODOT':
+    # Remember to update is_valid_detector() in the tools module if updating this function
+    unit_upper = unit.upper()
+    if unit_upper == 'GODOT':
         return Godot(unit, date_str, print_feedback)
-    elif unit.upper() == 'SANTIS':
+    elif unit_upper == 'SANTIS':
         return Santis(unit, date_str, print_feedback)
-    elif unit.upper() == 'CROATIA':
+    elif unit_upper == 'CROATIA':
         return Croatia(unit, date_str, print_feedback)
-    elif 'THOR' in unit.upper():
-        if len(unit) >= 5 and unit[4].isnumeric() and int(unit[4]) <= 6:  # only 6 of them right now
+    elif 'THOR' in unit_upper:
+        if len(unit_upper) >= 5 and unit_upper[4].isnumeric() and int(unit_upper[4]) <= 6:  # only 6 of them right now
             return Thor(unit, date_str, print_feedback)
         else:
             raise ValueError(f"'{unit}' is not a valid detector.")
@@ -1167,9 +1169,9 @@ def program(first_date, second_date, unit, mode_info):
 
         # Initializes the detector object
         print('Importing data...')
-        try:
+        if tl.is_valid_detector(unit):
             detector = get_detector(unit, date_str, print_feedback=True)
-        except ValueError:
+        else:
             print('Not a valid detector.')
             exit()
 

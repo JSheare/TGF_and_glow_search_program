@@ -95,6 +95,9 @@ def is_valid_search(first_date, second_date, detector):
     if detector == '':
         print('Error: Please enter a detector.')
         return False
+    elif not tl.is_valid_detector(detector):
+        print('Error: Not a valid detector.')
+        return False
 
     return True
 

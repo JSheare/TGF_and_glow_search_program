@@ -30,6 +30,9 @@ def main():
     elif int(second_date) < int(first_date):
         print('Not a valid date range.')
         exit()
+    elif not tl.is_valid_detector(unit):
+        print('Not a valid detector.')
+        exit()
 
     if len(sys.argv) > 4:
         mode_info = sys.argv[4:]
@@ -83,18 +86,14 @@ def main():
         padding_len = rank_len - max_rank_order
 
     # For the traces
-    trace_path = f'{export_path}/traces'
-    tl.make_path(trace_path)
+    trace_path = f'{export_path}/{unit}/traces'
 
     # For the scatter plots
-    short_event_path = f'{export_path}/scatter_plots'
-    tl.make_path(short_event_path)
+    short_event_path = f'{export_path}/{unit}/scatter_plots'
 
     # For the histograms
-    short_hist_path = f'{export_path}/histograms/{params.SHORT_BIN_SIZE}_sec_bins'
-    tl.make_path(short_hist_path)
-    long_hist_path = f'{export_path}/histograms/{params.LONG_BIN_SIZE}_sec_bins'
-    tl.make_path(long_hist_path)
+    short_hist_path = f'{export_path}/{unit}/histograms/{params.SHORT_BIN_SIZE}_sec_bins'
+    long_hist_path = f'{export_path}/{unit}/histograms/{params.LONG_BIN_SIZE}_sec_bins'
 
     requested_dates = tl.make_date_list(first_date, second_date)
     for date_str in requested_dates:
@@ -102,6 +101,9 @@ def main():
 
         # Traces
         trace_list = glob.glob(f'{path}/traces/*xtr*.png')
+        if len(trace_list) > 0:
+            tl.make_path(trace_path)
+
         for trace in trace_list:
             t_filename = trace.split('/')[-1].split('\\')[-1]
             shutil.copyfile(trace, f'{trace_path}/{t_filename}')
@@ -120,17 +122,26 @@ def main():
         else:
             scatter_plot_list = glob.glob(f'{path}/scatter_plots/*.png')
 
+        if len(scatter_plot_list) > 0:
+            tl.make_path(short_event_path)
+
         for plot in scatter_plot_list:
             s_filename = plot.split('/')[-1].split('\\')[-1]
             shutil.copyfile(plot, f'{short_event_path}/{s_filename}')
 
         # Histograms
         short_hist_list = glob.glob(f'{path}/*histogram_{params.SHORT_BIN_SIZE}_sec_bins.png')
+        if len(short_hist_list) > 0:
+            tl.make_path(short_hist_path)
+
         for hist in short_hist_list:
             hist_filename = hist.split('/')[-1].split('\\')[-1]
             shutil.copyfile(hist, f'{short_hist_path}/{hist_filename}')
 
         long_hist_list = glob.glob(f'{path}/*histogram_{params.LONG_BIN_SIZE}_sec_bins.png')
+        if len(long_hist_list) > 0:
+            tl.make_path(long_hist_path)
+
         for hist in long_hist_list:
             hist_filename = hist.split('/')[-1].split('\\')[-1]
             shutil.copyfile(hist, f'{long_hist_path}/{hist_filename}')
