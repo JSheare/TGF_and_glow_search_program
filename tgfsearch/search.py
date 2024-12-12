@@ -43,7 +43,7 @@ def get_detector(unit, date_str, print_feedback=False):
     elif unit_upper == 'CROATIA':
         return Croatia(unit, date_str, print_feedback)
     elif 'THOR' in unit_upper:
-        if len(unit_upper) >= 5 and unit_upper[4].isnumeric() and int(unit_upper[4]) <= 6:  # only 6 of them right now
+        if len(unit_upper) >= 5 and unit_upper[4:].isnumeric() and int(unit_upper[4:]) <= 6:  # only 6 of them right now
             return Thor(unit, date_str, print_feedback)
         else:
             raise ValueError(f"'{unit}' is not a valid detector.")
@@ -51,33 +51,57 @@ def get_detector(unit, date_str, print_feedback=False):
         raise ValueError(f"'{unit}' is not a valid detector.")
 
 
+# Returns the flag for the given mode
+def mode_to_flag(mode):
+    if mode == 'aircraft':
+        return '--aircraft'
+    elif mode == 'allscints':
+        return '--allscints'
+    elif mode == 'combo':
+        return '--combo'
+    elif mode == 'custom':
+        return '-c'
+    elif mode == 'gui':
+        return '-g'
+    elif mode == 'pickle':
+        return '--pickle'
+    elif mode == 'processed':
+        return '-p'
+    elif mode == 'skshort':
+        return '--skshort'
+    elif mode == 'skglow':
+        return '--skglow'
+    else:
+        raise ValueError('not a valid mode')
+
+
 # Makes the modes dict used by many of the program's functions
 def get_modes(mode_info):
     modes = dict()
     # Aircraft mode
-    modes['aircraft'] = True if '--aircraft' in mode_info else False
+    modes['aircraft'] = True if mode_to_flag('aircraft') in mode_info else False
 
     # All scintillators mode (all the scintillators will be checked by the short event search algorithm)
-    modes['allscints'] = True if '--allscints' in mode_info else False
+    modes['allscints'] = True if mode_to_flag('allscints') in mode_info else False
 
     # Combo mode (all scintillator data is combined into one set of arrays and examined by the short event search algo)
-    modes['combo'] = True if '--combo' in mode_info else False
+    modes['combo'] = True if mode_to_flag('combo') in mode_info else False
 
     # Custom mode (use custom import and/or export directories
-    modes['custom'] = True if '-c' in mode_info else False
+    modes['custom'] = True if mode_to_flag('custom') in mode_info else False
 
     # GUI mode (running script from gui)
-    modes['gui'] = True if '-g' in mode_info else False
+    modes['gui'] = True if mode_to_flag('gui') in mode_info else False
 
     # Pickle mode
-    modes['pickle'] = True if '--pickle' in mode_info else False
+    modes['pickle'] = True if mode_to_flag('pickle') in mode_info else False
 
     # Processed mode (use processed data). Only available for Godot
-    modes['processed'] = True if '-p' in mode_info else False
+    modes['processed'] = True if mode_to_flag('processed') in mode_info else False
 
     # Modes for skipping over certain algorithms (mostly to speed up testing)
-    modes['skshort'] = True if '--skshort' in mode_info else False  # Skip short event search
-    modes['skglow'] = True if '--skglow' in mode_info else False  # SKip long event search
+    modes['skshort'] = True if mode_to_flag('skshort') in mode_info else False  # Skip short event search
+    modes['skglow'] = True if mode_to_flag('skglow') in mode_info else False  # SKip long event search
 
     return modes
 
@@ -124,7 +148,7 @@ def plot_traces(detector, scintillator, trace_names):
 
 
 # Searches through all traces in detector and returns lists of good ones for each scintillator. Also plots good traces
-def trace_search(detector):
+def find_traces(detector):
     # Filtering traces and setting up trace_dict, which keeps track of filtered trace names
     trace_dict = {}
     for scintillator in detector:
@@ -1222,7 +1246,7 @@ def program(first_date, second_date, unit, mode_info):
             if not modes['skshort']:
                 tl.print_logger('\n', detector.log)
                 tl.print_logger('Filtering traces...', detector.log)
-                trace_dict = trace_search(detector)
+                trace_dict = find_traces(detector)
                 tl.print_logger('Done.', detector.log)
             else:
                 trace_dict = {scintillator: [] for scintillator in detector}
@@ -1374,7 +1398,7 @@ def program(first_date, second_date, unit, mode_info):
                     tl.print_logger('Filtering traces...', detector.log)
                     for chunk_path in chunk_path_list:
                         chunk = tl.unpickle_chunk(chunk_path)
-                        trace_dict = trace_search(chunk)
+                        trace_dict = find_traces(chunk)
                         chunk_trace_dicts[chunk_path] = trace_dict
 
                     tl.print_logger('Done.', detector.log)

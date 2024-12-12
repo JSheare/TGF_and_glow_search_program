@@ -6,163 +6,22 @@ import sys as sys
 import threading as threading
 import tkinter as tk
 import traceback as traceback
-from tkinter import filedialog
 from queue import Queue
+from tkinter import filedialog
+from tkinter import ttk
 
-# Adds parent directory to sys.path. Necessary to make the imports below work when running this file as a script
+# # Adds parent directory to sys.path. Necessary to make the imports below work when running this file as a script
 parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 import tgfsearch.tools as tl
-from tgfsearch.search import program
-from tgfsearch.helpers.communicator import Communicator
+from tgfsearch.search import mode_to_flag, program
 from tgfsearch.helpers.pipestdout import PipeStdout
 
 
-# Creates a directory selection dialogue box and then puts the selected directory in the specified text entry box
-def select_dir(entry_box):
-    directory = filedialog.askdirectory(initialdir='/')
-    entry_box.delete(0, 'end')
-    entry_box.insert(0, directory)
-
-
-# Clears the sample text from the date entry boxes when they are clicked
-def clear_ghost_text(entrybox, ghost_text):
-    current_text = entrybox.get()
-    if current_text == ghost_text:
-        entrybox.delete(0, 'end')
-
-
-# Appends/removes mode from mode list when the corresponding tick box is ticked/unticked
-def tick_untick(var, modes, mode):
-    if var.get() == 1:
-        modes.append(mode)
-    else:
-        modes.remove(mode)
-
-
-# Clears any text from the big text box
-def clear_box(gui):
-    text_box = gui.nametowidget('text_box')
-    text_box['state'] = tk.NORMAL
-    text_box.delete('1.0', 'end')
-    text_box['state'] = tk.DISABLED
-
-
-# Enables/disables gui elements depending on the action parameter
-def change_elements(gui, action):
-    gui.nametowidget('start_button')['state'] = action
-    gui.nametowidget('enqueue_button')['state'] = action
-    gui.nametowidget('date_one')['state'] = action
-    gui.nametowidget('date_two')['state'] = action
-    gui.nametowidget('detector_entrybox')['state'] = action
-    gui.nametowidget('custom_entrybox')['state'] = action
-    gui.nametowidget('results_entrybox')['state'] = action
-
-    gui.nametowidget('allscints')['state'] = action
-    gui.nametowidget('aircraft')['state'] = action
-    gui.nametowidget('combo')['state'] = action
-    gui.nametowidget('skshort')['state'] = action
-    gui.nametowidget('skglow')['state'] = action
-    gui.nametowidget('pickle')['state'] = action
-
-
-# Disables all checkboxes/buttons
-def disable_elements(gui):
-    change_elements(gui, tk.DISABLED)
-
-
-# Enables all checkboxes/buttons
-def enable_elements(gui):
-    change_elements(gui, tk.NORMAL)
-
-
-# Checks whether a search command is valid
-def is_valid_search(first_date, second_date, detector):
-    # Checks that both dates are digits in the proper format
-    if not first_date.isdigit() or not second_date.isdigit() \
-            or len(first_date) != 6 or len(second_date) != 6:
-        print('Error: not a valid date. Please enter BOTH dates in yymmdd format.')
-        return False
-
-    # Checks that both dates are sequential
-    if int(first_date) > int(second_date):
-        print('Error: second date must be AFTER first date.')
-        return False
-
-    # Checks that a detector has been entered
-    if detector == '':
-        print('Error: Please enter a detector.')
-        return False
-    elif not tl.is_valid_detector(detector):
-        print('Error: Not a valid detector.')
-        return False
-
-    return True
-
-
-# Checks whether a queue contains the specified item
-def queue_contains(item, queue):
-    queue_len = queue.qsize()
-    in_queue = False
-    for i in range(queue_len):
-        temp_item = queue.get_nowait()
-        if not in_queue:
-            if temp_item == item:
-                in_queue = True
-
-        queue.put_nowait(temp_item)
-
-    return in_queue
-
-
-def enqueue(gui, search_queue, program_modes):
-    first_date = gui.nametowidget('date_one').get()
-    second_date = gui.nametowidget('date_two').get()
-    detector = gui.nametowidget('detector_entrybox').get()
-    if second_date == 'yymmdd' or second_date == '':
-        second_date = first_date
-
-    # If the search command is valid, constructs the command and adds it to the queue
-    if is_valid_search(first_date, second_date, detector):
-        command = [first_date, second_date, detector.upper(), '-g']
-        for mode in program_modes:
-            command.append(mode)
-
-        custom_import_dir = gui.nametowidget('custom_entrybox').get() if (
-                gui.nametowidget('custom_entrybox').get() != '') else 'none'
-        custom_results_dir = gui.nametowidget('results_entrybox').get() if (
-                gui.nametowidget('results_entrybox').get() != '') else 'none'
-        command.append('-c')
-        command.append(str(custom_import_dir))
-        command.append(str(custom_results_dir))
-        if not queue_contains(command, search_queue):
-            modes = (' ' + str(program_modes).replace("'", '').replace("-", '')) if len(program_modes) > 0 else ''
-            print(f'Enqueueing {tl.short_to_full_date(first_date)}'
-                  f'{" - " + tl.short_to_full_date(second_date) if first_date != second_date else ""}'
-                  f' on {detector.upper()}{modes}.')
-            search_queue.put_nowait(command)
-
-
-# Starts the search program when the start button is clicked
-def start(gui, communicator, search_queue, program_modes):
-    enqueue(gui, search_queue, program_modes)
-    if not search_queue.empty():
-        # Runs the search manager in a different thread to prevent the GUI from locking up
-        search_thread = threading.Thread(target=run, args=(gui, communicator, search_queue))
-        search_thread.start()
-
-
-# Stops the search script when the stop button is clicked
-def stop(communicator):
-    if communicator.running:
-        print('Stopping search...')
-        communicator.set()
-
-
-# Here to redirect stdout and stderr from the search program
-def program_wrapper(write, first_date, second_date, unit, mode_info):
+# Redirects stdout and stderr from the search program
+def search_program_wrapper(write, first_date, second_date, unit, mode_info):
     PipeStdout(write)
     try:
         program(first_date, second_date, unit, mode_info)
@@ -173,243 +32,462 @@ def program_wrapper(write, first_date, second_date, unit, mode_info):
         print(traceback.format_exc(limit=-count))
 
 
-# Runs and manages the search program in another process
-def run(gui, communicator, search_queue):
-    if not search_queue.empty():
-        disable_elements(gui)
-        communicator.running = True
+# A helper class that keeps track of the required arguments for a single search
+class SearchArgs:
+    def __init__(self, first_date, second_date, detector, mode_info):
+        self.first_date = first_date
+        self.second_date = second_date
+        self.detector = detector
+        self.mode_info = mode_info
 
-    while not search_queue.empty():
-        info = search_queue.get_nowait()
-        first_date = info[0]
-        second_date = info[1]
-        unit = info[2]
-        mode_info = info[3:]
+    def __str__(self):
+        search_string = f'{self.first_date} {self.second_date} {self.detector}'
+        for arg in self.mode_info:
+            search_string += f' {arg}'
 
-        # Prints feedback about what date and modes were selected
-        print(f'\nRunning search for {tl.short_to_full_date(first_date)}'
-              f'{(" - " + tl.short_to_full_date(second_date)) if first_date != second_date else ""} '
-              f'on {unit}.')
-        if len(mode_info) > 4:  # one for gui, one for custom, the last two for custom import/export locations
-            print(f'This search will be run with the following modes: {", ".join(mode_info[1:-3]).replace("-", "")}.')
+        return search_string
 
-        # Runs the search program in a separate process and manages it
-        read, write = multiprocessing.Pipe()
-        process = multiprocessing.Process(target=program_wrapper,
-                                          args=(write, first_date, second_date, unit, mode_info))
-        process.start()
-        while process.is_alive() and not communicator.is_set():
-            # Prints the processes' piped stdout (which in turn gets printed to the text box in the gui)
-            if read.poll():
-                print(read.recv(), end='')
-
-        if process.is_alive():  # This will be executed if the user presses the stop button
-            process.terminate()
-            break
-
-    communicator.clear()
-    communicator.running = False
-    print('\nSearch Concluded.\n')
-    enable_elements(gui)
+    # Returns the combined arguments in a hashable form
+    def get_hashable_repr(self):
+        return self.__str__()
 
 
-# Updates the search queue counter
-def update_counter(gui, search_queue):
-    gui.nametowidget('enqueue_counter')['text'] = f'Searches\nEnqueued:\n{search_queue.qsize()}'
-    milliseconds = 20
-    gui.after(milliseconds, update_counter, gui, search_queue)
+# A class for managing the search and keeping track of all the enqueued search information
+class SearchManager:
+    def __init__(self):
+        self.mode_flags = {}
+        self.search_queue = Queue()  # Queue that holds all the enqueued searches
+        self.search_set = set()  # Set that keeps track of already-enqueued searches so that no duplicates are added
+        self.lock = threading.Lock()  # Mutex to prevent race conditions with a search in progress
+        self.event = threading.Event()  # Event for communicating with the search thread
+
+    # Checks whether a search with the given dates and detector is a valid one
+    @staticmethod
+    def is_valid_search(first_date, second_date, detector, print_feedback=False):
+        # Checks that both dates are digits in the proper format
+        if not first_date.isdigit() or not second_date.isdigit() \
+                or len(first_date) != 6 or len(second_date) != 6:
+            if print_feedback:
+                print('Error: not a valid date. BOTH dates must be in yymmdd format.')
+
+            return False
+
+        # Checks that both dates are sequential
+        if int(first_date) > int(second_date):
+            if print_feedback:
+                print('Error: second date must be AFTER first date.')
+
+            return False
+
+        # Checks that a detector has been entered
+        if detector == '':
+            if print_feedback:
+                print('Error: No detector specified.')
+
+            return False
+        elif not tl.is_valid_detector(detector):
+            if print_feedback:
+                print('Error: Not a valid detector.')
+
+            return False
+
+        return True
+
+    # Checks to see if a search has already been enqueued using the given search string
+    def _is_duplicate_search(self, search_string):
+        return search_string in self.search_set
+
+    # Enables the given mode
+    def add_mode(self, mode):
+        if not self.lock.locked():
+            self.mode_flags[mode] = True
+
+    # Disables the given mode
+    def remove_mode(self, mode):
+        if not self.lock.locked() and mode in self.mode_flags:
+            self.mode_flags[mode] = False
+
+    # Enqueues a new search with the given parameters
+    def enqueue(self, first_date, second_date, detector, import_loc, export_loc):
+        if not self.lock.locked():
+            # If the search command is valid, sets up a SearchArgs object to store it
+            if self.is_valid_search(first_date, second_date, detector, print_feedback=True):
+                mode_info = ['-g']
+                for mode in self.mode_flags:
+                    if self.mode_flags[mode]:
+                        mode_info.append(mode_to_flag(mode))
+
+                mode_info.append('-c')
+                mode_info.append(import_loc)
+                mode_info.append(export_loc)
+                search_args = SearchArgs(first_date, second_date, detector.upper(), mode_info)
+                search_string = search_args.get_hashable_repr()
+                # Enqueues the search if it isn't a duplicate
+                if not self._is_duplicate_search(search_string):
+                    modes_string = f' [{", ".join(mode_info[1:-3]).replace("-", "")}]' if len(mode_info) > 4 else ''
+                    print(f'Enqueueing {tl.short_to_full_date(first_date)}'
+                          f'{" - " + tl.short_to_full_date(second_date) if first_date != second_date else ""}'
+                          f' on {detector.upper()}{modes_string}.')
+                    self.search_queue.put(search_args)
+                    self.search_set.add(search_string)
+
+    # Runs all the enqueued searches
+    def run(self):
+        with self.lock:
+            while not self.search_queue.empty():
+                search_args = self.search_queue.get()
+                self.search_set.remove(search_args.get_hashable_repr())
+
+                # Prints feedback about what date and modes were selected
+                feedback_string = f'\nRunning search for {tl.short_to_full_date(search_args.first_date)}'
+                if search_args.first_date != search_args.second_date:
+                    feedback_string += f' - {tl.short_to_full_date(search_args.second_date)}'
+
+                feedback_string += f' on {search_args.detector}.'
+                print(feedback_string)
+                # Reasoning behind 4: one for gui, one for custom, the last two for custom import/export locations
+                if len(search_args.mode_info) > 4:
+                    print(f'This search will be run with the following modes: '
+                          f'{", ".join(search_args.mode_info[1:-3]).replace("-", "")}.')
+
+                # Runs the search program in a separate process and manages it
+                read, write = multiprocessing.Pipe()
+                process = multiprocessing.Process(target=search_program_wrapper,
+                                                  args=(write, search_args.first_date, search_args.second_date,
+                                                        search_args.detector, search_args.mode_info))
+                process.start()
+                while process.is_alive() and not self.event.is_set():
+                    # Prints the processes' piped stdout
+                    if read.poll():
+                        print(read.recv(), end='')
+
+                if process.is_alive():  # This will be executed if stop() is run
+                    process.terminate()
+                    break
+
+            self.event.clear()
+            print('\nSearch Concluded.\n')
+
+    # Stops the search if it's running
+    def stop(self):
+        if self.lock.locked():
+            self.event.set()
+
+    # Clears the search queue and resets the selected modes
+    def reset(self):
+        if not self.lock.locked():
+            while not self.search_queue.empty():
+                self.search_queue.get()
+
+            self.search_set.clear()
+            for mode in self.mode_flags:
+                self.mode_flags[mode] = False
 
 
-# Resets all the text entry boxes and tick boxes, as well as the big text box, when the reset button is clicked.
-# Also empties the search queue
-def reset(gui, communicator, search_queue, program_modes, variables):
-    while not search_queue.empty():  # Emptying the search queue
-        search_queue.get_nowait()
+# A class implementing the search GUI window, all its widgets, and their associated functionality
+class SearchWindow(tk.Frame):
+    def __init__(self, master=None, **kwargs):
+        super().__init__(master, **kwargs)
+        self.master = master
+        self.checkbox_variables = []
 
-    stop(communicator)
+        # Making and placing the text box display
+        self.text_box = tk.Text(self, height=30, width=100)
+        self.text_box['state'] = tk.DISABLED
+        self.text_box.grid(row=0, column=1, columnspan=3)
 
-    text_box = gui.nametowidget('text_box')
-    text_box['state'] = tk.NORMAL
-    text_box.delete('1.0', 'end')
-    text_box['state'] = tk.DISABLED
+        self.text_box_label = tk.Label(self, text='Search Output')
+        self.text_box_label.grid(row=1, column=2, pady=(5, 0))
 
-    date_one = gui.nametowidget('date_one')
-    date_two = gui.nametowidget('date_two')
-    date_one.delete(0, 'end')
-    date_one.insert(0, 'yymmdd')
-    date_two.delete(0, 'end')
-    date_two.insert(0, 'yymmdd')
+        # Setting up the input frame
+        self.input_frame = tk.Frame(self)
+        self.input_frame.grid(row=2, column=1, rowspan=2)
 
-    gui.nametowidget('detector_entrybox').delete(0, 'end')
-    gui.nametowidget('results_entrybox').delete(0, 'end')
-    gui.nametowidget('custom_entrybox').delete(0, 'end')
+        # Adding and placing the date/detector labels and entry boxes to the frame
+        self.date_one_label = tk.Label(self.input_frame, text='Date One:')
+        self.date_one_label.grid(row=0, column=0, pady=(5, 0))
 
-    while program_modes:  # Emptying the modes list
-        program_modes.pop()
+        self.date_one_entry = tk.Entry(self.input_frame, width=15, borderwidth=5)
+        self.date_one_entry.insert(0, 'yymmdd')
+        self.date_one_entry.bind('<FocusIn>', lambda e: self._clear_ghost_text(self.date_one_entry, 'yymmdd'))
+        self.date_one_entry.grid(row=1, column=0, pady=(5, 0))
 
-    for variable in variables:  # Unchecking the checkboxes
-        variable.set(0)
+        self.date_two_label = tk.Label(self.input_frame, text='Date Two:')
+        self.date_two_label.grid(row=2, column=0, pady=(5, 0))
+
+        self.date_two_entry = tk.Entry(self.input_frame, width=15, borderwidth=5)
+        self.date_two_entry.insert(0, 'yymmdd')
+        self.date_two_entry.bind('<FocusIn>', lambda e: self._clear_ghost_text(self.date_two_entry, 'yymmdd'))
+        self.date_two_entry.grid(row=3, column=0, pady=(5, 0))
+
+        self.detector_label = tk.Label(self.input_frame, text='Detector:')
+        self.detector_label.grid(row=4, column=0, pady=(5, 0))
+
+        self.detector_entry = tk.Entry(self.input_frame, width=15, borderwidth=5)
+        self.detector_entry.grid(row=5, column=0, pady=(5, 0))
+
+        # Setting up the search control frame
+        self.search_frame = tk.Frame(self)
+        self.search_frame.grid(row=2, column=2, rowspan=2)
+
+        # Adding and placing the start, enqueue, and stop buttons, and the enqueue counter
+        self.start_button = tk.Button(self.search_frame, height=3, width=20, text='Start', bg='white',
+                                      command=self.start)
+        self.start_button.grid(row=0, column=0, columnspan=2, pady=(5, 0))
+
+        self.enqueue_button = tk.Button(self.search_frame, height=3, width=8, text='Enqueue', bg='white',
+                                        command=self.enqueue)
+        self.enqueue_button.grid(row=1, column=0, pady=(5, 0))
+
+        self.stop_button = tk.Button(self.search_frame, height=3, width=8, text='Stop', bg='white',
+                                     command=self.stop)
+        self.stop_button.grid(row=1, column=1, pady=(5, 0))
+
+        self.enqueue_label = tk.Label(self.search_frame, text='Searches\nEnqueued:\n0')
+        self.enqueue_label.grid(row=2, column=0, columnspan=2, pady=(5, 0))
+
+        # Setting up the display frame
+        self.display_frame = tk.Frame(self)
+        self.display_frame.grid(row=2, column=3)
+
+        # Adding and placing the clear text and reset/ clear queue buttons
+        self.clear_button = tk.Button(self.display_frame, height=3, width=8, text='Clear\nText', bg='white',
+                                      command=self.clear)
+        self.clear_button.grid(row=0, column=0, padx=(0, 4), pady=(5, 0))
+
+        self.reset_button = tk.Button(self.display_frame, height=3, width=8, text='Reset/\nClear\nQueue', bg='white',
+                                      command=self.reset)
+        self.reset_button.grid(row=0, column=1, padx=(4, 0), pady=(5, 0))
+
+        # Setting up the modes frame
+        self.modes_frame = tk.Frame(self)
+        self.modes_frame.grid(row=3, column=3, pady=(5, 0))
+
+        # Adding and placing the regular mode label and checkboxes
+        self.regular_cb_label = tk.Label(self.modes_frame, text='Modes:')
+        self.regular_cb_label.grid(row=0, column=0, pady=(5, 0))
+
+        ccb = tk.IntVar()
+        self.combo_cb = tk.Checkbutton(self.modes_frame, text='combo', variable=ccb, onvalue=1, offvalue=0,
+                                       command=lambda: self._check_uncheck(ccb, 'combo'))
+        self.combo_cb.grid(row=1, column=0, sticky=tk.W, pady=(5, 0))
+        self.checkbox_variables.append(ccb)
+
+        ascb = tk.IntVar()
+        self.allscints_cb = tk.Checkbutton(self.modes_frame, text='allscints', variable=ascb, onvalue=1, offvalue=0,
+                                           command=lambda: self._check_uncheck(ascb, 'allscints'))
+        self.allscints_cb.grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
+        self.checkbox_variables.append(ascb)
+
+        acb = tk.IntVar()
+        self.aircraft_cb = tk.Checkbutton(self.modes_frame, text='aircraft', variable=acb, onvalue=1, offvalue=0,
+                                          command=lambda: self._check_uncheck(acb, 'aircraft'))
+        self.aircraft_cb.grid(row=3, column=0, sticky=tk.W, pady=(5, 0))
+        self.checkbox_variables.append(acb)
+
+        # Adding and placing the developer mode label and checkboxes
+        self.dev_cb_label = tk.Label(self.modes_frame, text='Dev Modes:')
+        self.dev_cb_label.grid(row=0, column=1, pady=(5, 0))
+
+        sscb = tk.IntVar()
+        self.skshort_cb = tk.Checkbutton(self.modes_frame, text='skshort', variable=sscb, onvalue=1, offvalue=0,
+                                         command=lambda: self._check_uncheck(sscb, 'skshort'))
+        self.skshort_cb.grid(row=1, column=1, sticky=tk.W, pady=(5, 0))
+        self.checkbox_variables.append(sscb)
+
+        sgcb = tk.IntVar()
+        self.skglow_cb = tk.Checkbutton(self.modes_frame, text='skglow', variable=sgcb, onvalue=1, offvalue=0,
+                                        command=lambda: self._check_uncheck(sgcb, 'skglow'))
+        self.skglow_cb.grid(row=2, column=1, sticky=tk.W, pady=(5, 0))
+        self.checkbox_variables.append(sgcb)
+
+        pcb = tk.IntVar()
+        self.pickle_cb = tk.Checkbutton(self.modes_frame, text='pickle', variable=pcb, onvalue=1, offvalue=0,
+                                        command=lambda: self._check_uncheck(pcb, 'pickle'))
+        self.pickle_cb.grid(row=3, column=1, sticky=tk.W, pady=(5, 0))
+        self.checkbox_variables.append(pcb)
+
+        # Setting up the file import/export frame
+        self.file_frame = tk.Frame(self)
+        self.file_frame.grid(row=5, column=1, columnspan=3, pady=(10, 0))
+        self.file_frame.columnconfigure(3, {'minsize': 30})
+
+        # Adding and placing the custom import label, entry box, and file dialogue button
+        self.import_label = tk.Label(self.file_frame, text='Import Location:')
+        self.import_label.grid(row=0, column=0, columnspan=2, pady=(5, 0))
+
+        self.import_entry = tk.Entry(self.file_frame, width=40, borderwidth=5)
+        self.import_entry.grid(row=1, column=0, columnspan=2, pady=(5, 0))
+
+        self.import_button = tk.Button(self.file_frame, width=6, height=2, text='Browse',
+                                       command=lambda: self._select_dir(self.import_entry))
+        self.import_button.grid(row=1, column=2, pady=(5, 0))
+
+        # Adding and placing the custom export label, entry box, and file dialogue button
+        self.export_label = tk.Label(self.file_frame, text='Export Location:')
+        self.export_label.grid(row=0, column=4, columnspan=2, pady=(5, 0))
+
+        self.export_entry = tk.Entry(self.file_frame, width=40, borderwidth=5)
+        self.export_entry.grid(row=1, column=4, columnspan=2, pady=(5, 0))
+
+        self.export_button = tk.Button(self.file_frame, width=6, height=2, text='Browse',
+                                       command=lambda: self._select_dir(self.export_entry))
+        self.export_button.grid(row=1, column=6, pady=(5, 0))
+
+        if platform.system() == 'Windows':
+            ttk.Separator(self, orient='horizontal').place(x=565, y=580, relwidth=0.25)  # Modes separator line
+            ttk.Separator(self, orient='horizontal').place(x=0, y=703, relwidth=1.0)  # Import/export separator line
+        else:
+            ttk.Separator(self, orient='horizontal').place(x=593, y=625, relwidth=0.25)  # Modes separator line
+            ttk.Separator(self, orient='horizontal').place(x=0, y=750, relwidth=1.0)  # Import/export separator line
+
+        # Redirecting stdout to the GUI text box
+        self.old_stdout = sys.stdout.write
+        sys.stdout.write = self.redirector
+
+        self.search_manager = SearchManager()
+        self.search_thread = None
+
+        # Starting the enqueue counter updater
+        self.enqueued_counter_interval = 20  # interval at which search queue size is checked in milliseconds
+        self._update_enqueued_counter()
+
+    def __del__(self):
+        sys.stdout.write = self.old_stdout  # Restoring stdout to what it was before
+
+    # Creates a file dialogue and then puts the selected directory into the specified text entry box
+    @staticmethod
+    def _select_dir(entry_box):
+        directory = filedialog.askdirectory(initialdir='/')
+        entry_box.delete(0, 'end')
+        entry_box.insert(0, directory)
+
+    # Clears the sample text from the given text entry box
+    @staticmethod
+    def _clear_ghost_text(entry_box, ghost_text):
+        current_text = entry_box.get()
+        if current_text == ghost_text:
+            entry_box.delete(0, 'end')
+
+    # Updates the enqueued searches counter periodically
+    def _update_enqueued_counter(self):
+        self.enqueue_label['text'] = f'Searches\nEnqueued:\n{self.search_manager.search_queue.qsize()}'
+        self.after(self.enqueued_counter_interval, self._update_enqueued_counter)
+
+    # Adds/removes the given mode from the search arguments when the corresponding checkbox is checked/unchecked
+    def _check_uncheck(self, var, mode):
+        if var.get() == 1:
+            self.search_manager.add_mode(mode)
+        else:
+            self.search_manager.remove_mode(mode)
+
+    # Substitute function for sys.stdout.write that appends the given string to the GUI's big text box
+    def redirector(self, input_str):
+        self.text_box['state'] = tk.NORMAL
+        self.text_box.insert('end', input_str)
+        self.text_box.yview(tk.END)
+        self.text_box['state'] = tk.DISABLED
+
+    # Enables/disables GUI widgets depending on the action parameter
+    def _change_widgets(self, action):
+        self.start_button['state'] = action
+        self.enqueue_button['state'] = action
+        self.date_one_entry['state'] = action
+        self.date_two_entry['state'] = action
+        self.detector_entry['state'] = action
+        self.import_entry['state'] = action
+        self.export_entry['state'] = action
+
+        self.combo_cb['state'] = action
+        self.allscints_cb['state'] = action
+        self.aircraft_cb['state'] = action
+        self.pickle_cb['state'] = action
+        self.skshort_cb['state'] = action
+        self.skglow_cb['state'] = action
+
+    # Enables all checkboxes/buttons
+    def enable_widgets(self):
+        self._change_widgets(tk.NORMAL)
+
+    # Disables all checkboxes/buttons
+    def disable_widgets(self):
+        self._change_widgets(tk.DISABLED)
+
+    # Enqueues a new search based on the current contents of the all the text entry boxes
+    def enqueue(self):
+        first_date = self.date_one_entry.get()
+        second_date = self.date_two_entry.get()
+        detector = self.detector_entry.get()
+        if second_date == 'yymmdd' or second_date == '':
+            second_date = first_date
+
+        import_loc = self.import_entry.get()
+        if import_loc == '':
+            import_loc = 'none'
+
+        export_loc = self.export_entry.get()
+        if export_loc == '':
+            export_loc = 'none'
+
+        self.search_manager.enqueue(first_date, second_date, detector, import_loc, export_loc)
+
+    # Starts running the enqueued searches
+    def start(self):
+        self.enqueue()  # In case the current info hasn't been enqueued yet
+        if self.search_thread is None and not self.search_manager.search_queue.empty():
+            self.enqueue()  # In case the current info hasn't been enqueued yet
+            self.search_thread = threading.Thread(target=self._run, args=())
+            self.search_thread.start()  # Running the search in another thread to prevent the GUI from locking up
+
+    # Target function for search thread. Disables/Enables the GUI elements while the searches are running
+    def _run(self):
+        self.disable_widgets()
+        self.search_manager.run()
+        self.enable_widgets()
+        self.search_thread = None
+
+    # Stops the search if there is one
+    def stop(self):
+        if self.search_thread is not None:
+            self.search_manager.stop()
+
+    # Clears the big text box
+    def clear(self):
+        self.text_box['state'] = tk.NORMAL
+        self.text_box.delete('1.0', 'end')
+        self.text_box['state'] = tk.DISABLED
+
+    # Stops the search and resets the GUI widgets back to their default states
+    def reset(self):
+        self.stop()
+        self.search_manager.reset()  # Clearing the search queue and mode flags
+        self.clear()
+
+        self.date_one_entry.delete(0, 'end')
+        self.date_one_entry.insert(0, 'yymmdd')
+        self.date_two_entry.delete(0, 'end')
+        self.date_two_entry.insert(0, 'yymmdd')
+        self.detector_entry.delete(0, 'end')
+
+        self.import_entry.delete(0, 'end')
+        self.export_entry.delete(0, 'end')
+
+        # Unchecking the checkboxes
+        for variable in self.checkbox_variables:
+            variable.set(0)
 
 
 def main():
-    program_modes = []
-    search_queue = Queue()  # Threadsafe queue that holds all the enqueued days
-    variables = []  # Checkbox on/off variables
-    communicator = Communicator()
+    root = tk.Tk()
+    root.title('TGF Search')
+    if platform.system() == 'Windows':
+        root.geometry('1080x785')
+    else:
+        root.geometry('1080x845')
 
-    os_windows = True if platform.system() == 'Windows' else False
-    correct_coord = lambda coord1, coord2: coord1 if os_windows else coord2
-
-    # General GUI
-    gui = tk.Tk()
-    gui.title("TGF Search")
-    gui.geometry('1080x720' if os_windows else '1080x760')
-    gui.resizable(False, False)
-
-    # Making the text box
-    text_box = tk.Text(gui, height=30, width=100, name='text_box')
-    text_box['state'] = tk.DISABLED
-    text_box_label = tk.Label(gui, text='Search Output', anchor=tk.CENTER)
-
-    # Redirecting stdout to the GUI text box
-    def redirector(inputStr):
-        text_box['state'] = tk.NORMAL
-        text_box.insert("end", inputStr)
-        text_box.yview(tk.END)
-        text_box['state'] = tk.DISABLED
-
-    sys.stdout.write = redirector
-
-    # Packing the text box and label in
-    text_box.pack()
-    text_box_label.pack()
-
-    # Start and Stop buttons
-    start_button = tk.Button(gui, height=3, width=10, text='Start', bg='white', name='start_button',
-                             command=lambda: start(gui, communicator, search_queue, program_modes))
-    stop_button = tk.Button(gui, height=3, width=10, text='Stop', bg='white', name='stop_button',
-                            command=lambda: stop(communicator))
-
-    start_button.place(x=correct_coord(430, 417), y=correct_coord(510, 540))
-    stop_button.place(x=correct_coord(570, 557), y=correct_coord(510, 540))
-
-    # Input/queue reset button
-    reset_button = tk.Button(gui, height=4, width=15, text='Reset/\nClear Queue', bg='white', name='reset_button',
-                             command=lambda: reset(gui, communicator, search_queue, program_modes, variables))
-
-    reset_button.place(x=correct_coord(810, 796), y=correct_coord(510, 540))
-
-    # Clear text box button
-    clear_button = tk.Button(gui, height=3, width=8, text='Clear\n Text', bg='white', name='clear_button',
-                             command=lambda: clear_box(gui))
-
-    clear_button.place(x=correct_coord(950, 950), y=correct_coord(427, 450))
-
-    # Enqueue button
-    enqueue_button = tk.Button(gui, height=3, width=8, text='Enqueue', bg='white', name='enqueue_button',
-                               command=lambda: enqueue(gui, search_queue, program_modes))
-
-    enqueue_button.place(x=correct_coord(65, 38), y=correct_coord(427, 450))
-
-    # Enqueue counter
-    enqueue_counter = tk.Label(gui, text='', name='enqueue_counter')
-
-    enqueue_counter.place(x=correct_coord(65, 50), y=correct_coord(370, 390))
-
-    # Making and placing date entry boxes
-    date_one_label = tk.Label(gui, text='Date One:')
-    date_one = tk.Entry(gui, width=15, borderwidth=5, name='date_one')
-    date_one.insert(0, 'yymmdd')
-    date_one.bind("<FocusIn>", lambda e: clear_ghost_text(date_one, 'yymmdd'))
-
-    date_two_label = tk.Label(gui, text='Date Two: ')
-    date_two = tk.Entry(gui, width=15, borderwidth=5, name='date_two')
-    date_two.insert(0, 'yymmdd')
-    date_two.bind("<FocusIn>", lambda e: clear_ghost_text(date_two, 'yymmdd'))
-
-    date_one_label.place(x=correct_coord(150, 137), y=correct_coord(510, 540))
-    date_one.place(x=correct_coord(220, 207), y=correct_coord(510, 540))
-    date_two_label.place(x=correct_coord(150, 137), y=correct_coord(550, 580))
-    date_two.place(x=correct_coord(220, 207), y=correct_coord(550, 580))
-
-    # Making and placing regular mode checkboxes
-    regular_checkbox_label = tk.Label(gui, text='Modes:')
-
-    ascb = tk.IntVar()
-    allscints_cb = tk.Checkbutton(gui, text='allscints', variable=ascb, onvalue=1, offvalue=0, name='allscints',
-                                  command=lambda: tick_untick(ascb, program_modes, '--allscints'))
-    variables.append(ascb)
-
-    acb = tk.IntVar()
-    aircraft_cb = tk.Checkbutton(gui, text='aircraft', variable=acb, onvalue=1, offvalue=0, name='aircraft',
-                                 command=lambda: tick_untick(acb, program_modes, '--aircraft'))
-    variables.append(acb)
-
-    combob = tk.IntVar()
-    combo_cb = tk.Checkbutton(gui, text='combo', variable=combob, onvalue=1, offvalue=0, name='combo',
-                              command=lambda: tick_untick(combob, program_modes, '--combo'))
-    variables.append(combob)
-
-    regular_checkbox_label.place(x=correct_coord(150, 137), y=correct_coord(600, 630))
-    combo_cb.place(x=correct_coord(220, 217), y=correct_coord(600, 630))
-    allscints_cb.place(x=correct_coord(300, 307), y=correct_coord(600, 630))
-    aircraft_cb.place(x=correct_coord(380, 397), y=correct_coord(600, 630))
-
-    # Making and placing developer mode checkboxes
-    dev_checkbox_label = tk.Label(gui, text='Dev Modes:')
-
-    sscb = tk.IntVar()
-    skshort_cb = tk.Checkbutton(gui, text='skshort', variable=sscb, onvalue=1, offvalue=0, name='skshort',
-                                command=lambda: tick_untick(sscb, program_modes, '--skshort'))
-    variables.append(sscb)
-
-    sgcb = tk.IntVar()
-    skglow_cb = tk.Checkbutton(gui, text='skglow', variable=sgcb, onvalue=1, offvalue=0, name='skglow',
-                               command=lambda: tick_untick(sgcb, program_modes, '--skglow'))
-    variables.append(sgcb)
-
-    pcb = tk.IntVar()
-    pickle_cb = tk.Checkbutton(gui, text='pickle', variable=pcb, onvalue=1, offvalue=0, name='pickle',
-                               command=lambda: tick_untick(pcb, program_modes, '--pickle'))
-    variables.append(pcb)
-
-    dev_checkbox_label.place(x=correct_coord(150, 137), y=correct_coord(630, 660))
-    pickle_cb.place(x=correct_coord(220, 217), y=correct_coord(630, 660))
-    skshort_cb.place(x=correct_coord(300, 307), y=correct_coord(630, 660))
-    skglow_cb.place(x=correct_coord(380, 397), y=correct_coord(630, 660))
-
-    # Making and placing detector entry box
-    detector_label = tk.Label(gui, text='Detector:')
-    detector_entrybox = tk.Entry(gui, width=10, borderwidth=5, name='detector_entrybox')
-    supported_label = tk.Label(gui, text='Supported\n Detectors:\nTHOR(1-6), GODOT,\nSANTIS, CROATIA')
-
-    detector_label.place(x=correct_coord(660, 642), y=correct_coord(615, 645))
-    detector_entrybox.place(x=correct_coord(720, 707), y=correct_coord(615, 645))
-    supported_label.place(x=correct_coord(800, 810), y=correct_coord(595, 625))
-
-    # Making and placing custom export location entry box and directory dialogue box button
-    results_label = tk.Label(gui, text='Export Location:')
-    results_entrybox = tk.Entry(gui, width=30, borderwidth=5, name='results_entrybox')
-    results_button = tk.Button(gui, width=6, height=2, text='Browse', name='results_button',
-                               command=lambda: select_dir(results_entrybox), bg='white')
-
-    results_label.place(x=correct_coord(575, 552), y=correct_coord(680, 713))
-    results_entrybox.place(x=correct_coord(675, 662), y=correct_coord(680, 710))
-    results_button.place(x=correct_coord(880, 875), y=correct_coord(673, 703))
-
-    # Making and placing custom import location entry box and directory dialogue box button
-    custom_label = tk.Label(gui, text='Import Location:')
-    custom_entrybox = tk.Entry(gui, width=30, borderwidth=5, name='custom_entrybox')
-    custom_button = tk.Button(gui, width=6, height=2, text='Browse', name='custom_buttom',
-                              command=lambda: select_dir(custom_entrybox), bg='white')
-
-    custom_label.place(x=correct_coord(150, 132), y=correct_coord(680, 713))
-    custom_entrybox.place(x=correct_coord(250, 242), y=correct_coord(680, 710))
-    custom_button.place(x=correct_coord(455, 455), y=correct_coord(673, 703))
-
-    # Gui async loop
-    update_counter(gui, search_queue)
-    tk.mainloop()
+    gui = SearchWindow(root)
+    gui.pack()
+    root.mainloop()
 
 
 if __name__ == '__main__':

@@ -38,7 +38,7 @@ def is_valid_detector(unit):
     elif unit_upper == 'CROATIA':
         return True
     elif 'THOR' in unit_upper:
-        if len(unit_upper) >= 5 and unit_upper[4].isnumeric() and int(unit_upper[4]) <= 6:  # only 6 of them right now
+        if len(unit_upper) >= 5 and unit_upper[4:].isnumeric() and int(unit_upper[4:]) <= 6:  # only 6 of them right now
             return True
         else:
             return False
@@ -144,22 +144,33 @@ def days_per_month(month, year):
 
     """
 
-    if 1 <= month <= 12:
-        month_dict = {1: 31,   # January
-                      2: 29 if year % 4 == 0 or (year % 100 != 0 and year % 400 == 0) else 28,  # February
-                      3: 31,   # March
-                      4: 30,   # April
-                      5: 31,   # May
-                      6: 30,   # June
-                      7: 31,   # July
-                      8: 31,   # August
-                      9: 30,   # September
-                      10: 31,  # October
-                      11: 30,  # November
-                      12: 31}  # December
-        return month_dict[month]
-
-    return 0
+    match month:
+        case 1:  # January
+            return 31
+        case 2:  # February
+            return 29 if year % 4 == 0 or (year % 100 != 0 and year % 400 == 0) else 28
+        case 3:  # March
+            return 31
+        case 4:  # April
+            return 30
+        case 5:  # May
+            return 31
+        case 6:  # June
+            return 30
+        case 7:  # July
+            return 31
+        case 8:  # August
+            return 31
+        case 9:  # September
+            return 30
+        case 10:  # October
+            return 31
+        case 11:  # November
+            return 30
+        case 12:  # December
+            return 31
+        case _:
+            return 0
 
 
 def roll_date_forward(date_str):
