@@ -489,6 +489,8 @@ This can be performant in some cases, but be careful not to modify your data by 
 Full Detector documentation for these methods (and more) can be found [here](https://html-preview.github.io/?url=https://github.com/JSheare/TGF_and_glow_search_program/blob/master/docs/detector.html).
 
 ### **Tools:**
+- tgf.is_valid.detector()
+  -  Returns True if the provided unit is a valid detector name and False otherwise.
 - tgf.print_logger()
   - Prints the specified string to both stdout and the specified file.
 - tgf.days_per_month()

@@ -53,24 +53,25 @@ def get_detector(unit, date_str, print_feedback=False):
 
 # Returns the flag for the given mode
 def mode_to_flag(mode):
-    if mode == 'aircraft':
-        return '--aircraft'
-    elif mode == 'allscints':
-        return '--allscints'
-    elif mode == 'combo':
-        return '--combo'
-    elif mode == 'custom':
-        return '-c'
-    elif mode == 'pickle':
-        return '--pickle'
-    elif mode == 'processed':
-        return '-p'
-    elif mode == 'skshort':
-        return '--skshort'
-    elif mode == 'skglow':
-        return '--skglow'
-    else:
-        raise ValueError('not a valid mode')
+    match mode:
+        case 'aircraft':
+            return '--aircraft'
+        case 'allscints':
+            return '--allscints'
+        case 'combo':
+            return '--combo'
+        case 'custom':
+            return '-c'
+        case 'pickle':
+            return '--pickle'
+        case 'processed':
+            return '-p'
+        case 'skshort':
+            return '--skshort'
+        case 'skglow':
+            return '--skglow'
+        case _:
+            raise ValueError('not a valid mode')
 
 
 # Makes the modes dict used by many of the program's functions
@@ -535,11 +536,15 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
             print('Potential short events:', file=detector.log)
 
             plots_made = 0
-            print(f'Making {max_plots} plots and event files...')
+            if max_plots == 1:
+                print(f'Making 1 plot and event file...')
+            else:
+                print(f'Making {max_plots} plots and event files...')
+
             for j in range(len(potential_events)):
                 # Stops making plots/event files/log entries after max reached
                 # This is to prevent the program getting stuck on lab test days (with hundreds of thousands of "events")
-                if (plots_made + plots_already_made) >= params.MAX_PLOTS_PER_SCINT:
+                if plots_made == max_plots:
                     print(f'Max number of loggable events ({params.MAX_PLOTS_PER_SCINT}) reached.',
                           file=detector.log)
                     break
@@ -570,8 +575,6 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
                 make_se_json(detector, event, times, energies, wallclock, count_scints)
 
                 plots_made += 1
-
-            print(f'{plots_made}/{max_plots}')
 
             event_numbers[scintillator] = plots_made + plots_already_made
 
@@ -926,8 +929,11 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
         event_path = f'{detector.get_results_loc()}/event_files/long_events/{bin_size}_sec_bins/'
         tl.make_path(event_path)
 
-        files_made = 0
-        print(f'Making {len(potential_glows)} event files...')
+        if len(potential_glows) == 1:
+            print('Making 1 event file...')
+        else:
+            print(f'Making {len(potential_glows)} event files...')
+
         for i in range(len(potential_glows)):
 
             glow = potential_glows[i]
@@ -947,9 +953,6 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
                 print(f'{scintillator}: {glow.lm_files[scintillator]}', file=event_file)
 
             event_file.close()
-            files_made += 1
-
-        print(f'{files_made}/{len(potential_glows)}')
 
         print('', file=detector.log)
 

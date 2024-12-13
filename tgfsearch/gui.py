@@ -47,9 +47,14 @@ class SearchArgs:
 
         return search_string
 
-    # Returns the combined arguments in a hashable form
-    def get_hashable_repr(self):
-        return self.__str__()
+    def __hash__(self):
+        return hash(tuple([self.first_date, self.second_date, self.detector] + self.mode_info))
+
+    def __eq__(self, args2):
+        return (self.first_date == args2.first_date and
+                self.second_date == args2.second_date and
+                self.detector == args2.detector and
+                self.mode_info == args2.mode_info)
 
 
 # A class for managing the search and keeping track of all the enqueued search information
@@ -93,10 +98,6 @@ class SearchManager:
 
         return True
 
-    # Checks to see if a search has already been enqueued using the given search string
-    def _is_duplicate_search(self, search_string):
-        return search_string in self.search_set
-
     # Enables the given mode
     def add_mode(self, mode):
         if not self.lock.locked():
@@ -110,6 +111,9 @@ class SearchManager:
     # Enqueues a new search with the given parameters
     def enqueue(self, first_date, second_date, detector, import_loc, export_loc):
         if not self.lock.locked():
+            if second_date == 'yymmdd' or second_date == '':
+                second_date = first_date
+
             # If the search command is valid, sets up a SearchArgs object to store it
             if self.is_valid_search(first_date, second_date, detector, print_feedback=True):
                 mode_info = []
@@ -118,26 +122,31 @@ class SearchManager:
                         mode_info.append(mode_to_flag(mode))
 
                 mode_info.append('-c')
+                if import_loc == '':
+                    import_loc = 'none'
+
+                if export_loc == '':
+                    export_loc = 'none'
+
                 mode_info.append(import_loc)
                 mode_info.append(export_loc)
                 search_args = SearchArgs(first_date, second_date, detector.upper(), mode_info)
-                search_string = search_args.get_hashable_repr()
                 # Enqueues the search if it isn't a duplicate
-                if not self._is_duplicate_search(search_string):
+                if search_args not in self.search_set:
                     # Reasoning behind 3: one for custom, the last two for custom import/export locations
                     modes_string = f' [{", ".join(mode_info[0:-3]).replace("-", "")}]' if len(mode_info) > 3 else ''
                     print(f'Enqueueing {tl.short_to_full_date(first_date)}'
                           f'{" - " + tl.short_to_full_date(second_date) if first_date != second_date else ""}'
                           f' on {detector.upper()}{modes_string}.')
                     self.search_queue.put(search_args)
-                    self.search_set.add(search_string)
+                    self.search_set.add(search_args)
 
     # Runs all the enqueued searches
     def run(self):
         with self.lock:
             while not self.search_queue.empty():
                 search_args = self.search_queue.get()
-                self.search_set.remove(search_args.get_hashable_repr())
+                self.search_set.remove(search_args)
 
                 # Prints feedback about what date and modes were selected
                 feedback_string = f'\nRunning search for {tl.short_to_full_date(search_args.first_date)}'
@@ -248,7 +257,7 @@ class SearchWindow(tk.Frame):
                                      command=self.stop)
         self.stop_button.grid(row=1, column=1, pady=(5, 0))
 
-        self.enqueue_label = tk.Label(self.search_frame, text='Searches\nEnqueued:\n0')
+        self.enqueue_label = tk.Label(self.search_frame, text='')
         self.enqueue_label.grid(row=2, column=0, columnspan=2, pady=(5, 0))
 
         # Setting up the display frame
@@ -418,24 +427,11 @@ class SearchWindow(tk.Frame):
     def disable_widgets(self):
         self._change_widgets(tk.DISABLED)
 
-    # Enqueues a new search based on the current contents of the all the text entry boxes
+    # Enqueues a new search based on the current contents of all the text entry boxes
     def enqueue(self):
         if self.search_thread is None:
-            first_date = self.date_one_entry.get()
-            second_date = self.date_two_entry.get()
-            detector = self.detector_entry.get()
-            if second_date == 'yymmdd' or second_date == '':
-                second_date = first_date
-
-            import_loc = self.import_entry.get()
-            if import_loc == '':
-                import_loc = 'none'
-
-            export_loc = self.export_entry.get()
-            if export_loc == '':
-                export_loc = 'none'
-
-            self.search_manager.enqueue(first_date, second_date, detector, import_loc, export_loc)
+            self.search_manager.enqueue(self.date_one_entry.get(), self.date_two_entry.get(), self.detector_entry.get(),
+                                        self.import_entry.get(), self.export_entry.get())
 
     # Starts running the enqueued searches
     def start(self):
@@ -483,6 +479,13 @@ class SearchWindow(tk.Frame):
 
 
 def main():
+    # For running the program with pythonw (no terminal)
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, 'w')
+
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, 'w')
+
     root = tk.Tk()
     root.title('TGF Search')
     if platform.system() == 'Windows':
