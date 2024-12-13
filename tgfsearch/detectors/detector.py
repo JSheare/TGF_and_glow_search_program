@@ -532,7 +532,7 @@ class Detector:
         if clear_filelists:
             self.dates_stored = [self.date_str]
 
-    def _import_lm_data(self, scintillator, gui):
+    def _import_lm_data(self, scintillator):
         """Imports list mode data for the given scintillator."""
         lm_filelist = self.get_attribute(scintillator, 'lm_filelist')
         if len(lm_filelist) < 1:
@@ -557,15 +557,11 @@ class Detector:
             print('List Mode Files:', file=self.log)
             print('File|Import Success|File Time Gap (sec)', file=self.log)
 
-        # Importing the data
-        filecount_switch = True
-        for file in lm_filelist:
-            if not gui and self.print_feedback:
-                print(f'{files_imported}/{len(lm_filelist)} list mode files imported', end='\r')
-            elif gui and filecount_switch and self.print_feedback:
-                print(f'Importing {len(lm_filelist)} list mode files...')
-                filecount_switch = False
+        if self.print_feedback:
+            print(f'Importing {len(lm_filelist)} list mode files...')
 
+        # Importing the data
+        for file in lm_filelist:
             if self.processed:
                 energy, time = np.loadtxt(file, skiprows=1, usecols=(0, 2), unpack=True)
                 data = pd.DataFrame.from_dict({'time': time, 'energy': energy})
@@ -616,7 +612,7 @@ class Detector:
             files_imported += 1
 
         if self.print_feedback:
-            print(f'{files_imported}/{len(lm_filelist)} list mode files imported\n', end='\r')
+            print(f'{files_imported}/{len(lm_filelist)} list mode files imported')
 
         if len(file_frames) > 0:
             # Correcting for the fact that the first 200-300 seconds of the next day are usually included
@@ -651,7 +647,7 @@ class Detector:
             if self.log is not None:
                 print('', file=self.log)
 
-    def _import_trace_data(self, scintillator, gui):
+    def _import_trace_data(self, scintillator):
         """Imports trace data for the given scintillator."""
         trace_filelist = self.get_attribute(scintillator, 'trace_filelist')
         if len(trace_filelist) < 1:
@@ -671,14 +667,11 @@ class Detector:
             print('Trace Files:', file=self.log)
             print('File|Import Success|', file=self.log)
 
+        if self.print_feedback:
+            print(f'Importing {len(trace_filelist)} trace files...')
+
         # Importing the data
-        filecount_switch = True
         for file in trace_filelist:
-            if not gui and self.print_feedback:
-                print(f'{files_imported}/{len(trace_filelist)} trace files imported', end='\r')
-            elif gui and filecount_switch and self.print_feedback:
-                print(f'Importing {len(trace_filelist)} trace files...')
-                filecount_switch = False
 
             # Try-except block for handling reader errors
             try:
@@ -704,7 +697,7 @@ class Detector:
             files_imported += 1
 
         if self.print_feedback:
-            print(f'{files_imported}/{len(trace_filelist)} trace files imported\n', end='\r')
+            print(f'{files_imported}/{len(trace_filelist)} trace files imported')
 
         # Storing the traces
         if len(traces) > 0:
@@ -713,7 +706,7 @@ class Detector:
         if self.log is not None:
             print('', file=self.log)
 
-    def import_data(self, existing_filelists=False, import_traces=True, import_lm=True, mem_frac=1., gui=False):
+    def import_data(self, existing_filelists=False, import_traces=True, import_lm=True, mem_frac=1.):
         """Imports data from data files into arrays and then updates them into the detector's
         scintillator objects.
 
@@ -729,9 +722,6 @@ class Detector:
             Optional: The maximum fraction of currently available system memory that the Detector is allowed to use for
              data (not including overhead). If the dataset is larger than this limit, a MemoryError will be raised.
              1.0 (100% of system memory) by default.
-        gui : bool
-            Optional. If True, printed import progress updates will be gui-safe (return carriages won't be used).
-            False by default.
 
         """
 
@@ -776,11 +766,11 @@ class Detector:
 
             # Importing list mode data
             if import_lm:
-                self._import_lm_data(scintillator, gui)
+                self._import_lm_data(scintillator)
 
             # Importing trace data
             if import_traces:
-                self._import_trace_data(scintillator, gui)
+                self._import_trace_data(scintillator)
 
         gc.collect()
 

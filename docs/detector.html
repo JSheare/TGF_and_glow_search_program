@@ -287,7 +287,7 @@ Returns<br>
 list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;names&nbsp;of&nbsp;the&nbsp;traces&nbsp;that&nbsp;are&nbsp;currently&nbsp;being&nbsp;stored.</span></dd></dl>
 
-<dl><dt><a name="Detector-import_data"><strong>import_data</strong></a>(self, existing_filelists=False, import_traces=True, import_lm=True, mem_frac=1.0, gui=False)</dt><dd><span class="code">Imports&nbsp;data&nbsp;from&nbsp;data&nbsp;files&nbsp;into&nbsp;arrays&nbsp;and&nbsp;then&nbsp;updates&nbsp;them&nbsp;into&nbsp;the&nbsp;detector's<br>
+<dl><dt><a name="Detector-import_data"><strong>import_data</strong></a>(self, existing_filelists=False, import_traces=True, import_lm=True, mem_frac=1.0)</dt><dd><span class="code">Imports&nbsp;data&nbsp;from&nbsp;data&nbsp;files&nbsp;into&nbsp;arrays&nbsp;and&nbsp;then&nbsp;updates&nbsp;them&nbsp;into&nbsp;the&nbsp;detector's<br>
 scintillator&nbsp;objects.<br>
 &nbsp;<br>
 Parameters<br>
@@ -301,10 +301,7 @@ import_lm&nbsp;:&nbsp;bool<br>
 mem_frac&nbsp;:&nbsp;float<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Optional:&nbsp;The&nbsp;maximum&nbsp;fraction&nbsp;of&nbsp;currently&nbsp;available&nbsp;system&nbsp;memory&nbsp;that&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;is&nbsp;allowed&nbsp;to&nbsp;use&nbsp;for<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;(not&nbsp;including&nbsp;overhead).&nbsp;If&nbsp;the&nbsp;dataset&nbsp;is&nbsp;larger&nbsp;than&nbsp;this&nbsp;limit,&nbsp;a&nbsp;MemoryError&nbsp;will&nbsp;be&nbsp;raised.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.0&nbsp;(100%&nbsp;of&nbsp;system&nbsp;memory)&nbsp;by&nbsp;default.<br>
-gui&nbsp;:&nbsp;bool<br>
-&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;printed&nbsp;import&nbsp;progress&nbsp;updates&nbsp;will&nbsp;be&nbsp;gui-safe&nbsp;(return&nbsp;carriages&nbsp;won't&nbsp;be&nbsp;used).<br>
-&nbsp;&nbsp;&nbsp;&nbsp;False&nbsp;by&nbsp;default.</span></dd></dl>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.0&nbsp;(100%&nbsp;of&nbsp;system&nbsp;memory)&nbsp;by&nbsp;default.</span></dd></dl>
 
 <dl><dt><a name="Detector-is_named"><strong>is_named</strong></a>(self, name)</dt><dd><span class="code">Returns&nbsp;True&nbsp;if&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;has&nbsp;the&nbsp;same&nbsp;name&nbsp;as&nbsp;the&nbsp;passed&nbsp;string.<br>
 &nbsp;<br>

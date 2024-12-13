@@ -112,7 +112,7 @@ class SearchManager:
         if not self.lock.locked():
             # If the search command is valid, sets up a SearchArgs object to store it
             if self.is_valid_search(first_date, second_date, detector, print_feedback=True):
-                mode_info = ['-g']
+                mode_info = []
                 for mode in self.mode_flags:
                     if self.mode_flags[mode]:
                         mode_info.append(mode_to_flag(mode))
@@ -124,7 +124,8 @@ class SearchManager:
                 search_string = search_args.get_hashable_repr()
                 # Enqueues the search if it isn't a duplicate
                 if not self._is_duplicate_search(search_string):
-                    modes_string = f' [{", ".join(mode_info[1:-3]).replace("-", "")}]' if len(mode_info) > 4 else ''
+                    # Reasoning behind 3: one for custom, the last two for custom import/export locations
+                    modes_string = f' [{", ".join(mode_info[0:-3]).replace("-", "")}]' if len(mode_info) > 3 else ''
                     print(f'Enqueueing {tl.short_to_full_date(first_date)}'
                           f'{" - " + tl.short_to_full_date(second_date) if first_date != second_date else ""}'
                           f' on {detector.upper()}{modes_string}.')
@@ -145,10 +146,10 @@ class SearchManager:
 
                 feedback_string += f' on {search_args.detector}.'
                 print(feedback_string)
-                # Reasoning behind 4: one for gui, one for custom, the last two for custom import/export locations
-                if len(search_args.mode_info) > 4:
+                # Reasoning behind 3: one for custom, the last two for custom import/export locations
+                if len(search_args.mode_info) > 3:
                     print(f'This search will be run with the following modes: '
-                          f'{", ".join(search_args.mode_info[1:-3]).replace("-", "")}.')
+                          f'{", ".join(search_args.mode_info[0:-3]).replace("-", "")}.')
 
                 # Runs the search program in a separate process and manages it
                 read, write = multiprocessing.Pipe()
@@ -164,6 +165,10 @@ class SearchManager:
                 if process.is_alive():  # This will be executed if stop() is run
                     process.terminate()
                     break
+
+                # In case there's still some strings left in the pipe
+                while read.poll():
+                    print(read.recv(), end='')
 
             self.event.clear()
             print('\nSearch Concluded.\n')
@@ -342,8 +347,8 @@ class SearchWindow(tk.Frame):
             ttk.Separator(self, orient='horizontal').place(x=0, y=750, relwidth=1.0)  # Import/export separator line
 
         # Redirecting stdout to the GUI text box
-        self.old_stdout = sys.stdout.write
-        sys.stdout.write = self.redirector
+        self.old_stdout_write = sys.stdout.write
+        sys.stdout.write = self.write
 
         self.search_manager = SearchManager()
         self.search_thread = None
@@ -353,7 +358,7 @@ class SearchWindow(tk.Frame):
         self._update_enqueued_counter()
 
     def __del__(self):
-        sys.stdout.write = self.old_stdout  # Restoring stdout to what it was before
+        sys.stdout.write = self.old_stdout_write  # Restoring stdout.write to what it was before
 
     # Creates a file dialogue and then puts the selected directory into the specified text entry box
     @staticmethod
@@ -382,9 +387,9 @@ class SearchWindow(tk.Frame):
             self.search_manager.remove_mode(mode)
 
     # Substitute function for sys.stdout.write that appends the given string to the GUI's big text box
-    def redirector(self, input_str):
+    def write(self, input_str):
         self.text_box['state'] = tk.NORMAL
-        self.text_box.insert('end', input_str)
+        self.text_box.insert('end', input_str, 'last_insert')
         self.text_box.yview(tk.END)
         self.text_box['state'] = tk.DISABLED
 
@@ -415,27 +420,27 @@ class SearchWindow(tk.Frame):
 
     # Enqueues a new search based on the current contents of the all the text entry boxes
     def enqueue(self):
-        first_date = self.date_one_entry.get()
-        second_date = self.date_two_entry.get()
-        detector = self.detector_entry.get()
-        if second_date == 'yymmdd' or second_date == '':
-            second_date = first_date
+        if self.search_thread is None:
+            first_date = self.date_one_entry.get()
+            second_date = self.date_two_entry.get()
+            detector = self.detector_entry.get()
+            if second_date == 'yymmdd' or second_date == '':
+                second_date = first_date
 
-        import_loc = self.import_entry.get()
-        if import_loc == '':
-            import_loc = 'none'
+            import_loc = self.import_entry.get()
+            if import_loc == '':
+                import_loc = 'none'
 
-        export_loc = self.export_entry.get()
-        if export_loc == '':
-            export_loc = 'none'
+            export_loc = self.export_entry.get()
+            if export_loc == '':
+                export_loc = 'none'
 
-        self.search_manager.enqueue(first_date, second_date, detector, import_loc, export_loc)
+            self.search_manager.enqueue(first_date, second_date, detector, import_loc, export_loc)
 
     # Starts running the enqueued searches
     def start(self):
         self.enqueue()  # In case the current info hasn't been enqueued yet
         if self.search_thread is None and not self.search_manager.search_queue.empty():
-            self.enqueue()  # In case the current info hasn't been enqueued yet
             self.search_thread = threading.Thread(target=self._run, args=())
             self.search_thread.start()  # Running the search in another thread to prevent the GUI from locking up
 

@@ -61,8 +61,6 @@ def mode_to_flag(mode):
         return '--combo'
     elif mode == 'custom':
         return '-c'
-    elif mode == 'gui':
-        return '-g'
     elif mode == 'pickle':
         return '--pickle'
     elif mode == 'processed':
@@ -89,9 +87,6 @@ def get_modes(mode_info):
 
     # Custom mode (use custom import and/or export directories
     modes['custom'] = True if mode_to_flag('custom') in mode_info else False
-
-    # GUI mode (running script from gui)
-    modes['gui'] = True if mode_to_flag('gui') in mode_info else False
 
     # Pickle mode
     modes['pickle'] = True if mode_to_flag('pickle') in mode_info else False
@@ -536,10 +531,11 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
             # Updates each event object to include its accurate subscores, total score, and rank
             rank_events(detector, potential_events, times, energies, weather_cache)
 
-            plots_made = 0
-            filecount_switch = True
             print('', file=detector.log)
             print('Potential short events:', file=detector.log)
+
+            plots_made = 0
+            print(f'Making {max_plots} plots and event files...')
             for j in range(len(potential_events)):
                 # Stops making plots/event files/log entries after max reached
                 # This is to prevent the program getting stuck on lab test days (with hundreds of thousands of "events")
@@ -547,12 +543,6 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
                     print(f'Max number of loggable events ({params.MAX_PLOTS_PER_SCINT}) reached.',
                           file=detector.log)
                     break
-
-                if not modes['gui']:
-                    print(f'{plots_made}/{max_plots}', end='\r')
-                elif modes['gui'] and filecount_switch:
-                    print(f'Making {max_plots} plots...')
-                    filecount_switch = False
 
                 event = potential_events[j]
                 event.number = j + 1 + plots_already_made
@@ -581,8 +571,7 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
 
                 plots_made += 1
 
-            if not modes['gui']:
-                print(f'{plots_made}/{max_plots}\n', end='\r')
+            print(f'{plots_made}/{max_plots}')
 
             event_numbers[scintillator] = plots_made + plots_already_made
 
@@ -938,13 +927,8 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
         tl.make_path(event_path)
 
         files_made = 0
-        filecount_switch = True
+        print(f'Making {len(potential_glows)} event files...')
         for i in range(len(potential_glows)):
-            if not modes['gui']:
-                print(f'{files_made}/{len(potential_glows)}', end='\r')
-            elif modes['gui'] and filecount_switch:
-                print(f'Making {len(potential_glows)} event files...')
-                filecount_switch = False
 
             glow = potential_glows[i]
             info = (f'{dt.datetime.utcfromtimestamp(glow.start_sec + detector.first_sec)} UTC ({glow.start_sec} '
@@ -965,10 +949,9 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
             event_file.close()
             files_made += 1
 
-        print('', file=detector.log)
+        print(f'{files_made}/{len(potential_glows)}')
 
-        if not modes['gui']:
-            print(f'{files_made}/{len(potential_glows)}\n', end='\r')
+        print('', file=detector.log)
 
         # Sorts the glows in descending order depending on their highest z-scores
         potential_glows = sorted(potential_glows, key=lambda x: -x.highest_score)  # Negative for descending order sort
@@ -1231,11 +1214,11 @@ def program(first_date, second_date, unit, mode_info):
                     detector.log = log
                 else:
                     detector.log = log
-                    detector.import_data(mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC, gui=modes['gui'])
+                    detector.import_data(mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC)
                     tl.pickle_detector(detector, 'detector')
             else:
                 detector.log = log
-                detector.import_data(mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC, gui=modes['gui'])
+                detector.import_data(mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC)
 
             # raise MemoryError  # for low memory mode testing
 
@@ -1362,7 +1345,7 @@ def program(first_date, second_date, unit, mode_info):
 
                     tl.print_logger('', detector.log)
                     tl.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
-                    chunk.import_data(existing_filelists=True, gui=modes['gui'])
+                    chunk.import_data(existing_filelists=True)
 
                     # Checking that data is present in the necessary scintillators
                     if not chunk.data_present_in(chunk.default_scintillator):
