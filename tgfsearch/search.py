@@ -304,34 +304,30 @@ def rank_events(detector, potential_events, times, energies, weather_cache):
 
 # Finds the list mode file(s) associated with a short event
 def find_se_files(detector, event, times, count_scints=None):
-    event_lm_files = {}
     for i in range(event.start, event.stop):
         if count_scints is not None:
             scintillator = count_scints[i]
         else:
             scintillator = event.scintillator
 
-        if scintillator not in event_lm_files:
+        if scintillator not in event.lm_files:
             event_time = times[i]
-            event_lm_files[scintillator] = detector.find_lm_file(scintillator, event_time)
+            event.lm_files[scintillator] = detector.find_lm_file(scintillator, event_time)
 
         # So that we don't loop through the whole event for no reason when not in combo mode
         if count_scints is None:
             break
 
-    return event_lm_files
-
 
 # Finds the traces associated with a short event
 def find_se_traces(detector, event, trace_dict, times, count_scints=None):
-    event_traces = {}
     for i in range(event.start, event.stop):
         if count_scints is not None:
             scintillator = count_scints[i]
         else:
             scintillator = event.scintillator
 
-        if scintillator not in event_traces:
+        if scintillator not in event.traces:
             event_time = times[i]
             event_lm_file_data = detector.get_lm_file(scintillator, detector.find_lm_file(scintillator, event_time))
             potential_matches = detector.find_matching_traces(scintillator, event_time,
@@ -355,13 +351,11 @@ def find_se_traces(detector, event, trace_dict, times, count_scints=None):
 
             if (trace_info is not None and len(np.where((trace_info.times >= times[event.start]) &
                                                         (trace_info.times <= times[event.stop]))[0]) > 0):
-                event_traces[scintillator] = trace_info
+                event.traces[scintillator] = trace_info
 
             # So that we don't loop through the whole event for no reason when not in combo mode
             if count_scints is None:
                 break
-
-    return event_traces
 
 
 # Makes the scatter plot for a short event
@@ -563,10 +557,10 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
                       file=detector.log)
 
                 # Finds the file(s) that the event occurred in
-                event.lm_files = find_se_files(detector, event, times, count_scints)
+                find_se_files(detector, event, times, count_scints)
 
                 # Finds the trace(s) associated with the event and aligns them
-                event.traces = find_se_traces(detector, event, trace_dict, times, count_scints)
+                find_se_traces(detector, event, trace_dict, times, count_scints)
 
                 # Makes the scatter plot for the event
                 make_se_scatterplot(detector, event, times, energies, count_scints)

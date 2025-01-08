@@ -33,26 +33,29 @@ def search(unit, checked_dates, data_path, results_path, auto_search_path):
 
     for day in queue:
         mode_info = []
-        if unit == 'THOR1':
+        current_unit = unit
+        if current_unit == 'THOR1':
             # Control flow for THOR1 NOAA flights
             if 220830 <= int(day) <= 230208:
                 mode_info = ['--aircraft', '--skcali']
 
-        elif unit == 'SANTIS':
+        elif current_unit == 'SANTIS':
             # Control flow for SANTIS instrument becoming the CROATIA instrument
             if int(day) > 211202:
-                unit = 'CROATIA'
+                current_unit = 'CROATIA'
+                if current_unit not in checked_dates:
+                    checked_dates[current_unit] = []
 
         # Runs search for the day
         print(f'Running search: {day} {unit}...')
         old_pwd = os.getcwd()
         os.chdir(results_path)
         try:
-            program(day, day, unit, mode_info)
+            program(day, day, current_unit, mode_info)
             os.chdir(old_pwd)
 
             # Adds the day to the list of checked dates
-            checked_dates[unit].append(day)
+            checked_dates[current_unit].append(day)
 
             # Dumps the updated list of checked dates to a json file for use the next day
             with open(f'{auto_search_path}/checked_dates.json', 'w') as date_file:
@@ -62,7 +65,7 @@ def search(unit, checked_dates, data_path, results_path, auto_search_path):
             # Writes any errors that the search runs into to text files so that they can be examined/fixed later
             print(f'Search encountered the following error: {ex}')
             tl.make_path(f'{auto_search_path}/Error Logs')
-            with open(f'{auto_search_path}/Error Logs/{unit}_{day}_Error.txt', 'w') as error_file:
+            with open(f'{auto_search_path}/Error Logs/{current_unit}_{day}_Error.txt', 'w') as error_file:
                 error_file.write(traceback.format_exc())
 
     return checked_dates

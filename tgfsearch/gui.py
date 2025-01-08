@@ -10,19 +10,19 @@ from queue import Queue
 from tkinter import filedialog
 from tkinter import ttk
 
-# # Adds parent directory to sys.path. Necessary to make the imports below work when running this file as a script
+# Adds parent directory to sys.path. Necessary to make the imports below work when running this file as a script
 parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 import tgfsearch.tools as tl
 from tgfsearch.search import mode_to_flag, program
-from tgfsearch.helpers.pipestdout import PipeStdout
 
 
 # Redirects stdout and stderr from the search program
 def search_program_wrapper(write, first_date, second_date, unit, mode_info):
-    PipeStdout(write)
+    old_stdout_write = sys.stdout.write
+    sys.stdout.write = write.send
     try:
         program(first_date, second_date, unit, mode_info)
     except Exception as ex:
@@ -30,6 +30,8 @@ def search_program_wrapper(write, first_date, second_date, unit, mode_info):
         # Removing the top layer of the traceback (which is just this function) and printing the remainder
         count = len(traceback.extract_tb(ex.__traceback__)) - 1
         print(traceback.format_exc(limit=-count))
+
+    sys.stdout.write = old_stdout_write
 
 
 # A helper class that keeps track of the required arguments for a single search
