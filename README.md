@@ -184,15 +184,22 @@ where a custom collection location has been omitted:
 
 
 ### **Including Only the Top-Ranked Short Events:**
-To include only the top-ranked short events, you can use the '-t' flag:
+To include only the top-ranked short events, you can use the '-tr' flag:
 
-    tgf-collect yymmdd yymmdd detector -t
+    tgf-collect yymmdd yymmdd detector -tr
 
 By default, only events with a rank of one are included, but if you'd like to include events with ranks that are equal
 to or higher than a particular value, you can do so by supplying the value as an argument. Here's an example where only 
 events with rank 13 or higher are included:
 
-    tgf-collect yymmdd yymmdd detector -t 13
+    tgf-collect yymmdd yymmdd detector -tr 13
+
+
+### **Including Only Short Events With A Minimum Score:**
+To include only those short events which have a score greater than or equal to a certain value, you can use the '-ms'
+flag. Here's an example where only events with a score at or above 0.3 are included:
+
+    tgf-collect yymmdd yymmdd detector -ms 0.3
 
 
 # **Using Data Tools:**

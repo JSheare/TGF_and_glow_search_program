@@ -13,25 +13,41 @@ import tgfsearch.parameters as params
 import tgfsearch.tools as tl
 
 
+def is_valid_dir_path(path):
+    if os.path.exists(path):
+        if os.path.isdir(path):
+            return True
+
+        return False
+
+    try:
+        os.mkdir(path)
+        os.rmdir(path)
+    except Exception:
+        return False
+
+    return True
+
+
 def main():
     if len(sys.argv) >= 4:
         first_date = str(sys.argv[1])
         second_date = str(sys.argv[2])
         unit = str(sys.argv[3]).upper()
     else:
-        print('Please provide a first date, a second date, and a unit name.')
+        print('Error: Please provide a first date, a second date, and a unit name.')
         exit()
 
     # Makes sure inputs are valid
     if not first_date.isdigit() or not second_date.isdigit() \
             or len(first_date) != 6 or len(second_date) != 6:
-        print('Invalid date(s).')
+        print('Error: Invalid date(s).')
         exit()
     elif int(second_date) < int(first_date):
-        print('Not a valid date range.')
+        print('Error: Not a valid date range.')
         exit()
     elif not tl.is_valid_detector(unit):
-        print('Not a valid detector.')
+        print('Error: Not a valid detector.')
         exit()
 
     if len(sys.argv) > 4:
@@ -39,51 +55,63 @@ def main():
     else:
         mode_info = []
 
+    # Flag for using custom import/export directories
     results_loc = os.getcwd()
     export_loc = os.getcwd()
-    # Flag for Using custom import/export directories
     if '-c' in mode_info:
         index = mode_info.index('-c')
         if index + 2 < len(mode_info):
             results_index = index + 1
             if mode_info[results_index] != 'none' and mode_info[results_index] != '/':
+                if not is_valid_dir_path(mode_info[results_index]):
+                    print('Error: Invalid results path.')
+                    exit()
+
                 results_loc = mode_info[results_index]
 
             export_index = index + 2
             if mode_info[export_index] != 'none' and mode_info[export_index] != '/':
+                if not is_valid_dir_path(mode_info[export_index]):
+                    print('Error: Invalid export path.')
+                    exit()
+
                 export_loc = mode_info[export_index]
 
-    detector_path = f'{results_loc}/Results/{unit}'
-    export_path = f'{export_loc}/collected_images'
+        else:
+            print("Error: Please provide custom import and export directories, or 'none' in place of either.")
+            exit()
 
     # Flag for only including short events above or equal to a certain rank
-    top_only = False
     max_rank = 0
     max_rank_order = 0
     rank_len = 0
     padding_len = 0
-    if '-t' in mode_info:
-        index = mode_info.index('-t')
+    if '-tr' in mode_info:
+        index = mode_info.index('-tr')
         # Default argument (top-ranked plots only)
-        if index + 1 >= len(mode_info):
+        if index + 1 >= len(mode_info) or not mode_info[index + 1].isnumeric() or int(mode_info[index + 1]) < 0:
             max_rank = 1
             max_rank_order = 1
-            top_only = True
         else:
-            if not mode_info[index + 1].isnumeric():
-                print('Error: ranking argument must be a positive integer.')
-                exit()
-
             max_rank = int(mode_info[index + 1])
-            if max_rank < 0:
-                print('Error: ranking argument must be a positive integer')
-                exit()
-
             max_rank_order = len(mode_info[index + 1])
-            top_only = True
 
         rank_len = len(str(params.MAX_PLOTS_PER_SCINT))
         padding_len = rank_len - max_rank_order
+
+    # Flag for only including short events with greater than or equal to a certain score
+    min_score = 0.
+    if '-ms' in mode_info:
+        index = mode_info.index('-ms')
+        try:  # Checking that the argument can be converted into a float
+            if index + 1 < len(mode_info) and float(mode_info[index + 1]) > 0:
+                min_score = float(mode_info[index + 1])
+
+        except ValueError:
+            pass
+
+    detector_path = f'{results_loc}/Results/{unit}'
+    export_path = f'{export_loc}/collected_images'
 
     # For the traces
     trace_path = f'{export_path}/{unit}/traces'
@@ -109,18 +137,27 @@ def main():
             shutil.copyfile(trace, f'{trace_path}/{t_filename}')
 
         # Scatter plots:
-        if top_only:
-            maybe_plot_list = glob.glob(f'{path}/scatter_plots/'
-                                        f'*_rank{"0" * padding_len}{"[0-9]" * max_rank_order}.png')
+        if max_rank > 0:
+            top_plot_list = glob.glob(f'{path}/scatter_plots/'
+                                      f'*_rank{"0" * padding_len}{"[0-9]" * max_rank_order}_score*.png')
             scatter_plot_list = []
-            for plot in maybe_plot_list:
+            for plot in top_plot_list:
                 rank_index = plot.find('rank') + 4
                 rank = int(plot[rank_index: rank_index + rank_len])
                 if rank <= max_rank:
                     scatter_plot_list.append(plot)
 
         else:
-            scatter_plot_list = glob.glob(f'{path}/scatter_plots/*.png')
+            scatter_plot_list = glob.glob(f'{path}/scatter_plots/*_rank*_score*.png')
+
+        if min_score > 0:
+            top_plot_list = []
+            for plot in scatter_plot_list:
+                score = float(plot.split('score')[-1].split('.')[0].replace('p', '.'))
+                if score >= min_score:
+                    top_plot_list.append(plot)
+
+            scatter_plot_list = top_plot_list
 
         if len(scatter_plot_list) > 0:
             tl.make_path(short_event_path)

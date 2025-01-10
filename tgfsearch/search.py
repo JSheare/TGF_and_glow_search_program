@@ -27,6 +27,7 @@ from tgfsearch.detectors.croatia import Croatia
 from tgfsearch.detectors.godot import Godot
 from tgfsearch.detectors.santis import Santis
 from tgfsearch.detectors.thor import Thor
+from tgfsearch.detectors.adaptive import Adaptive
 from tgfsearch.events.longevent import LongEvent
 from tgfsearch.events.shortevent import ShortEvent
 from tgfsearch.helpers.traceinfo import TraceInfo
@@ -47,6 +48,8 @@ def get_detector(unit, date_str, print_feedback=False):
             return Thor(unit, date_str, print_feedback)
         else:
             raise ValueError(f"'{unit}' is not a valid detector.")
+    elif unit_upper == 'ADAPTIVE':
+        return Adaptive(date_str, print_feedback)
     else:
         raise ValueError(f"'{unit}' is not a valid detector.")
 
@@ -383,7 +386,7 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
     figure.suptitle(f'{event.scintillator} Event {str(event.number)}, ' 
                     f'{dt.datetime.utcfromtimestamp(times[event.start] + detector.first_sec)} UTC, ' 
                     f'{event.length} counts \n Weather: {tl.weather_from_score(event.weather_subscore)} \n'
-                    f'Rank: {event.rank}', fontsize=20)
+                    f'Score: {"%.3f" % event.total_score}, Rank: {event.rank}', fontsize=20)
     ax1 = figure.add_subplot(3, 1, 1)
     ax2 = figure.add_subplot(3, 1, 2)
     ax3 = figure.add_subplot(3, 1, 3)
@@ -439,7 +442,9 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
     event_num_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.number)))
     rank_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.rank)))
     figure.savefig(f'{scatter_path}/{detector.date_str}_{event.scintillator}_'
-                   f'event{event_num_padding}{event.number}_rank{rank_padding}{event.rank}.png')
+                   f'event{event_num_padding}{event.number}_'
+                   f'rank{rank_padding}{event.rank}_'
+                   f'score{("%.3f" % event.total_score).replace(".", "p")}.png')
     figure.clf()
     plt.close(figure)
     gc.collect()
@@ -463,7 +468,9 @@ def make_se_json(detector, event, times, energies, wallclock, count_scints):
     event_num_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.number)))
     rank_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.rank)))
     event_frame.to_json(f'{eventpath}/{detector.date_str}_{event.scintillator}_'
-                        f'event{event_num_padding}{event.number}_rank{rank_padding}{event.rank}.json')
+                        f'event{event_num_padding}{event.number}_'
+                        f'rank{rank_padding}{event.rank}_'
+                        f'score{("%.3f" % event.total_score).replace(".", "p")}.json')
 
 
 # Runs the short event search
@@ -552,7 +559,7 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
                 print(f'{dt.datetime.utcfromtimestamp(times[event.start] + detector.first_sec)} UTC '
                       f'({start_second} seconds of day) - weather: {tl.weather_from_score(event.weather_subscore)}',
                       file=detector.log)
-                print(f'    Rank: {event.rank}, Subscores: [Length: {event.len_subscore}, '
+                print(f'    Score: {event.total_score}, Rank: {event.rank}, Subscores: [Length: {event.len_subscore}, '
                       f'Clumpiness: {event.clumpiness_subscore}, HEL: {event.hel_subscore}]\n',
                       file=detector.log)
 
@@ -1233,8 +1240,6 @@ def program(first_date, second_date, unit, mode_info):
 
             # Checks to see that necessary list mode data is present
             if not detector.data_present_in(detector.default_scintillator):
-                tl.print_logger('\n', detector.log)
-                tl.print_logger('No/missing necessary data for specified day.', detector.log)
                 raise FileNotFoundError('data missing for one or more scintillators.')
 
             # Short event search
@@ -1285,7 +1290,8 @@ def program(first_date, second_date, unit, mode_info):
             low_memory_mode = True
 
         except FileNotFoundError:  # Missing necessary data
-            pass
+            tl.print_logger('\n', detector.log)
+            tl.print_logger('No/missing necessary data for specified day.', detector.log)
 
         except Exception as ex:  # Logging errors
             log_error(detector, modes, ex)
@@ -1388,7 +1394,6 @@ def program(first_date, second_date, unit, mode_info):
 
                 # Skips the day if necessary list mode data is missing in any of the chunks
                 if not has_data:
-                    tl.print_logger('No/missing necessary data for specified day.', detector.log)
                     raise FileNotFoundError('data missing for one or more scintillators.')
 
                 # Short event search
@@ -1459,7 +1464,8 @@ def program(first_date, second_date, unit, mode_info):
                 tl.print_logger('Cannot complete search. Too little memory available on system.', log)
 
             except FileNotFoundError:  # Missing necessary data
-                pass
+                tl.print_logger('\n', detector.log)
+                tl.print_logger('No/missing necessary data for specified day.', detector.log)
 
             except Exception as ex:  # Logging errors
                 log_error(detector, modes, ex)
