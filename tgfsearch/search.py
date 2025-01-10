@@ -48,8 +48,7 @@ def get_detector(unit, date_str, print_feedback=False):
             return Thor(unit, date_str, print_feedback)
         else:
             raise ValueError(f"'{unit}' is not a valid detector.")
-    elif unit_upper == 'ADAPTIVE':
-        return Adaptive(date_str, print_feedback)
+
     else:
         raise ValueError(f"'{unit}' is not a valid detector.")
 
