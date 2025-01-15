@@ -146,7 +146,7 @@ class ShortEvent:
 
         """
 
-        assert((params.LEN_WEIGHT + params.CLUMPINESS_WEIGHT + params.HEL_WEIGHT + params.WEATHER_WEIGHT) == 1.0)
+        assert (params.LEN_WEIGHT + params.CLUMPINESS_WEIGHT + params.HEL_WEIGHT + params.WEATHER_WEIGHT) == 1.0
         self._calculate_subscores(detector, weather_cache, times, energies)
         # If weather info couldn't be obtained, the weather subscore is removed and the remaining weights are adjusted
         # so that they stay proportional to one another

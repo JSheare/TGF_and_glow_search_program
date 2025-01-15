@@ -1,7 +1,5 @@
 """A class that wraps and serves as an easy interface for the data reader."""
 
-import pandas as pd
-
 import tgfsearch.DataReaderTimetrack2 as Dr
 
 
@@ -46,7 +44,15 @@ class Reader:
 
         """
 
-        data, self.passtime = Dr.fileNameToData(file_name, self.passtime)
+        results = Dr.fileNameToData(file_name, self.passtime)
+        if type(results) is tuple:
+            # List mode data
+            self.passtime = results[1]
+            data = results[0]
+        else:
+            # Trace data
+            data = results
+
         if reset_after:
             self.reset()
 

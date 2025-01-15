@@ -13,7 +13,6 @@ import warnings
 
 import tgfsearch.parameters as params
 import tgfsearch.tools as tl
-import tgfsearch.DataReaderTimetrack2 as Dr
 from tgfsearch.detectors.scintillator import Scintillator
 
 
@@ -561,13 +560,13 @@ class Detector:
             print(f'Importing {len(lm_filelist)} list mode files...')
 
         # Importing the data
+        reader = self._scintillators[scintillator].reader
         for file in lm_filelist:
             if self.processed:
                 energy, time = np.loadtxt(file, skiprows=1, usecols=(0, 2), unpack=True)
                 data = pd.DataFrame.from_dict({'time': time, 'energy': energy})
                 file_frames.append(data)
             else:
-                reader = self.get_attribute(scintillator, 'reader', deepcopy=False)
                 # Try-except block to handle reader errors
                 try:
                     # The first with disables prints from the data reader; The second with suppresses annoying
@@ -671,8 +670,8 @@ class Detector:
             print(f'Importing {len(trace_filelist)} trace files...')
 
         # Importing the data
+        reader = self._scintillators[scintillator].reader
         for file in trace_filelist:
-
             # Try-except block for handling reader errors
             try:
                 # The first with disables prints from the data reader; The second with suppresses annoying
@@ -680,7 +679,7 @@ class Detector:
                 with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
                     with warnings.catch_warnings():
                         warnings.simplefilter('ignore', category=RuntimeWarning)
-                        data = Dr.fileNameToData(file, {})
+                        data = reader.read(file)
 
             except Exception as ex:
                 # Files that generate reader errors are skipped

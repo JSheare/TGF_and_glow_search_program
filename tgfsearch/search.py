@@ -27,7 +27,6 @@ from tgfsearch.detectors.croatia import Croatia
 from tgfsearch.detectors.godot import Godot
 from tgfsearch.detectors.santis import Santis
 from tgfsearch.detectors.thor import Thor
-from tgfsearch.detectors.adaptive import Adaptive
 from tgfsearch.events.longevent import LongEvent
 from tgfsearch.events.shortevent import ShortEvent
 from tgfsearch.helpers.traceinfo import TraceInfo
