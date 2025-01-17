@@ -13,7 +13,6 @@ import warnings
 
 import tgfsearch.parameters as params
 import tgfsearch.tools as tl
-from tgfsearch.detectors.scintillator import Scintillator
 
 
 class Detector:
@@ -58,6 +57,8 @@ class Detector:
         scintillators. Note the name mangling underscore.
     scint_list : list
         A list of the instrument's scintillator names.
+    _has_identity : bool
+        A flag for whether the Detector has an identity (established name, scintillator configuration, etc.).
     processed : bool
         A flag for whether the Detector should import processed data.
 
@@ -79,11 +80,14 @@ class Detector:
         self.spectra_params = {'bin_range': 0, 'bin_size': 0}
         self.default_data_loc = ''
         self._import_loc = ''
-        self._results_loc = os.getcwd() + f'/Results/{self.unit}/{self.date_str}'
-        self._scintillators = {self.default_scintillator: Scintillator(self.default_scintillator, '0')}
+        self._results_loc = ''
+        self._scintillators = {}
         self.scint_list = []
+        self._has_identity = True
 
         self.processed = False
+
+        self.set_results_loc(os.getcwd().replace('\\', '/'))
 
     def __str__(self):
         """String casting overload. Returns a string of the form 'Detector(unit, date_str)'."""
@@ -133,9 +137,14 @@ class Detector:
                 'latitude': 0., 'longitude': 0., 'altitude': 0.,
                 'notes': ''}
 
+    def has_identity(self):
+        """Returns True if the Detector has an established identity (established name,
+        scintillator configuration, etc.), False otherwise."""
+        return self._has_identity
+
     def file_form(self, eRC):
         """Returns the regex for a scintillator's files given the scintillator's eRC serial number."""
-        return ''
+        return f'eRC{eRC}*_*_{self.date_str}_*'
 
     def get_import_loc(self):
         """Returns the directory where data will be imported from.
@@ -159,14 +168,12 @@ class Detector:
 
         """
 
-        if isinstance(loc, str):
-            if len(loc) > 0:
-                if loc[-1] == '/':
-                    loc = loc[:-1]
+        loc.replace('\\', '/')
+        if len(loc) > 0:
+            if loc[-1] == '/':
+                loc = loc[:-1]
 
-            self._import_loc = loc
-        else:
-            raise TypeError('loc must be a string.')
+        self._import_loc = loc
 
     def get_results_loc(self):
         """Returns the directory where all results will be stored.
@@ -194,17 +201,15 @@ class Detector:
 
         """
 
-        if isinstance(loc, str):
-            if len(loc) > 0:
-                if loc[-1] == '/':
-                    loc = loc[:-1]
+        loc.replace('\\', '/')
+        if len(loc) > 0:
+            if loc[-1] == '/':
+                loc = loc[:-1]
 
-            if subdir:
-                self._results_loc = loc + f'/Results/{self.unit}/{self.date_str}'
-            else:
-                self._results_loc = loc
+        if subdir:
+            self._results_loc = loc + f'/Results/{self.unit}/{self.date_str}'
         else:
-            raise TypeError('loc must be a string.')
+            self._results_loc = loc
 
     def use_processed(self, overwrite_import_loc=True):
         """Tells the Detector to import processed data instead of normal raw data. Only available for Godot."""
@@ -231,7 +236,7 @@ class Detector:
 
         """
 
-        return True if name.upper() == self.unit else False
+        return name.upper() == self.unit
 
     def data_present_in(self, scintillator, data_type='lm'):
         """Returns True if data is present for the specified scintillator and False otherwise.
@@ -240,7 +245,7 @@ class Detector:
         ----------
         scintillator : str
             The scintillator's name. Allowed values (detector dependent):
-            'NaI', 'SP', 'MP', 'LP'.
+            'NaI', 'SP', 'MP', 'IP', 'LP'.
         data_type : str
             Optional. The type of data to check for. Use 'lm' to check for list mode data and 'trace' to check
             for trace data. Checks for list mode data by default.
@@ -264,7 +269,7 @@ class Detector:
         ----------
         scintillator : str
             The name of the scintillator of interest. Allowed values (detector dependent):
-            'NaI', 'SP', 'MP', 'LP'.
+            'NaI', 'SP', 'MP', 'IP', 'LP'.
         attribute : str
             The name of the attribute of interest.
         deepcopy : bool
@@ -293,7 +298,7 @@ class Detector:
         ----------
         scintillator : str
             The name of the scintillator of interest. Allowed values (detector dependent):
-            'NaI', 'SP', 'MP', 'LP'.
+            'NaI', 'SP', 'MP', 'IP', 'LP'.
         attribute : str
             The name of the attribute of interest.
         new_info : any
@@ -341,7 +346,7 @@ class Detector:
         ----------
         scintillator : str
             The name of the scintillator of interest. Allowed values (detector dependent):
-            'NaI', 'SP', 'MP', 'LP'.
+            'NaI', 'SP', 'MP', 'IP', 'LP'.
         column : str
             The column of interest.
         new_data : numpy.ndarray
@@ -353,7 +358,7 @@ class Detector:
         """
 
         if scintillator in self._scintillators:
-            return self._scintillators[scintillator].set_lm_data(column, new_data, file_name)
+            self._scintillators[scintillator].set_lm_data(column, new_data, file_name)
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
@@ -364,7 +369,7 @@ class Detector:
         ----------
         scintillator : str
             The name of the scintillator that the count is from. Allowed values (detector dependent):
-            'NaI', 'SP', 'MP', 'LP'.
+            'NaI', 'SP', 'MP', 'IP', 'LP'.
         count_time : float
             The time that the count occurred at (in seconds of day).
 
@@ -388,7 +393,7 @@ class Detector:
         ----------
         scintillator : str
             The name of the scintillator that the count is from. Allowed values (detector dependent):
-            'NaI', 'SP', 'MP', 'LP'.
+            'NaI', 'SP', 'MP', 'IP', 'LP'.
         count_time : float
             The time that the count occurred at (in seconds of day).
 
@@ -412,7 +417,7 @@ class Detector:
         ----------
         scintillator : str
             The name of the scintillator that the file is from. Allowed values (detector dependent):
-            'NaI', 'SP', 'MP', 'LP'.
+            'NaI', 'SP', 'MP', 'IP', 'LP'.
         file_name : str
             The name of the file that data is being requested for. Note that this must be the *full* name of the file,
             including the path from the root directory.
@@ -438,7 +443,7 @@ class Detector:
         ----------
         scintillator : str
             The name of the scintillator of interest. Allowed values (detector dependent):
-            'NaI', 'SP', 'MP', 'LP'.
+            'NaI', 'SP', 'MP', 'IP', 'LP'.
         trace_name : str
             The name of the trace file.
         deepcopy : bool
@@ -463,7 +468,7 @@ class Detector:
         ----------
         scintillator : str
             The name of the scintillator of interest. Allowed values (detector dependent):
-            'NaI', 'SP', 'MP', 'LP'.
+            'NaI', 'SP', 'MP', 'IP', 'LP'.
 
         Returns
         -------
@@ -484,7 +489,7 @@ class Detector:
         ----------
         scintillator : str
             The name of the scintillator of interest. Allowed values (detector dependent):
-            'NaI', 'SP', 'MP', 'LP'.
+            'NaI', 'SP', 'MP', 'IP', 'LP'.
         count_time : float
             The time that the count occurred at (in seconds of day).
         trace_list : list
@@ -530,6 +535,14 @@ class Detector:
 
         if clear_filelists:
             self.dates_stored = [self.date_str]
+
+    def _get_serial_num_filelist(self, eRC):
+        """Returns a list of data files for the scintillator with the given eRC serial number."""
+        complete_filelist = glob.glob(f'{self._import_loc}/{self.file_form(eRC)}')
+        if len(complete_filelist) == 0:  # Here in case the data files are grouped into daily folders
+            complete_filelist = glob.glob(f'{self._import_loc}/{self.date_str}/{self.file_form(eRC)}')
+
+        return complete_filelist
 
     def _import_lm_data(self, scintillator):
         """Imports list mode data for the given scintillator."""
@@ -724,22 +737,16 @@ class Detector:
 
         """
 
+        if not self._has_identity:
+            raise TypeError('cannot import data for a Detector with no identity.')
+
         if len(self.dates_stored) > 1:
             raise RuntimeError("cannot import multiple days' data.")
 
         if not existing_filelists:
             # Locates the files to be imported
             for scintillator in self._scintillators:
-                eRC = self.get_attribute(scintillator, 'eRC')
-                # Here in case the data files are grouped into daily folders
-                try:
-                    complete_filelist = glob.glob(f'{self._import_loc}/{self.file_form(eRC)}'.replace('\\', '/'))
-                    assert len(complete_filelist) > 0, 'Empty filelist'
-
-                except AssertionError:
-                    complete_filelist = glob.glob(f'{self._import_loc}/{self.date_str}'
-                                                  f'/{self.file_form(eRC)}'.replace('\\', '/'))
-
+                complete_filelist = self._get_serial_num_filelist(self.get_attribute(scintillator, 'eRC'))
                 lm_filelist, trace_filelist = tl.separate_data_files(tl.filter_data_files(complete_filelist))
                 if import_lm:
                     self._scintillators[scintillator].lm_filelist = lm_filelist
@@ -780,7 +787,7 @@ class Detector:
         ----------
         scintillator : str
             The name of the scintillator of interest. Allowed values (detector dependent):
-            'NaI', 'SP', 'MP', 'LP'.
+            'NaI', 'SP', 'MP', 'IP', 'LP'.
 
         Returns
         -------
@@ -789,13 +796,17 @@ class Detector:
 
         """
 
-        if self.data_present_in(scintillator):
-            energy_bins = np.arange(0.0, self.spectra_params['bin_range'], self.spectra_params['bin_size'])
-            data = self.get_attribute(scintillator, 'lm_frame', deepcopy=False)
-            energy_hist = np.histogram(data['energy'], bins=energy_bins)[0]
-            return energy_bins[:-1], energy_hist  # Bins is always longer than hist by one
+        if scintillator in self._scintillators:
+            if self.data_present_in(scintillator):
+                energy_bins = np.arange(0.0, self.spectra_params['bin_range'], self.spectra_params['bin_size'])
+                data = self.get_attribute(scintillator, 'lm_frame', deepcopy=False)
+                energy_hist = np.histogram(data['energy'], bins=energy_bins)[0]
+                return energy_bins[:-1], energy_hist  # Bins is always longer than hist by one
+            else:
+                raise ValueError(f"data for '{scintillator}' is either missing or hasn't been imported yet.")
+
         else:
-            raise ValueError(f"data for '{scintillator}' is either missing or hasn't been imported yet.")
+            raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
     def plot_spectra(self, scintillator):
         """Plots and saves the energy spectra histogram for the given scintillator
@@ -804,25 +815,53 @@ class Detector:
         ----------
         scintillator : str
             The name of the scintillator of interest. Allowed values (detector dependent):
-            'NaI', 'SP', 'MP', 'LP'.
+            'NaI', 'SP', 'MP', 'IP', 'LP'.
 
         """
 
-        figure = plt.figure(figsize=[20, 11.0])
-        ax = figure.add_subplot()
-        figure.suptitle(f'Energy Spectrum for {scintillator}, {self.full_date_str}')
-        ax.set_xlabel('Energy Channel')
-        ax.set_ylabel('Counts / bin')
-        ax.set_yscale('log')
-        energy_bins, energy_hist = self.make_spectra(scintillator)
-        ax.bar(energy_bins, energy_hist, color='r',
-               width=self.spectra_params['bin_size'] / 2, zorder=1)
+        if scintillator in self._scintillators:
+            figure = plt.figure(figsize=[20, 11.0])
+            ax = figure.add_subplot()
+            figure.suptitle(f'Energy Spectrum for {scintillator}, {self.full_date_str}')
+            ax.set_xlabel('Energy Channel')
+            ax.set_ylabel('Counts / bin')
+            ax.set_yscale('log')
+            try:
+                energy_bins, energy_hist = self.make_spectra(scintillator)
+                ax.bar(energy_bins, energy_hist, color='r',
+                       width=self.spectra_params['bin_size'] / 2, zorder=1)
 
-        # Saves the figure
-        figure.savefig(f'{self._results_loc}/{scintillator}_Spectrum.png', dpi=500)
-        figure.clf()
-        plt.close(figure)
-        gc.collect()
+                # Saves the figure
+                figure.savefig(f'{self._results_loc}/{scintillator}_Spectrum.png', dpi=500)
+            except Exception as ex:
+                figure.clf()
+                plt.close(figure)
+                gc.collect()
+                raise ex
+
+            figure.clf()
+            plt.close(figure)
+            gc.collect()
+        else:
+            raise ValueError(f"'{scintillator}' is not a valid scintillator.")
+
+    def get_clone(self):
+        """Returns a new Detector with the same identity as the current one (but no data).
+
+        Returns
+        -------
+        tgfsearch.detectors.detector.Detector
+            A new Detector with the same identity as the current one. Identity includes: unit name, date, print
+            feedback setting, deployment info, default scintillator, import directory, export directory,
+            scintillator configuration, and processed data flag.
+
+        """
+
+        clone = type(self)(self.unit, self.date_str, print_feedback=self.print_feedback)
+        clone._import_loc = self._import_loc
+        clone.results_loc = self._results_loc
+        clone.processed = self.processed
+        return clone
 
     def splice(self, operand_detector):
         """Returns a new Detector with the combined data of the current Detector and the one provided.
@@ -830,7 +869,7 @@ class Detector:
         Parameters
         ----------
         operand_detector : tgfsearch.detectors.detector.Detector
-            Another Detector.
+            Another Detector. Must have the same unit name and scintillator configuration as the current one.
 
         Returns
         -------
@@ -846,14 +885,13 @@ class Detector:
 
         """
 
-        if operand_detector.unit == self.unit:
+        if operand_detector.unit == self.unit and operand_detector.scint_list == self.scint_list:
             if int(self.date_str) < int(operand_detector.date_str):
-                new_detector = type(self)(self.unit, self.date_str, print_feedback=self.print_feedback)
+                new_detector = self.get_clone()
                 earlier = self
                 later = operand_detector
             elif int(self.date_str) > int(operand_detector.date_str):
-                new_detector = type(self)(operand_detector.unit, operand_detector.date_str,
-                                          print_feedback=operand_detector.print_feedback)
+                new_detector = operand_detector.get_clone()
                 earlier = operand_detector
                 later = self
             else:

@@ -11,6 +11,7 @@ if grandparent_dir not in sys.path:
 
 import tgfsearch.parameters as params
 import tgfsearch.tools as tl
+from tgfsearch.search import is_valid_detector
 
 
 def is_valid_dir_path(path):
@@ -46,7 +47,7 @@ def main():
     elif int(second_date) < int(first_date):
         print('Error: Not a valid date range.')
         exit()
-    elif not tl.is_valid_detector(unit):
+    elif not is_valid_detector(unit):
         print('Error: Not a valid detector.')
         exit()
 

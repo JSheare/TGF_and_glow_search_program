@@ -14,39 +14,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 import tgfsearch.parameters as params
 
 
-def is_valid_detector(unit):
-    """Returns True if the provided unit is a valid detector name and False otherwise.
-
-    Parameters
-    ----------
-    unit : str
-        The detector name to check.
-
-    Returns
-    -------
-    bool
-        True if the unit string is a valid detector name, False otherwise.
-
-    """
-
-    # Remember to update get_detector() in the search module if updating this function
-    unit_upper = unit.upper()
-    if unit_upper == 'GODOT':
-        return True
-    elif unit_upper == 'SANTIS':
-        return True
-    elif unit_upper == 'CROATIA':
-        return True
-    elif 'THOR' in unit_upper:
-        if len(unit_upper) >= 5 and unit_upper[4:].isnumeric() and int(unit_upper[4:]) <= 6:  # only 6 of them right now
-            return True
-        else:
-            return False
-
-    else:
-        return False
-
-
 def o1_poly(x, a=0., b=0.):
     """Returns the y value at the given x for a first-order polynomial with terms a and b."""
     return x * a + b
@@ -54,7 +21,7 @@ def o1_poly(x, a=0., b=0.):
 
 def o2_poly(x, a=0., b=0., c=0.):
     """Returns the y value at the given x for a second-order polynomial with terms a, b, and c."""
-    return a * x**2 + b * x + c
+    return a * x ** 2 + b * x + c
 
 
 def print_logger(string, logfile):
@@ -110,10 +77,10 @@ def file_size(file, uncompressed=True):
         with open(file, 'rb') as f:
             f.seek(-4, 2)
             size = struct.unpack('I', f.read(4))[0]
-    
+
     else:
         size = os.path.getsize(file)
-    
+
     return size
 
 
@@ -1006,7 +973,7 @@ def align_trace(trace, lm_frame, buff_no=0, trigspot=None):
             trigspot = params.SMALL_TRIGSPOT
 
     # Making potential shift values (in microseconds)
-    shifts = (np.arange(100) - 50)/10 - trigspot * 12.5e-3
+    shifts = (np.arange(100) - 50) / 10 - trigspot * 12.5e-3
 
     # Getting the rough times of the event
     event_indices = np.where((wallclock_times_us > (sim_times_us.min() - 2)) &
@@ -1023,7 +990,7 @@ def align_trace(trace, lm_frame, buff_no=0, trigspot=None):
         shifted_trace = sim_times_us + shift
         for val in shifted_trace:
             min_diff = np.absolute(val - wallclock_times_us).min()
-            score += np.exp(-min_diff**5)
+            score += np.exp(-min_diff ** 5)
 
         if score > best_score:
             best_score = score
@@ -1060,7 +1027,7 @@ def channel_to_mev(energy_array, channels, energies):
 
     """
 
-    a = (energies[0] - energies[1])/(channels[0] - channels[1])
+    a = (energies[0] - energies[1]) / (channels[0] - channels[1])
     b = energies[1] - a * channels[1]
-    energy_array = a*energy_array + b
+    energy_array = a * energy_array + b
     return energy_array

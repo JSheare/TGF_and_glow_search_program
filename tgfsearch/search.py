@@ -27,14 +27,37 @@ from tgfsearch.detectors.croatia import Croatia
 from tgfsearch.detectors.godot import Godot
 from tgfsearch.detectors.santis import Santis
 from tgfsearch.detectors.thor import Thor
+from tgfsearch.detectors.adaptive_detector import AdaptiveDetector
 from tgfsearch.events.longevent import LongEvent
 from tgfsearch.events.shortevent import ShortEvent
 from tgfsearch.helpers.traceinfo import TraceInfo
 
 
+# Returns True if the provided unit is a valid detector name and False otherwise
+def is_valid_detector(unit):
+    # Remember to update get_detector() below if updating this function
+    unit_upper = unit.upper()
+    if unit_upper == 'GODOT':
+        return True
+    elif unit_upper == 'SANTIS':
+        return True
+    elif unit_upper == 'CROATIA':
+        return True
+    elif 'THOR' in unit_upper:
+        if len(unit_upper) >= 5 and unit_upper[4:].isnumeric() and int(unit_upper[4:]) <= 6:  # only 6 of them right now
+            return True
+        else:
+            return False
+
+    elif unit_upper == 'ADAPTIVE':
+        return True
+    else:
+        return False
+
+
 # Returns the correct detector object based on the parameters provided
 def get_detector(unit, date_str, print_feedback=False):
-    # Remember to update is_valid_detector() in the tools module if updating this function
+    # Remember to update is_valid_detector() above if updating this function
     unit_upper = unit.upper()
     if unit_upper == 'GODOT':
         return Godot(unit, date_str, print_feedback)
@@ -48,6 +71,8 @@ def get_detector(unit, date_str, print_feedback=False):
         else:
             raise ValueError(f"'{unit}' is not a valid detector.")
 
+    elif unit_upper == 'ADAPTIVE':
+        return AdaptiveDetector(date_str, print_feedback)
     else:
         raise ValueError(f"'{unit}' is not a valid detector.")
 
@@ -1106,7 +1131,7 @@ def make_chunks(detector):
         total_memory += new_memory
         # Making a new chunk if the amount of new memory added by partitioning at i + 1 takes us over the limit
         if total_memory > allowed_memory:
-            chunk = get_detector(detector.unit, detector.date_str, print_feedback=True)
+            chunk = detector.get_clone()
             for scintillator in detector:
                 trace_map = trace_maps[scintillator]
                 lm_sets = all_lm_sets[scintillator]
@@ -1121,7 +1146,7 @@ def make_chunks(detector):
             prev_point = i
 
     # Setting up the last chunk with whatever is left
-    chunk = get_detector(detector.unit, detector.date_str, print_feedback=True)
+    chunk = detector.get_clone()
     for scintillator in detector:
         trace_map = trace_maps[scintillator]
         lm_sets = all_lm_sets[scintillator]
@@ -1178,7 +1203,7 @@ def program(first_date, second_date, unit, mode_info):
 
         # Initializes the detector object
         print('Importing data...')
-        if tl.is_valid_detector(unit):
+        if is_valid_detector(unit):
             detector = get_detector(unit, date_str, print_feedback=True)
         else:
             print('Not a valid detector.')
@@ -1188,17 +1213,25 @@ def program(first_date, second_date, unit, mode_info):
         if modes['processed']:
             detector.use_processed()
 
-        # Tells the detector to use custom import/export directories if the user asks for it
-        if modes['custom']:
-            index = mode_info.index('-c')
-            if index + 2 < len(mode_info):
-                import_index = index + 1
-                if mode_info[import_index] != 'none' and mode_info[import_index] != '/':
-                    detector.set_import_loc(mode_info[import_index])
+        try:
+            # Tells the detector to use custom import/export directories if the user asks for it
+            if modes['custom']:
+                index = mode_info.index('-c')
+                if index + 2 < len(mode_info):
+                    import_index = index + 1
+                    if mode_info[import_index] != 'none' and mode_info[import_index] != '/':
+                        detector.set_import_loc(mode_info[import_index])
 
-                export_index = index + 2
-                if mode_info[export_index] != 'none' and mode_info[export_index] != '/':
-                    detector.set_results_loc(mode_info[export_index])
+                    export_index = index + 2
+                    if mode_info[export_index] != 'none' and mode_info[export_index] != '/':
+                        detector.set_results_loc(mode_info[export_index])
+
+            if not detector.has_identity():
+                raise FileNotFoundError("couldn't infer identity.")
+
+        except FileNotFoundError:
+            print('No data files to infer detector identity from. Please provide the import location of the data.')
+            exit()
 
         # Logs relevant data files and events in a .txt File
         log_path = f'{detector.get_results_loc()}'
@@ -1310,20 +1343,6 @@ def program(first_date, second_date, unit, mode_info):
                 num_chunks = len(chunk_list)
                 for chunk in chunk_list:
                     chunk.log = log
-
-                    if modes['processed']:
-                        chunk.use_processed()
-
-                    if modes['custom']:
-                        index = mode_info.index('-c')
-                        if index + 2 < len(mode_info):
-                            import_index = index + 1
-                            if mode_info[import_index] != 'none' and mode_info[import_index] != '/':
-                                chunk.set_import_loc(mode_info[import_index])
-
-                            export_index = index + 2
-                            if mode_info[export_index] != 'none' and mode_info[export_index] != '/':
-                                chunk.set_results_loc(mode_info[export_index])
 
                 chunk_scint_list = chunk_list[0].scint_list
 

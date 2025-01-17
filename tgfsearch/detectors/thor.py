@@ -15,9 +15,6 @@ class Thor(Detector):
                                'MP': Scintillator('MP', serial_nums[2]), 'LP': Scintillator('LP', serial_nums[3])}
         self.scint_list = list(self._scintillators.keys())
 
-    def file_form(self, eRC):
-        return f'eRC{eRC}*_*_{self.date_str}_*'
-
     def _get_eRC(self):
         """Returns a list of all THOR eRC serial numbers for the instantiated THOR unit."""
         # All lists are in this form: NaI, small plastic, medium plastic, large plastic

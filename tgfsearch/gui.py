@@ -16,7 +16,7 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 import tgfsearch.tools as tl
-from tgfsearch.search import mode_to_flag, program
+from tgfsearch.search import is_valid_detector, mode_to_flag, program
 
 
 # Redirects stdout and stderr from the search program
@@ -92,7 +92,7 @@ class SearchManager:
                 print('Error: No detector specified.')
 
             return False
-        elif not tl.is_valid_detector(detector):
+        elif not is_valid_detector(detector):
             if print_feedback:
                 print('Error: Not a valid detector.')
 
