@@ -616,12 +616,16 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
 def get_le_scints(detector):
     # Scintillator preferences for each instrument
     if detector.is_named('THOR'):
-        return ['NaI']
+        return ['NaI', 'LP']
     elif detector.is_named('GODOT'):
         return ['NaI', 'LP']
     elif detector.is_named('SANTIS'):
         return ['LP']
     elif detector.is_named('CROATIA'):
+        return ['LP']
+    elif detector.is_named('MINITHOR1'):
+        return ['NaI', 'IP']
+    elif detector.is_named('FRANCE'):
         return ['LP']
     else:
         return [detector.default_scintillator]

@@ -75,7 +75,7 @@ class AdaptiveDetector(Detector):
         self.scint_list = list(self._scintillators.keys())
 
         # Assigning the default scintillator based on the following priority (greatest to least)
-        for scint in ['LP', 'IP', 'SP', 'NaI', 'MP']:
+        for scint in ['LP', 'IP', 'MP', 'NaI', 'SP']:
             if scint in self._scintillators:
                 self.default_scintillator = scint
                 break
