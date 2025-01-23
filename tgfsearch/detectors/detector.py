@@ -78,7 +78,7 @@ class Detector:
 
         # Detector-specific information
         self.spectra_params = {'bin_range': 0, 'bin_size': 0}
-        self.default_data_loc = ''
+        self.default_data_loc = '/media/tgfdata/Detectors'
         self._import_loc = ''
         self._results_loc = ''
         self._scintillators = {}
@@ -116,6 +116,11 @@ class Detector:
     def __bool__(self):
         """Bool casting overload. Returns True if data for the default scintillator is present."""
         return self.data_present_in(self.default_scintillator)
+
+    def __contains__(self, scintillator):
+        """Contains overload. Returns True if the provided string corresponds to a scintillator in Detector,
+        False otherwise."""
+        return scintillator in self._scintillators
 
     def __add__(self, operand_detector):
         """Addition operator overload. Returns a new Detector containing data from the current Detector
@@ -645,6 +650,9 @@ class Detector:
 
             # Makes the final dataframe and stores it
             all_data = pd.concat(file_frames, axis=0)
+
+            if self.processed:
+                all_data['time'] = all_data['time'] - self.first_sec
 
             self.set_attribute(scintillator, 'lm_frame', all_data, deepcopy=False)
             self.set_attribute(scintillator, 'lm_file_ranges', file_ranges, deepcopy=False)

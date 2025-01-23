@@ -472,6 +472,7 @@ def get_weather_conditions(detector, weather_cache, full_date_str, event_time):
         weather_table = scrape_weather(full_date_str, detector.deployment['weather_station'])
         weather_cache[full_date_str] = weather_table
 
+    # If changing weather scores here remember to update them in weather_from_score below
     if not weather_table.empty:
         # Finds the time in the table that's closest to the time of the event
         index = 0
@@ -519,6 +520,34 @@ def get_weather_conditions(detector, weather_cache, full_date_str, event_time):
         return 0
     else:
         return -1
+
+
+def weather_from_score(score):
+    """Returns the weather for each code given by the function get_weather_conditions.
+
+    -1 == error getting weather data
+
+    0 == fair
+
+    0.5 == light rain
+
+    0.75 == heavy rain
+
+    1 == lightning or hail
+
+    """
+
+    # If changing scores here remember to update them in get_weather_conditions above
+    if score == 0:
+        return 'fair'
+    elif score == 0.5:
+        return 'light rain'
+    elif score == 0.75:
+        return 'heavy rain'
+    elif score == 1:
+        return 'lightning or hail'
+    else:
+        return 'no weather data'
 
 
 def dst_status(date_str):
@@ -629,32 +658,6 @@ def convert_clock_hour(clock_hour):
         hour += 12
 
     return float((hour * params.SEC_PER_HOUR) + (minute * 60))
-
-
-def weather_from_score(score):
-    """Returns the weather for each code given by the function get_weather_conditions.
-
-    -1 == error getting weather data
-
-    0 == fair
-
-    0.5 == light rain
-
-    0.75 == heavy rain
-
-    1 == lightning or hail
-
-    """
-    if score == 0:
-        return 'fair'
-    elif score == 0.5:
-        return 'light rain'
-    elif score == 0.75:
-        return 'heavy rain'
-    elif score == 1:
-        return 'lightning or hail'
-    else:
-        return 'no weather data'
 
 
 def combine_data(detector):

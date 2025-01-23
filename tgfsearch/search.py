@@ -329,7 +329,7 @@ def rank_events(detector, potential_events, times, energies, weather_cache):
 
 
 # Finds the list mode file(s) associated with a short event
-def find_se_files(detector, event, times, count_scints=None):
+def find_se_files(detector, event, times, count_scints):
     for i in range(event.start, event.stop):
         if count_scints is not None:
             scintillator = count_scints[i]
@@ -346,7 +346,7 @@ def find_se_files(detector, event, times, count_scints=None):
 
 
 # Finds the traces associated with a short event
-def find_se_traces(detector, event, trace_dict, times, count_scints=None):
+def find_se_traces(detector, event, trace_dict, times, count_scints):
     for i in range(event.start, event.stop):
         if count_scints is not None:
             scintillator = count_scints[i]
@@ -533,9 +533,6 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
             wallclock = detector.get_lm_data(scintillator, 'wc')
             count_scints = None
 
-        if detector.processed:
-            times = times - detector.first_sec
-
         # Finding potential events with the search algorithm in find_short_events
         potential_events = short_event_search(detector, modes, scintillator, rollgap, times, energies)
 
@@ -553,7 +550,7 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
             else:
                 max_plots = len(potential_events)
 
-            # Updates each event object to include its accurate subscores, total score, and rank
+            # Updates each event object to include its accurate sub scores, total score, and rank
             rank_events(detector, potential_events, times, energies, weather_cache)
 
             print('', file=detector.log)
@@ -640,9 +637,6 @@ def make_le_hist(detector, scintillator, bin_size):
         times = np.delete(times, np.where(energies < params.NAI_CHANNEL_CUTOFF))
     else:
         times = np.delete(times, np.where(energies < params.LP_CHANNEL_CUTOFF))
-
-    if detector.processed:
-        times = times - detector.first_sec
 
     hist_allday = np.histogram(times, bins=bins_allday)[0]
     return bins_allday[:-1], hist_allday  # Bins is always longer than hist by one for some reason

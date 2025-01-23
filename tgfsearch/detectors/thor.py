@@ -8,8 +8,7 @@ class Thor(Detector):
         super().__init__(unit, date_str, print_feedback)
 
         self.spectra_params = {'bin_range': 65535.0, 'bin_size': 1}
-        self.default_data_loc = '/media/tgfdata/Detectors/THOR'
-        self._import_loc = f'{self.default_data_loc}/{self.unit}/Data/{self.date_str}'
+        self._import_loc = f'{self.default_data_loc}/THOR/{self.unit}/Data/{self.date_str}'
         serial_nums = self._get_eRC()
         self._scintillators = {'NaI': Scintillator('NaI', serial_nums[0]), 'SP': Scintillator('SP', serial_nums[1]),
                                'MP': Scintillator('MP', serial_nums[2]), 'LP': Scintillator('LP', serial_nums[3])}
