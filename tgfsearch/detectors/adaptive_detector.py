@@ -6,28 +6,19 @@ from tgfsearch.detectors.scintillator import Scintillator
 
 class AdaptiveDetector(Detector):
     def __init__(self, date_str, print_feedback=False):
-        super().__init__('ADAPTIVE', date_str, print_feedback)
-        self.default_scintillator = ''
-
-        self.spectra_params = {'bin_range': 65535.0, 'bin_size': 1}
-        self._scintillators = {}
-        self._has_identity = False
-
-    def __bool__(self):
-        if self._has_identity:
-            return super().__bool__()
-
-        return False
+        super().__init__('ADAPTIVE', date_str, print_feedback=print_feedback, read_identity=False)
+        self.spectra_params['bin_range'] = 65535.0
+        self.spectra_params['bin_size'] = 1
 
     def _reset_identity(self):
         """Resets everything back to its default state (no identity)."""
         self.clear()
+        self._has_identity = False
         self._results_loc = self._results_loc.replace(f'Results/{self.unit}', 'Results/ADAPTIVE')
         self.unit = 'ADAPTIVE'
+        self._scintillators.clear()
+        self.scint_list.clear()
         self.deployment = self._get_deployment()
-        self._scintillators = {}
-        self.scint_list = []
-        self._has_identity = False
 
     def _infer_identity(self):
         """Uses files in import loc to determine instrument type and scintillator configuration."""
@@ -71,8 +62,7 @@ class AdaptiveDetector(Detector):
             if scintillator not in self._scintillators:
                 eRC = file[index + 3: index + 7]
                 self._scintillators[scintillator] = Scintillator(scintillator, eRC)
-
-        self.scint_list = list(self._scintillators.keys())
+                self.scint_list.append(scintillator)
 
         # Assigning the default scintillator based on the following priority (greatest to least)
         for scint in ['LP', 'IP', 'MP', 'NaI', 'SP']:
@@ -87,22 +77,12 @@ class AdaptiveDetector(Detector):
         super().set_import_loc(loc)
         self._infer_identity()
 
-    def is_named(self, name):
-        return name.upper() in self.unit
-
     def get_clone(self):
         clone = type(self)(self.date_str, print_feedback=self.print_feedback)
-        clone.unit = self.unit
-        clone.deployment = clone._get_deployment()
-        clone.default_scintillator = self.default_scintillator
-        clone._import_loc = self._import_loc
-        clone._results_loc = self._results_loc
-        for scintillator in self._scintillators:
-            clone._scintillators[scintillator] = Scintillator(
-                self._scintillators[scintillator].name,
-                self._scintillators[scintillator].eRC)
+        if self.has_identity:
+            clone._import_loc = self._import_loc
+            clone._results_loc = self._results_loc
+            clone.processed = self.processed
+            clone._infer_identity()
 
-        clone.scint_list = list(clone._scintillators.keys())
-        clone.processed = self.processed
-        clone._has_identity = self._has_identity
         return clone

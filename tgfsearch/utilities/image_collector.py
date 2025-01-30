@@ -5,9 +5,8 @@ import shutil
 import sys
 
 # Adds grandparent directory to sys.path. Necessary to make the import below work when running this file as a script
-grandparent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-if grandparent_dir not in sys.path:
-    sys.path.insert(0, grandparent_dir)
+if __name__ == '__main__':
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 
 import tgfsearch.parameters as params
 import tgfsearch.tools as tl

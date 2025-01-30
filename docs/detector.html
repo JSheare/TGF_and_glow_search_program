@@ -49,7 +49,7 @@
 <td class="section-title" colspan=3>&nbsp;<br><a name="Detector">class <strong>Detector</strong></a>(<a href="builtins.html#object">builtins.object</a>)</td></tr>
     
 <tr><td class="decor title-decor" rowspan=2><span class="code">&nbsp;&nbsp;&nbsp;</span></td>
-<td class="decor title-decor" colspan=2><span class="code"><a href="#Detector">Detector</a>(unit,&nbsp;date_str,&nbsp;print_feedback=False)<br>
+<td class="decor title-decor" colspan=2><span class="code"><a href="#Detector">Detector</a>(unit,&nbsp;date_str,&nbsp;print_feedback=False,&nbsp;**kwargs)<br>
 &nbsp;<br>
 A&nbsp;class&nbsp;used&nbsp;to&nbsp;store&nbsp;all&nbsp;relevant&nbsp;information&nbsp;about&nbsp;an&nbsp;instrument&nbsp;and&nbsp;its&nbsp;data&nbsp;for&nbsp;a&nbsp;day.<br>
 &nbsp;<br>
@@ -75,14 +75,10 @@ full_date_str&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;timestamp&nbsp;for&nbsp;the&nbsp;requested&nbsp;in&nbsp;day&nbsp;in&nbsp;yyyy-mm-dd&nbsp;format.<br>
 dates_stored&nbsp;:&nbsp;list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;dates&nbsp;currently&nbsp;being&nbsp;stored&nbsp;in&nbsp;the&nbsp;<a href="#Detector">Detector</a>.<br>
-deployment&nbsp;:&nbsp;dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;Deployment&nbsp;information&nbsp;for&nbsp;the&nbsp;instrument&nbsp;on&nbsp;the&nbsp;requested&nbsp;day&nbsp;(if&nbsp;available).<br>
-default_scintillator&nbsp;:&nbsp;str<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;string&nbsp;representing&nbsp;the&nbsp;default&nbsp;scintillator.<br>
+_has_identity&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;flag&nbsp;for&nbsp;whether&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;has&nbsp;an&nbsp;identity&nbsp;(established&nbsp;name,&nbsp;scintillator&nbsp;configuration,&nbsp;etc.).<br>
 spectra_params&nbsp;:&nbsp;dict<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dictionary&nbsp;containing&nbsp;various&nbsp;parameters&nbsp;used&nbsp;to&nbsp;make&nbsp;spectra&nbsp;for&nbsp;the&nbsp;<a href="#Detector">Detector</a>.<br>
-default_data_loc&nbsp;:&nbsp;str<br>
-&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;default&nbsp;directory&nbsp;for&nbsp;an&nbsp;instrument's&nbsp;raw&nbsp;data.<br>
 _import_loc&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;directory&nbsp;where&nbsp;data&nbsp;files&nbsp;for&nbsp;the&nbsp;day&nbsp;are&nbsp;located.<br>
 _results_loc&nbsp;:&nbsp;str<br>
@@ -92,8 +88,10 @@ _scintillators&nbsp;:&nbsp;dict<br>
 &nbsp;&nbsp;&nbsp;&nbsp;scintillators.&nbsp;Note&nbsp;the&nbsp;name&nbsp;mangling&nbsp;underscore.<br>
 scint_list&nbsp;:&nbsp;list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;the&nbsp;instrument's&nbsp;scintillator&nbsp;names.<br>
-_has_identity&nbsp;:&nbsp;bool<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;flag&nbsp;for&nbsp;whether&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;has&nbsp;an&nbsp;identity&nbsp;(established&nbsp;name,&nbsp;scintillator&nbsp;configuration,&nbsp;etc.).<br>
+default_scintillator&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;string&nbsp;representing&nbsp;the&nbsp;default&nbsp;scintillator.<br>
+deployment&nbsp;:&nbsp;dict<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Deployment&nbsp;information&nbsp;for&nbsp;the&nbsp;instrument&nbsp;on&nbsp;the&nbsp;requested&nbsp;day&nbsp;(if&nbsp;available).<br>
 processed&nbsp;:&nbsp;bool<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;flag&nbsp;for&nbsp;whether&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;should&nbsp;import&nbsp;processed&nbsp;data.<br>&nbsp;</span></td></tr>
 <tr><td>&nbsp;</td>
@@ -106,7 +104,7 @@ and&nbsp;the&nbsp;provided&nbsp;one.&nbsp;See&nbsp;<a href="#Detector-splice">sp
 <dl><dt><a name="Detector-__contains__"><strong>__contains__</strong></a>(self, scintillator)</dt><dd><span class="code">Contains&nbsp;overload.&nbsp;Returns&nbsp;True&nbsp;if&nbsp;the&nbsp;provided&nbsp;string&nbsp;corresponds&nbsp;to&nbsp;a&nbsp;scintillator&nbsp;in&nbsp;<a href="#Detector">Detector</a>,<br>
 False&nbsp;otherwise.</span></dd></dl>
 
-<dl><dt><a name="Detector-__init__"><strong>__init__</strong></a>(self, unit, date_str, print_feedback=False)</dt><dd><span class="code">Initialize&nbsp;self.&nbsp;&nbsp;See&nbsp;help(type(self))&nbsp;for&nbsp;accurate&nbsp;signature.</span></dd></dl>
+<dl><dt><a name="Detector-__init__"><strong>__init__</strong></a>(self, unit, date_str, print_feedback=False, **kwargs)</dt><dd><span class="code">Initialize&nbsp;self.&nbsp;&nbsp;See&nbsp;help(type(self))&nbsp;for&nbsp;accurate&nbsp;signature.</span></dd></dl>
 
 <dl><dt><a name="Detector-__iter__"><strong>__iter__</strong></a>(self)</dt><dd><span class="code">Iterator&nbsp;dunder.&nbsp;Returns&nbsp;a&nbsp;generator&nbsp;that&nbsp;yields&nbsp;the&nbsp;<a href="#Detector">Detector</a>'s&nbsp;scintillator&nbsp;names.</span></dd></dl>
 
@@ -330,6 +328,18 @@ Returns<br>
 -------<br>
 bool<br>
 &nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;if&nbsp;the&nbsp;name&nbsp;matches&nbsp;the&nbsp;name&nbsp;of&nbsp;the&nbsp;<a href="#Detector">Detector</a>,&nbsp;False&nbsp;otherwise.</span></dd></dl>
+
+<dl><dt><a name="Detector-is_valid_scintillator"><strong>is_valid_scintillator</strong></a>(self, scintillator)</dt><dd><span class="code">Returns&nbsp;True&nbsp;if&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;contains&nbsp;the&nbsp;specified&nbsp;scintillator,&nbsp;False&nbsp;otherwise<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+scintillator&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;scintillator's&nbsp;name.<br>
+&nbsp;<br>
+Returns<br>
+-------<br>
+bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;if&nbsp;the&nbsp;scintillator&nbsp;is&nbsp;in&nbsp;<a href="#Detector">Detector</a>,&nbsp;False&nbsp;otherwise.</span></dd></dl>
 
 <dl><dt><a name="Detector-make_spectra"><strong>make_spectra</strong></a>(self, scintillator)</dt><dd><span class="code">Makes&nbsp;an&nbsp;energy&nbsp;spectra&nbsp;histogram&nbsp;for&nbsp;the&nbsp;requested&nbsp;scintillator.<br>
 &nbsp;<br>

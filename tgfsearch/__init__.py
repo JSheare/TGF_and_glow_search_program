@@ -4,11 +4,8 @@
 from tgfsearch.tools import *
 from tgfsearch.search import is_valid_detector, get_detector
 from tgfsearch.DataReaderTimetrack2 import fileNameToData
-from tgfsearch.detectors.croatia import Croatia
-from tgfsearch.detectors.godot import Godot
-from tgfsearch.detectors.santis import Santis
-from tgfsearch.detectors.thor import Thor
 from tgfsearch.detectors.adaptive_detector import AdaptiveDetector
-from tgfsearch.events.shortevent import ShortEvent
-from tgfsearch.events.longevent import LongEvent
+from tgfsearch.detectors.detector import Detector
+from tgfsearch.events.short_event import ShortEvent
+from tgfsearch.events.long_event import LongEvent
 from tgfsearch.helpers.reader import Reader

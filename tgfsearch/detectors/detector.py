@@ -13,6 +13,7 @@ import warnings
 
 import tgfsearch.parameters as params
 import tgfsearch.tools as tl
+from tgfsearch.detectors.scintillator import Scintillator
 
 
 class Detector:
@@ -40,14 +41,10 @@ class Detector:
         The timestamp for the requested in day in yyyy-mm-dd format.
     dates_stored : list
         A list of dates currently being stored in the Detector.
-    deployment : dict
-        Deployment information for the instrument on the requested day (if available).
-    default_scintillator : str
-        A string representing the default scintillator.
+    _has_identity : bool
+        A flag for whether the Detector has an identity (established name, scintillator configuration, etc.).
     spectra_params : dict
         A dictionary containing various parameters used to make spectra for the Detector.
-    default_data_loc : str
-        The default directory for an instrument's raw data.
     _import_loc : str
         The directory where data files for the day are located.
     _results_loc : str
@@ -57,37 +54,44 @@ class Detector:
         scintillators. Note the name mangling underscore.
     scint_list : list
         A list of the instrument's scintillator names.
-    _has_identity : bool
-        A flag for whether the Detector has an identity (established name, scintillator configuration, etc.).
+    default_scintillator : str
+        A string representing the default scintillator.
+    deployment : dict
+        Deployment information for the instrument on the requested day (if available).
     processed : bool
         A flag for whether the Detector should import processed data.
 
     """
 
-    def __init__(self, unit, date_str, print_feedback=False):
+    def __init__(self, unit, date_str, print_feedback=False, **kwargs):
         # Basic information
-        self.unit = unit.upper()
         self.date_str = date_str  # yymmdd
         self.print_feedback = print_feedback
         self.log = None
         self.first_sec = tl.get_first_sec(self.date_str)
         self.full_date_str = dt.datetime.utcfromtimestamp(int(self.first_sec)).strftime('%Y-%m-%d')  # yyyy-mm-dd
         self.dates_stored = [date_str]
-        self.deployment = self._get_deployment()
-        self.default_scintillator = 'LP'  # Don't change this unless you have a really good reason
 
-        # Detector-specific information
+        # Identity-related information
+        self._has_identity = False
+        self.unit = unit.upper()
         self.spectra_params = {'bin_range': 0, 'bin_size': 0}
-        self.default_data_loc = '/media/tgfdata/Detectors'
         self._import_loc = ''
         self._results_loc = ''
         self._scintillators = {}
         self.scint_list = []
-        self._has_identity = True
+        self.default_scintillator = ''
+        self.deployment = self._get_deployment()
 
-        self.processed = False
+        # Allows us to disable identity reading if we need to, but without advertising it in the documentation
+        if 'read_identity' in kwargs and not kwargs['read_identity']:
+            pass
+        else:
+            self._read_identity()
 
         self.set_results_loc(os.getcwd().replace('\\', '/'))
+
+        self.processed = False
 
     def __str__(self):
         """String casting overload. Returns a string of the form 'Detector(unit, date_str)'."""
@@ -115,7 +119,10 @@ class Detector:
 
     def __bool__(self):
         """Bool casting overload. Returns True if data for the default scintillator is present."""
-        return self.data_present_in(self.default_scintillator)
+        if self._has_identity:
+            return self.data_present_in(self.default_scintillator)
+
+        return False
 
     def __contains__(self, scintillator):
         """Contains overload. Returns True if the provided string corresponds to a scintillator in Detector,
@@ -141,6 +148,36 @@ class Detector:
                 'utc_to_local': 0.0, 'dst_in_region': False, 'weather_station': '', 'sounding_station': '',
                 'latitude': 0., 'longitude': 0., 'altitude': 0.,
                 'notes': ''}
+
+    def _read_identity(self):
+        """Gets and fills in the identity of the Detector from a config file based on the name and date."""
+        with open(f'{os.path.dirname(os.path.dirname(os.path.realpath(__file__)))}/config/detector_config.json',
+                  'r') as file:
+            identities = json.load(file)
+
+        if self.unit in identities:
+            identity = identities[self.unit]
+            self.spectra_params = identity['spectra_params']
+            self._import_loc = f'{params.DEFAULT_DATA_LOC}/{identity["subtree"]}/{self.date_str}'
+            # Getting the right scintillator configuration based on the date
+            correct_date_str = ''
+            for after_date_str in identity['scintillators']:
+                if int(self.date_str) >= int(after_date_str):
+                    correct_date_str = after_date_str
+                else:
+                    break
+
+            for scintillator in identity['scintillators'][correct_date_str]:
+                value = identity['scintillators'][correct_date_str][scintillator]
+                if scintillator == 'default':
+                    self.default_scintillator = value
+                else:
+                    self._scintillators[scintillator] = Scintillator(scintillator, value)
+                    self.scint_list.append(scintillator)
+
+            self._has_identity = True
+        else:
+            raise ValueError(f"'{self.unit}' is not a valid detector.")
 
     def has_identity(self):
         """Returns True if the Detector has an established identity (established name,
@@ -241,7 +278,24 @@ class Detector:
 
         """
 
-        return name.upper() == self.unit
+        return name.upper() in self.unit
+
+    def is_valid_scintillator(self, scintillator):
+        """Returns True if the Detector contains the specified scintillator, False otherwise
+
+        Parameters
+        ----------
+        scintillator : str
+            The scintillator's name.
+
+        Returns
+        -------
+        bool
+            True if the scintillator is in Detector, False otherwise.
+
+        """
+
+        return scintillator in self._scintillators
 
     def data_present_in(self, scintillator, data_type='lm'):
         """Returns True if data is present for the specified scintillator and False otherwise.
@@ -867,7 +921,7 @@ class Detector:
 
         clone = type(self)(self.unit, self.date_str, print_feedback=self.print_feedback)
         clone._import_loc = self._import_loc
-        clone.results_loc = self._results_loc
+        clone._results_loc = self._results_loc
         clone.processed = self.processed
         return clone
 
@@ -893,7 +947,7 @@ class Detector:
 
         """
 
-        if operand_detector.unit == self.unit and operand_detector.scint_list == self.scint_list:
+        if operand_detector.unit == self.unit and operand_detector._scintillators.keys() == self._scintillators.keys():
             if int(self.date_str) < int(operand_detector.date_str):
                 new_detector = self.get_clone()
                 earlier = self
@@ -967,4 +1021,5 @@ class Detector:
 
             return new_detector
         else:
-            raise TypeError(f"cannot splice '{self.unit}' with '{operand_detector.unit}'.")
+            raise TypeError(f"cannot splice '{self.unit}' ({self.scint_list}) with "
+                            f"'{operand_detector.unit}' ({operand_detector.scint_list}).")

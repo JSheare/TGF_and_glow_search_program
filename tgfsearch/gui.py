@@ -11,9 +11,8 @@ from tkinter import filedialog
 from tkinter import ttk
 
 # Adds parent directory to sys.path. Necessary to make the imports below work when running this file as a script
-parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
+if __name__ == '__main__':
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 import tgfsearch.tools as tl
 from tgfsearch.search import is_valid_detector, mode_to_flag, program

@@ -3,6 +3,7 @@ import datetime as dt
 import gc as gc
 import glob as glob
 import heapq
+import json as json
 import matplotlib as matplotlib
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
@@ -17,64 +18,39 @@ import warnings as warnings
 
 
 # Adds parent directory to sys.path. Necessary to make the imports below work when running this file as a script
-parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
+if __name__ == '__main__':
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 import tgfsearch.parameters as params
 import tgfsearch.tools as tl
-from tgfsearch.detectors.croatia import Croatia
-from tgfsearch.detectors.godot import Godot
-from tgfsearch.detectors.santis import Santis
-from tgfsearch.detectors.thor import Thor
 from tgfsearch.detectors.adaptive_detector import AdaptiveDetector
-from tgfsearch.events.longevent import LongEvent
-from tgfsearch.events.shortevent import ShortEvent
-from tgfsearch.helpers.traceinfo import TraceInfo
+from tgfsearch.detectors.detector import Detector
+from tgfsearch.events.long_event import LongEvent
+from tgfsearch.events.short_event import ShortEvent
+from tgfsearch.helpers.trace_info import TraceInfo
 
 
 # Returns True if the provided unit is a valid detector name and False otherwise
 def is_valid_detector(unit):
-    # Remember to update get_detector() below if updating this function
     unit_upper = unit.upper()
-    if unit_upper == 'GODOT':
-        return True
-    elif unit_upper == 'SANTIS':
-        return True
-    elif unit_upper == 'CROATIA':
-        return True
-    elif 'THOR' in unit_upper:
-        if len(unit_upper) >= 5 and unit_upper[4:].isnumeric() and int(unit_upper[4:]) <= 6:  # only 6 of them right now
-            return True
-        else:
-            return False
-
-    elif unit_upper == 'ADAPTIVE':
+    if unit_upper == 'ADAPTIVE':
         return True
     else:
-        return False
+        try:
+            with open(f'{os.path.dirname(os.path.realpath(__file__))}/config/detector_config.json', 'r') as file:
+                identities = json.load(file)
+
+            return unit_upper in identities
+        except json.decoder.JSONDecodeError:
+            raise SyntaxError('invalid syntax in detector config file.')
 
 
 # Returns the correct detector object based on the parameters provided
 def get_detector(unit, date_str, print_feedback=False):
-    # Remember to update is_valid_detector() above if updating this function
-    unit_upper = unit.upper()
-    if unit_upper == 'GODOT':
-        return Godot(unit, date_str, print_feedback)
-    elif unit_upper == 'SANTIS':
-        return Santis(unit, date_str, print_feedback)
-    elif unit_upper == 'CROATIA':
-        return Croatia(unit, date_str, print_feedback)
-    elif 'THOR' in unit_upper:
-        if len(unit_upper) >= 5 and unit_upper[4:].isnumeric() and int(unit_upper[4:]) <= 6:  # only 6 of them right now
-            return Thor(unit, date_str, print_feedback)
-        else:
-            raise ValueError(f"'{unit}' is not a valid detector.")
-
-    elif unit_upper == 'ADAPTIVE':
-        return AdaptiveDetector(date_str, print_feedback)
+    if unit.upper() == 'ADAPTIVE':
+        return AdaptiveDetector(date_str, print_feedback=print_feedback)
     else:
-        raise ValueError(f"'{unit}' is not a valid detector.")
+        return Detector(unit, date_str, print_feedback=print_feedback)
 
 
 # Returns the flag for the given mode
@@ -611,19 +587,16 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
 
 # Returns the list of preferred scintillators to be used in the long event search depending on the Detector
 def get_le_scints(detector):
-    # Scintillator preferences for each instrument
-    if detector.is_named('THOR'):
-        return ['NaI', 'LP']
-    elif detector.is_named('GODOT'):
-        return ['NaI', 'LP']
-    elif detector.is_named('SANTIS'):
-        return ['LP']
-    elif detector.is_named('CROATIA'):
-        return ['LP']
-    elif detector.is_named('MINITHOR1'):
-        return ['NaI', 'IP']
-    elif detector.is_named('FRANCE'):
-        return ['LP']
+    with open(f'{os.path.dirname(os.path.realpath(__file__))}/config/long_event_search_scints.json', 'r') as file:
+        all_preferences = json.load(file)
+
+    if detector.unit in all_preferences:
+        preferences = []
+        for scintillator in all_preferences[detector.unit]:
+            if detector.is_valid_scintillator(scintillator):
+                preferences.append(scintillator)
+
+        return preferences
     else:
         return [detector.default_scintillator]
 
@@ -1252,8 +1225,6 @@ def program(first_date, second_date, unit, mode_info):
             else:
                 detector.log = log
                 detector.import_data(mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC)
-
-            # raise MemoryError  # for low memory mode testing
 
             print('')
             print('Done.')
