@@ -686,11 +686,14 @@ class Detector:
             print(f'{files_imported}/{len(lm_filelist)} list mode files imported')
 
         if len(file_frames) > 0:
-            # Correcting for the fact that the first 200-300 seconds of the next day are usually included
+            # Correcting for the fact that the first few minutes of the next day are usually included
             # in the last file
             last_times = file_frames[-1]['SecondsOfDay'].to_numpy()
-            # Times belonging to the next day will always be < 500
-            day_change = np.where(np.diff(last_times) < -(params.SEC_PER_DAY - 500))[0]
+            # First count of the next day - last count of the current day will be either equal to or less than
+            # params.SEC_PER_DAY by up to a few hundred seconds depending on how late the first count came in.
+            # Choosing a large error just to be sure
+            error = 500
+            day_change = np.where(np.diff(last_times, prepend=0.0) <= -(params.SEC_PER_DAY - error))[0]
             if len(day_change) > 0:
                 change_index = int(day_change[0]) + 1
                 for i in range(change_index, len(last_times)):
@@ -699,7 +702,7 @@ class Detector:
                 file_frames[-1]['SecondsOfDay'] = last_times
 
             # Correcting the last file's time ranges too
-            if (file_ranges[-1][1] - file_ranges[-1][0]) < -(params.SEC_PER_DAY - 500):
+            if file_ranges[-1][1] - file_ranges[-1][0] >= (params.SEC_PER_DAY - error):
                 file_ranges[-1][1] += params.SEC_PER_DAY
 
             # Makes the final dataframe and stores it
