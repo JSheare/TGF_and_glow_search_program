@@ -55,35 +55,35 @@ def main():
         config = json.load(file)
 
     for unit in config:
-        subtree = config[unit]['subtree']
         for sub_entry in config[unit]:
-            if sub_entry == 'subtree':
-                continue
-
+            subtree = config[unit][sub_entry]['subtree']
+            # The convention that I've chosen is that after date is inclusive and before date is not
             before_date = int(config[unit][sub_entry]['before_date'])
             after_date = int(config[unit][sub_entry]['after_date'])
             if unit not in checked_dates:
                 checked_dates[unit] = []
 
             queue = []
-            dates = glob.glob(f'{params.DEFAULT_DATA_LOC}/{subtree}/*')
-            dates.sort()
-            for date in dates:
-                if (len(date) == 6 and date.isnumeric() and len(os.listdir(date)) > 0 and
-                        (after_date <= int(date) < before_date) and date not in checked_dates[unit]):
-                    queue.append(date)
+            date_paths = glob.glob(f'{params.DEFAULT_DATA_LOC}/{subtree}/*')
+            date_paths.sort()
+            for date_path in date_paths:
+                if len(date_path) >= 6:
+                    date = date_path[-6:]
+                    if (date.isnumeric() and len(os.listdir(date_path)) > 0 and (after_date <= int(date) < before_date)
+                            and date not in checked_dates[unit]):
+                        queue.append(date)
 
             # Checking the most recent stuff first
             queue.reverse()
 
             for date in queue:
-                mode_info = config[unit][sub_entry]['mode_info']
+                mode_info = list(config[unit][sub_entry]['mode_info'])  # Implicit copy
                 # Adding custom import/export directories
                 mode_info.append('-c')
                 mode_info.append(f'{params.DEFAULT_DATA_LOC}/{subtree}/{date}')
                 mode_info.append(results_loc)
 
-                print(f'Running search: {date} {unit}...')
+                print(f'Running search: {date} {unit} {mode_info}...')
                 try:
                     program(date, date, unit, mode_info)
 

@@ -1,7 +1,7 @@
 {
   "GODOT": {
-    "subtree": "GODOT/Data",
     "1": {
+      "subtree": "GODOT/Data",
       "before_date": "999999",
       "after_date": "000000",
       "mode_info": []
@@ -9,18 +9,20 @@
   },
 
   "THOR1": {
-    "subtree": "THOR/THOR1/Data",
     "1": {
+      "subtree": "THOR/THOR1/Data",
       "before_date": "220830",
       "after_date": "000000",
       "mode_info": []
     },
     "2": {
+      "subtree": "THOR/THOR1/Data",
       "before_date": "230209",
       "after_date": "220830",
       "mode_info": ["--aircraft"]
     },
     "3": {
+      "subtree": "THOR/THOR1/Data",
       "before_date": "999999",
       "after_date": "230209",
       "mode_info": []
@@ -28,8 +30,8 @@
   },
 
   "THOR2": {
-    "subtree": "THOR/THOR2/Data",
     "1": {
+      "subtree": "THOR/THOR2/Data",
       "before_date": "999999",
       "after_date": "000000",
       "mode_info": []
@@ -37,8 +39,8 @@
   },
 
   "THOR3": {
-    "subtree": "THOR/THOR3/Data",
     "1": {
+      "subtree": "THOR/THOR3/Data",
       "before_date": "999999",
       "after_date": "000000",
       "mode_info": []
@@ -46,8 +48,8 @@
   },
 
   "THOR4": {
-    "subtree": "THOR/THOR4/Data",
     "1": {
+      "subtree": "THOR/THOR4/Data",
       "before_date": "999999",
       "after_date": "000000",
       "mode_info": []
@@ -55,8 +57,8 @@
   },
 
   "THOR5": {
-    "subtree": "THOR/THOR5/Data",
     "1": {
+      "subtree": "THOR/THOR5/Data",
       "before_date": "999999",
       "after_date": "000000",
       "mode_info": []
@@ -64,8 +66,8 @@
   },
 
   "THOR6": {
-    "subtree": "THOR/THOR6/Data",
     "1": {
+      "subtree": "THOR/THOR6/Data",
       "before_date": "999999",
       "after_date": "000000",
       "mode_info": []
@@ -73,8 +75,8 @@
   },
 
   "SANTIS": {
-    "subtree": "SANTIS/DATA",
     "1": {
+      "subtree": "SANTIS/DATA",
       "before_date": "211203",
       "after_date": "000000",
       "mode_info": []
@@ -82,8 +84,8 @@
   },
 
   "CROATIA": {
-    "subtree": "SANTIS/Data",
     "1": {
+      "subtree": "SANTIS/Data",
       "before_date": "999999",
       "after_date": "211203",
       "mode_info": []
@@ -91,8 +93,8 @@
   },
 
   "MINITHOR1": {
-    "subtree": "MINITHOR1/Data",
     "1": {
+      "subtree": "MINITHOR1/Data",
       "before_date": "999999",
       "after_date": "000000",
       "mode_info": []
@@ -100,8 +102,8 @@
   },
 
   "ISRAEL": {
-    "subtree": "ISRAEL/Data",
     "1": {
+      "subtree": "ISRAEL/Data",
       "before_date": "999999",
       "after_date": "000000",
       "mode_info": []
@@ -109,8 +111,8 @@
   },
 
   "FRANCE": {
-    "subtree": "FRANCE/Data",
     "1": {
+      "subtree": "FRANCE/Data",
       "before_date": "999999",
       "after_date": "000000",
       "mode_info": []

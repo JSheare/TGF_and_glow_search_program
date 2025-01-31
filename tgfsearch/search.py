@@ -640,11 +640,14 @@ def calculate_mue(hist_allday):
             low = mid + 1
 
     # Recalculates mue without outliers
-    hist_sum = 0
-    for i in range(0, low):
-        hist_sum += hist_allday_nz[sorting_order[i]]
+    if low > 0:
+        hist_sum = 0
+        for i in range(0, low):
+            hist_sum += hist_allday_nz[sorting_order[i]]
 
-    return hist_sum / low
+        return hist_sum / low
+    else:  # No outliers
+        return mue_val
 
 
 # Calculates normal rolling baseline
@@ -796,6 +799,10 @@ def aircraft_baseline(mue, bins_allday, hist_allday, bin_size):
                 mue[center_index] = fit_curve(float(bins_allday[center_index]), fit[0], fit[1], fit[2])
             else:
                 mue[center_index] = fit_curve(bins_allday[center_index], fit[0], fit[1])
+
+            # If the fit overestimates past the x-axis
+            if mue[center_index] <= 0:
+                mue[center_index] = mue[center_index - 1]
 
         center_index += 1
         l_index += 1
