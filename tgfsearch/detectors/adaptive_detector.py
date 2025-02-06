@@ -82,7 +82,6 @@ class AdaptiveDetector(Detector):
         if self.has_identity:
             clone._import_loc = self._import_loc
             clone._results_loc = self._results_loc
-            clone.processed = self.processed
             clone._infer_identity()
 
         return clone

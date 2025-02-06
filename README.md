@@ -48,20 +48,14 @@ individually (by default the program only searches the largest plastic scintilla
 
 - **'aircraft' Mode** - If the detector you are searching was deployed to an aircraft or some other high-altitude 
 location during the search period, this is the mode that you want to use. It adds a special check to the short event 
-search algorithm that filters out false alarms caused by cosmic rays.
+search algorithm that filters out false alarms caused by cosmic rays, and uses a more fine-grained rolling baseline in
+long event search algorithm.
 
+- **'pickle' Mode** - This mode serializes and saves imported data for later use OR imports previously-serialized data.
 
-#### **Developer Modes:**
-The program also includes several bonus modes that are largely intended for developer use; 
-they include:
-- **'pickle' mode** - Serializes and saves imported data for later use OR imports 
-  previously-serialized data.
+- **'skshort' Mode** - This mode skips the short event search algorithm (including trace filtering).
 
-
-- **'skshort' Mode** - Skips the short event search algorithm.
-
-
-- **'skglow' mode** - Skips the long event search algorithm.
+- **'skglow' Mode** - This mode skips the long event search algorithm.
 
 ### **Enqueuing Multiple Searches:**
 If desired, several searches can be enqueued and then executed sequentially.
@@ -131,20 +125,34 @@ To run the program in this mode, run the program the same as above but add the f
 #### **'aircraft' Mode:**
 If the detector you are searching was deployed to an aircraft or some other high-altitude 
 location during the search period, this is the mode that you want to use. It adds a special check to the short event 
-search algorithm that filters out false alarms caused by cosmic rays.
+search algorithm that filters out false alarms caused by cosmic rays, and uses a more fine-grained rolling baseline in
+long event search algorithm.
 
 To run the program in this mode, run the program the same as above but add the flag '--aircraft' to the end:
 
     tgf-search-cl yymmdd yymmdd detector --aircraft
 
-#### **'processed' Mode:**
-In this mode (which is only available for GODOT) the program will search processed data instead of raw data. Note that
-this mode is largely deprecated and that processed data must exist for your specified search range for it to work 
-properly.
+#### **'pickle' Mode:**
+This mode serializes and saves imported data for later use OR imports previously-serialized data.
 
-To run the program in this mode, run the program the same as above but add the flag '-p' to the end:
+To use it, enter a command of the following form:
 
-    tgf-search-cl yymmdd yymmdd detector -p
+    tgf-search-cl yymmdd yymmdd detector --pickle
+
+#### **'skshort' Mode:**
+This mode skips the short event search algorithm (including trace filtering).
+
+To use it, enter a command of the following form:
+
+    tgf-search-cl yymmdd yymmdd detector --skshort
+
+#### **'skglow' Mode:**
+This mode skips the long event search algorithm.
+
+To use it, enter a command of the following form:
+
+    tgf-search-cl yymmdd yymmdd detector --skglow
+
 
 #### **Many Modes:**
 It is possible to use as many of these modes in tandem as the user needs 
@@ -152,18 +160,6 @@ It is possible to use as many of these modes in tandem as the user needs
 (i.e. commands like this are possible):
 
     tgf-search-cl yymmdd yymmdd detector --combo --allscints --aircraft
-
-### **Additional (developer) modes:**
-The program also includes several bonus modes that are largely intended for developer use; 
-they include:
-- **'pickle' mode** - Serializes and saves imported data for later use OR imports 
-  previously-serialized data. Flag: --pickle
-
-
-- **'skshort' Mode** - Skips the short event search algorithm. Flag: --skshort
-
-
-- **'skglow' mode** - Skips the long event search algorithm. Flag: --skglow
 
 ### **Adaptive Mode:**
 If the data that you're trying to search is from an instrument with an arbitrary scintillator configuration and/or an 

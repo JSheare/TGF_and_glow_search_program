@@ -91,9 +91,7 @@ scint_list&nbsp;:&nbsp;list<br>
 default_scintillator&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;string&nbsp;representing&nbsp;the&nbsp;default&nbsp;scintillator.<br>
 deployment&nbsp;:&nbsp;dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;Deployment&nbsp;information&nbsp;for&nbsp;the&nbsp;instrument&nbsp;on&nbsp;the&nbsp;requested&nbsp;day&nbsp;(if&nbsp;available).<br>
-processed&nbsp;:&nbsp;bool<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;flag&nbsp;for&nbsp;whether&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;should&nbsp;import&nbsp;processed&nbsp;data.<br>&nbsp;</span></td></tr>
+&nbsp;&nbsp;&nbsp;&nbsp;Deployment&nbsp;information&nbsp;for&nbsp;the&nbsp;instrument&nbsp;on&nbsp;the&nbsp;requested&nbsp;day&nbsp;(if&nbsp;available).<br>&nbsp;</span></td></tr>
 <tr><td>&nbsp;</td>
 <td class="singlecolumn">Methods defined here:<br>
 <dl><dt><a name="Detector-__add__"><strong>__add__</strong></a>(self, operand_detector)</dt><dd><span class="code">Addition&nbsp;operator&nbsp;overload.&nbsp;Returns&nbsp;a&nbsp;new&nbsp;<a href="#Detector">Detector</a>&nbsp;containing&nbsp;data&nbsp;from&nbsp;the&nbsp;current&nbsp;<a href="#Detector">Detector</a><br>
@@ -428,8 +426,6 @@ tgfsearch.detectors.detector.<a href="#Detector">Detector</a><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;All&nbsp;time-related&nbsp;data&nbsp;will&nbsp;be&nbsp;adjusted&nbsp;to&nbsp;reflect&nbsp;the&nbsp;difference&nbsp;in&nbsp;date&nbsp;between&nbsp;the&nbsp;operand&nbsp;Detectors<br>
 &nbsp;<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;Using&nbsp;the&nbsp;method&nbsp;import()&nbsp;with&nbsp;this&nbsp;<a href="#Detector">Detector</a>&nbsp;won't&nbsp;work.&nbsp;Trying&nbsp;this&nbsp;will&nbsp;result&nbsp;in&nbsp;a&nbsp;RuntimeError</span></dd></dl>
-
-<dl><dt><a name="Detector-use_processed"><strong>use_processed</strong></a>(self, overwrite_import_loc=True)</dt><dd><span class="code">Tells&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;to&nbsp;import&nbsp;processed&nbsp;data&nbsp;instead&nbsp;of&nbsp;normal&nbsp;raw&nbsp;data.&nbsp;Only&nbsp;available&nbsp;for&nbsp;Godot.</span></dd></dl>
 
 <hr>
 Data descriptors defined here:<br>

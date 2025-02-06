@@ -278,9 +278,9 @@ class SearchWindow(tk.Frame):
         self.modes_frame = tk.Frame(self)
         self.modes_frame.grid(row=3, column=3, pady=(5, 0))
 
-        # Adding and placing the regular mode label and checkboxes
+        # Adding and placing the mode label and checkboxes
         self.regular_cb_label = tk.Label(self.modes_frame, text='Modes:')
-        self.regular_cb_label.grid(row=0, column=0, pady=(5, 0))
+        self.regular_cb_label.grid(row=0, column=0, columnspan=2, pady=(5, 0))
 
         ccb = tk.IntVar()
         self.combo_cb = tk.Checkbutton(self.modes_frame, text='combo', variable=ccb, onvalue=1, offvalue=0,
@@ -299,10 +299,6 @@ class SearchWindow(tk.Frame):
                                           command=lambda: self._check_uncheck(acb, 'aircraft'))
         self.aircraft_cb.grid(row=3, column=0, sticky=tk.W, pady=(5, 0))
         self.checkbox_variables.append(acb)
-
-        # Adding and placing the developer mode label and checkboxes
-        self.dev_cb_label = tk.Label(self.modes_frame, text='Dev Modes:')
-        self.dev_cb_label.grid(row=0, column=1, pady=(5, 0))
 
         sscb = tk.IntVar()
         self.skshort_cb = tk.Checkbutton(self.modes_frame, text='skshort', variable=sscb, onvalue=1, offvalue=0,

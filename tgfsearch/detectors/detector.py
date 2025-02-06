@@ -58,8 +58,6 @@ class Detector:
         A string representing the default scintillator.
     deployment : dict
         Deployment information for the instrument on the requested day (if available).
-    processed : bool
-        A flag for whether the Detector should import processed data.
 
     """
 
@@ -90,8 +88,6 @@ class Detector:
             self._read_identity()
 
         self.set_results_loc(os.getcwd().replace('\\', '/'))
-
-        self.processed = False
 
     def __str__(self):
         """String casting overload. Returns a string of the form 'Detector(unit, date_str)'."""
@@ -252,16 +248,6 @@ class Detector:
             self._results_loc = loc + f'/Results/{self.unit}/{self.date_str}'
         else:
             self._results_loc = loc
-
-    def use_processed(self, overwrite_import_loc=True):
-        """Tells the Detector to import processed data instead of normal raw data. Only available for Godot."""
-        if self.is_named('GODOT'):
-            self.processed = True
-            if overwrite_import_loc:
-                self._import_loc = f'/media/godot/godot/monthly_processed/{self.date_str[0:4]}'
-
-        else:
-            raise ValueError('processed data mode is only available for GODOT.')
 
     def is_named(self, name):
         """Returns True if the Detector has the same name as the passed string.
@@ -601,6 +587,9 @@ class Detector:
         if len(complete_filelist) == 0:  # Here in case the data files are grouped into daily folders
             complete_filelist = glob.glob(f'{self._import_loc}/{self.date_str}/{self.file_form(eRC)}')
 
+        if len(complete_filelist) == 0:  # Here in case the data files are grouped into non-daily folders
+            complete_filelist = glob.glob(f'{self._import_loc}/*/{self.file_form(eRC)}')
+
         return complete_filelist
 
     def _import_lm_data(self, scintillator):
@@ -634,30 +623,25 @@ class Detector:
         # Importing the data
         reader = self._scintillators[scintillator].reader
         for file in lm_filelist:
-            if self.processed:
-                energy, time = np.loadtxt(file, skiprows=1, usecols=(0, 2), unpack=True)
-                data = pd.DataFrame.from_dict({'time': time, 'energy': energy})
-                file_frames.append(data)
-            else:
-                # Try-except block to handle reader errors
-                try:
-                    # The first with disables prints from the data reader; The second with suppresses annoying
-                    # numpy warnings
-                    with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
-                        with warnings.catch_warnings():
-                            warnings.simplefilter('ignore', category=RuntimeWarning)
-                            data = reader.read(file)
+            # Try-except block to handle reader errors
+            try:
+                # The first with disables prints from the data reader; The second with suppresses annoying
+                # numpy warnings
+                with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
+                    with warnings.catch_warnings():
+                        warnings.simplefilter('ignore', category=RuntimeWarning)
+                        data = reader.read(file)
 
-                except Exception as ex:
-                    # Files that generate reader errors are skipped
-                    if self.log is not None:
-                        print(f'{file}|False|N/A', file=self.log)
-                        print(f'    Error importing file: {ex}', file=self.log)
+            except Exception as ex:
+                # Files that generate reader errors are skipped
+                if self.log is not None:
+                    print(f'{file}|False|N/A', file=self.log)
+                    print(f'    Error importing file: {ex}', file=self.log)
 
-                    continue
+                continue
 
-                if 'energies' in data.columns:
-                    data.rename(columns={'energies': 'energy'}, inplace=True)
+            if 'energies' in data.columns:
+                data.rename(columns={'energies': 'energy'}, inplace=True)
 
             # first_second = data['SecondsOfDay'].iloc[0]
             # last_second = data['SecondsOfDay'].iloc[-1]
@@ -707,9 +691,6 @@ class Detector:
 
             # Makes the final dataframe and stores it
             all_data = pd.concat(file_frames, axis=0)
-
-            if self.processed:
-                all_data['time'] = all_data['time'] - self.first_sec
 
             self.set_attribute(scintillator, 'lm_frame', all_data, deepcopy=False)
             self.set_attribute(scintillator, 'lm_file_ranges', file_ranges, deepcopy=False)
@@ -925,7 +906,6 @@ class Detector:
         clone = type(self)(self.unit, self.date_str, print_feedback=self.print_feedback)
         clone._import_loc = self._import_loc
         clone._results_loc = self._results_loc
-        clone.processed = self.processed
         return clone
 
     def splice(self, operand_detector):

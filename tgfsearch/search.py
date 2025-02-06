@@ -66,8 +66,6 @@ def mode_to_flag(mode):
             return '-c'
         case 'pickle':
             return '--pickle'
-        case 'processed':
-            return '-p'
         case 'skshort':
             return '--skshort'
         case 'skglow':
@@ -93,9 +91,6 @@ def get_modes(mode_info):
 
     # Pickle mode
     modes['pickle'] = True if mode_to_flag('pickle') in mode_info else False
-
-    # Processed mode (use processed data). Only available for Godot
-    modes['processed'] = True if mode_to_flag('processed') in mode_info else False
 
     # Modes for skipping over certain algorithms (mostly to speed up testing)
     modes['skshort'] = True if mode_to_flag('skshort') in mode_info else False  # Skip short event search
@@ -1263,10 +1258,6 @@ def program(first_date, second_date, unit, mode_info):
         else:
             print('Not a valid detector.')
             exit()
-
-        # Tells the detector to use processed data if the user asks for it
-        if modes['processed']:
-            detector.use_processed()
 
         try:
             # Tells the detector to use custom import/export directories if the user asks for it
