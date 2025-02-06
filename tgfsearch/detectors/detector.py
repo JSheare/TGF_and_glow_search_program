@@ -28,8 +28,6 @@ class Detector:
         The name of the instrument.
     date_str : str
         The timestamp for the requested day in yymmdd format.
-    print_feedback : bool
-        A flag specifying whether feedback should be printed to stdout or not.
 
     Attributes
     ----------
@@ -61,10 +59,9 @@ class Detector:
 
     """
 
-    def __init__(self, unit, date_str, print_feedback=False, **kwargs):
+    def __init__(self, unit, date_str, **kwargs):
         # Basic information
         self.date_str = date_str  # yymmdd
-        self.print_feedback = print_feedback
         self.log = None
         self.first_sec = tl.get_first_sec(self.date_str)
         self.full_date_str = dt.datetime.utcfromtimestamp(int(self.first_sec)).strftime('%Y-%m-%d')  # yyyy-mm-dd
@@ -106,7 +103,7 @@ class Detector:
 
         default_string = self.__str__()
         data_string = f' in {scintillators_with_data}' if has_data else ''
-        return default_string + f' Has data = {has_data}' + data_string
+        return default_string + f' Has data = {has_data} ' + data_string
 
     def __iter__(self):
         """Iterator dunder. Returns a generator that yields the Detector's scintillator names."""
@@ -592,7 +589,7 @@ class Detector:
 
         return complete_filelist
 
-    def _import_lm_data(self, scintillator):
+    def _import_lm_data(self, scintillator, feedback):
         """Imports list mode data for the given scintillator."""
         lm_filelist = self.get_attribute(scintillator, 'lm_filelist')
         if len(lm_filelist) < 1:
@@ -600,7 +597,7 @@ class Detector:
                 print('Missing list mode data', file=self.log)
                 print('', file=self.log)
 
-            if self.print_feedback:
+            if feedback:
                 print('Missing list mode data')
 
             return
@@ -617,7 +614,7 @@ class Detector:
             print('List Mode Files:', file=self.log)
             print('File|Import Success|File Time Gap (sec)', file=self.log)
 
-        if self.print_feedback:
+        if feedback:
             print(f'Importing {len(lm_filelist)} list mode files...')
 
         # Importing the data
@@ -666,7 +663,7 @@ class Detector:
 
             files_imported += 1
 
-        if self.print_feedback:
+        if feedback:
             print(f'{files_imported}/{len(lm_filelist)} list mode files imported')
 
         if len(file_frames) > 0:
@@ -705,7 +702,7 @@ class Detector:
             if self.log is not None:
                 print('', file=self.log)
 
-    def _import_trace_data(self, scintillator):
+    def _import_trace_data(self, scintillator, feedback):
         """Imports trace data for the given scintillator."""
         trace_filelist = self.get_attribute(scintillator, 'trace_filelist')
         if len(trace_filelist) < 1:
@@ -713,7 +710,7 @@ class Detector:
                 print('No trace data', file=self.log)
                 print('', file=self.log)
 
-            if self.print_feedback:
+            if feedback:
                 print('No trace data')
 
             return
@@ -725,7 +722,7 @@ class Detector:
             print('Trace Files:', file=self.log)
             print('File|Import Success|', file=self.log)
 
-        if self.print_feedback:
+        if feedback:
             print(f'Importing {len(trace_filelist)} trace files...')
 
         # Importing the data
@@ -754,7 +751,7 @@ class Detector:
 
             files_imported += 1
 
-        if self.print_feedback:
+        if feedback:
             print(f'{files_imported}/{len(trace_filelist)} trace files imported')
 
         # Storing the traces
@@ -764,7 +761,7 @@ class Detector:
         if self.log is not None:
             print('', file=self.log)
 
-    def import_data(self, existing_filelists=False, import_traces=True, import_lm=True, mem_frac=1.):
+    def import_data(self, existing_filelists=False, import_traces=True, import_lm=True, mem_frac=1., feedback=False):
         """Imports data from data files into arrays and then updates them into the detector's
         scintillator objects.
 
@@ -780,6 +777,8 @@ class Detector:
             Optional: The maximum fraction of currently available system memory that the Detector is allowed to use for
              data (not including overhead). If the dataset is larger than this limit, a MemoryError will be raised.
              1.0 (100% of system memory) by default.
+        feedback : bool
+            Optional. If True, feedback about the progress of the importing will be printed.
 
         """
 
@@ -812,17 +811,17 @@ class Detector:
             if self.log is not None:
                 print(f'For eRC {eRC} ({scintillator}):', file=self.log)
 
-            if self.print_feedback:
+            if feedback:
                 print('')
                 print(f'For eRC {eRC} ({scintillator}):')
 
             # Importing list mode data
             if import_lm:
-                self._import_lm_data(scintillator)
+                self._import_lm_data(scintillator, feedback)
 
             # Importing trace data
             if import_traces:
-                self._import_trace_data(scintillator)
+                self._import_trace_data(scintillator, feedback)
 
         gc.collect()
 
@@ -903,7 +902,7 @@ class Detector:
 
         """
 
-        clone = type(self)(self.unit, self.date_str, print_feedback=self.print_feedback)
+        clone = type(self)(self.unit, self.date_str)
         clone._import_loc = self._import_loc
         clone._results_loc = self._results_loc
         return clone

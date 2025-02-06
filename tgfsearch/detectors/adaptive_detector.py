@@ -5,8 +5,8 @@ from tgfsearch.detectors.scintillator import Scintillator
 
 
 class AdaptiveDetector(Detector):
-    def __init__(self, date_str, print_feedback=False):
-        super().__init__('ADAPTIVE', date_str, print_feedback=print_feedback, read_identity=False)
+    def __init__(self, date_str):
+        super().__init__('ADAPTIVE', date_str, read_identity=False)
         self.spectra_params['bin_range'] = 65535.0
         self.spectra_params['bin_size'] = 1
 
@@ -78,7 +78,7 @@ class AdaptiveDetector(Detector):
         self._infer_identity()
 
     def get_clone(self):
-        clone = type(self)(self.date_str, print_feedback=self.print_feedback)
+        clone = type(self)(self.date_str)
         if self.has_identity:
             clone._import_loc = self._import_loc
             clone._results_loc = self._results_loc

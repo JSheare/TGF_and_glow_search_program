@@ -46,11 +46,11 @@ def is_valid_detector(unit):
 
 
 # Returns the correct detector object based on the parameters provided
-def get_detector(unit, date_str, print_feedback=False):
+def get_detector(unit, date_str):
     if unit.upper() == 'ADAPTIVE':
-        return AdaptiveDetector(date_str, print_feedback=print_feedback)
+        return AdaptiveDetector(date_str)
     else:
-        return Detector(unit, date_str, print_feedback=print_feedback)
+        return Detector(unit, date_str)
 
 
 # Returns the flag for the given mode
@@ -324,7 +324,7 @@ def short_event_search(detector, modes, scintillator, rollgap, times, energies):
 # Calculates and records subscores and final score for the given short event
 def calculate_se_score(detector, event, weather_cache, times, energies):
     # Calculating and recording the length subscore
-    event.len_subscore = 1 / params.GOOD_LEN_THRESH * event.length
+    event.len_subscore = event.length / params.GOOD_LEN_THRESH
 
     clumpiness, high_energy_lead = get_clumpiness_and_hel(times, energies, event.start, event.stop)
     # Calculating and recording the clumpiness subscore
@@ -1254,7 +1254,7 @@ def program(first_date, second_date, unit, mode_info):
         # Initializes the detector object
         print('Importing data...')
         if is_valid_detector(unit):
-            detector = get_detector(unit, date_str, print_feedback=True)
+            detector = get_detector(unit, date_str)
         else:
             print('Not a valid detector.')
             exit()
@@ -1295,11 +1295,11 @@ def program(first_date, second_date, unit, mode_info):
                     detector.log = log
                 else:
                     detector.log = log
-                    detector.import_data(mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC)
+                    detector.import_data(mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC, feedback=True)
                     tl.pickle_detector(detector, 'detector')
             else:
                 detector.log = log
-                detector.import_data(mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC)
+                detector.import_data(mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC, feedback=True)
 
             print('')
             print('Done.')
@@ -1410,7 +1410,7 @@ def program(first_date, second_date, unit, mode_info):
 
                     tl.print_logger('', detector.log)
                     tl.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
-                    chunk.import_data(existing_filelists=True)
+                    chunk.import_data(existing_filelists=True, feedback=True)
 
                     # Checking that data is present in the necessary scintillators
                     if not chunk.data_present_in(chunk.default_scintillator):
