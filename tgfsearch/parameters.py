@@ -6,6 +6,7 @@ SEC_PER_DAY = 86400  # Number of seconds in a day
 SEC_PER_HOUR = 3600  # Number of seconds in an hour
 CENTURY = '20'  # The current century (numerically)
 TWO_AM = 7200  # Number of seconds of the day corresponding to 2:00AM
+WEATHER_PADDING = 3  # The number of hours on either side of an event to check the weather for
 TOTAL_MEMORY_ALLOWANCE_FRAC = 0.25  # Fraction of available memory on the system that the program can use for data
 
 

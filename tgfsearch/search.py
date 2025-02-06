@@ -25,8 +25,8 @@ import tgfsearch.parameters as params
 import tgfsearch.tools as tl
 from tgfsearch.detectors.adaptive_detector import AdaptiveDetector
 from tgfsearch.detectors.detector import Detector
-from tgfsearch.events.long_event import LongEvent
-from tgfsearch.events.short_event import ShortEvent
+from tgfsearch.helpers.long_event import LongEvent
+from tgfsearch.helpers.short_event import ShortEvent
 from tgfsearch.helpers.trace_info import TraceInfo
 
 
@@ -158,92 +158,95 @@ def find_traces(detector):
     return trace_dict
 
 
-# Checks whether a short event is valid by passing it through several filters
-def is_good_short_event(detector, modes, stats, times, energies, start, length):
-    # Checks that the length of the event is greater than or equal to a certain minimum number of counts
-    if length < params.SHORT_EVENT_MIN_COUNTS:
-        stats['removed_len'] += 1
-        return False
-
+# Returns the high/low channel ratio for the given range
+def get_hl_channel_ratio(energies, start, stop):
+    assert params.CHANNEL_SEPARATION >= 0
+    low_channel_start = params.LOW_CHANNEL_START
+    low_channel_end = low_channel_start + params.CHANNEL_RANGE_WIDTH
+    high_channel_start = params.LOW_CHANNEL_START + params.CHANNEL_RANGE_WIDTH + params.CHANNEL_SEPARATION
+    high_channel_end = params.LOW_CHANNEL_START + 2 * params.CHANNEL_RANGE_WIDTH + params.CHANNEL_SEPARATION
     low_channel_counts = 0
     high_channel_counts = 0
+    for i in range(start, stop):
+        count_energy = energies[i]
+        if low_channel_start <= count_energy <= low_channel_end:
+            low_channel_counts += 1
+        elif high_channel_start <= count_energy <= high_channel_end:
+            high_channel_counts += 1
+
+    if low_channel_counts > 0:
+        return high_channel_counts / low_channel_counts
+
+    return float('inf')
+
+
+# Returns the n highest energy count on the given range
+def get_n_highest_count(energies, start, stop, n):
+    if n == 0 or n > stop - start:
+        return 0.
 
     priority_queue = []
+    for i in range(start, stop):
+        if len(priority_queue) < n:
+            heapq.heappush(priority_queue, energies[i])
+        else:
+            heapq.heappushpop(priority_queue, energies[i])
 
-    stop = start + length
+    return heapq.heappop(priority_queue)
+
+
+# Returns the clumpiness and high energy lead values for the given range
+def get_clumpiness_and_hel(times, energies, start, stop):
+    length = stop - start
+    if length == 0:
+        return 0., 0.
 
     clumpiness = 0
     clump_counts = 0
+    high_energy_lead = 0
+    leading_counts = 0
+    for i in range(start + 1, stop):
+        difference = times[i] - times[i - 1]
+        if difference < params.DIFFERENCE_THRESH:
+            clump_counts += 1
+            if clump_counts == 1:
+                leading_counts += 1
+                # i - 1 because the clump starts on the previous index
+                if energies[i - 1] >= params.HIGH_ENERGY_LEAD_THRESH:
+                    high_energy_lead += 1
 
-    # All filters share a single loop to speed things up
-    high_channel_start = params.LOW_CHANNEL_START + params.CHANNEL_RANGE_WIDTH + params.CHANNEL_SEPARATION
-    for i in range(start, stop):
-        count_energy = energies[i]
-        # Counting for low/high energy ratio filter
-        if length >= params.GOOD_LEN_THRESH and not detector.is_named('THOR'):
-            if params.LOW_CHANNEL_START <= count_energy <= (params.LOW_CHANNEL_START + params.CHANNEL_RANGE_WIDTH):
-                low_channel_counts += 1
-
-            if high_channel_start <= count_energy <= (high_channel_start + params.CHANNEL_RANGE_WIDTH):
-                high_channel_counts += 1
-
-        # Adding to priority queue for counts above minimum energy threshold filter
-        heapq.heappush(priority_queue, -1 * count_energy)  # -1 to turn this into a max heap
-
-        # Measuring clumpiness for successive crs filter
-        if modes['aircraft'] and length < params.GOOD_LEN_THRESH and i > start:
-            difference = times[i] - times[i - 1]
-            if difference < params.DIFFERENCE_THRESH:
+            # For the last count in the event
+            if i == stop - 1:
                 clump_counts += 1
-                if i == stop - 1:
-                    clump_counts += 1
 
-            else:
-                # Adding to clumpiness when there's a clump of three or more
-                if clump_counts >= 3:
-                    clumpiness += 1
-                    clump_counts = 0
-
-                # Adding to the clumpiness when the gap between sufficient counts is greater than the threshold
-                if difference >= params.GAP_THRESH and clump_counts == 0:
-                    clumpiness += 1
-
+        else:
+            # Adding to the clumpiness when there's a clump of three or more
+            if clump_counts >= 3:
+                clumpiness += 1
                 clump_counts = 0
 
-    # Checks that there are fewer counts in the higher energy channels than the low energy channels
-    # High/low channel ratio is not checked for THOR or for events with < GOOD_LEN_THRESH counts
-    if not detector.is_named('THOR') and length >= params.GOOD_LEN_THRESH:
-        if low_channel_counts == 0 or high_channel_counts / low_channel_counts > params.CHANNEL_RATIO:
-            stats['removed_channel_ratio'] += 1
-            return False
+            # Adding to the clumpiness when the gap between sufficient counts is greater than the threshold
+            if difference >= params.GAP_THRESH and clump_counts == 0:
+                clumpiness += 1
 
-    # Eliminates the low energy events, which are likely just noise
-    # At least min_noise_counts must be above noise_cutoff_energy
-    for i in range(params.MIN_NOISE_COUNTS):
-        if -1 * heapq.heappop(priority_queue) < params.NOISE_CUTOFF_ENERGY:
-            stats['removed_low_energy'] += 1
-            return False
+            clump_counts = 0
 
-    # Eliminates events that are just successive cosmic ray showers
-    if modes['aircraft'] and length < params.GOOD_LEN_THRESH:
-        clumpiness /= length
-        if clumpiness >= params.CLUMPINESS_THRESH:
-            stats['removed_crs'] += 1
-            return False
+    clumpiness /= length
+    if leading_counts > 0:
+        high_energy_lead /= leading_counts
 
-    return True
+    return clumpiness, high_energy_lead
 
 
 # Short event search algorithm
 def short_event_search(detector, modes, scintillator, rollgap, times, energies):
-    stats = {
-        'total_potential_events': 0,
-        'total_threshold_reached': 0,
-        'removed_len': 0,
-        'removed_channel_ratio': 0,
-        'removed_low_energy': 0,
-        'removed_crs': 0
-    }
+    # Stats
+    total_potential_events = 0
+    total_threshold_reached = 0
+    removed_len = 0
+    removed_channel_ratio = 0
+    removed_low_energy = 0
+    removed_crs = 0
 
     # Checks for an event by looking for a certain number of counts (rollgap + 1) in a small timeframe
     short_events = []
@@ -257,51 +260,117 @@ def short_event_search(detector, modes, scintillator, rollgap, times, energies):
             if event_length == 0:
                 event_start = i
                 event_length = 1 + rollgap  # 1 for first count, rollgap for the others
-                stats['total_potential_events'] += 1
+                total_potential_events += 1
             # Measures the length of a potential event
             else:
                 event_length += 1
 
             # Counts the total number of times that the detection threshold was reached
-            stats['total_threshold_reached'] += 1
+            total_threshold_reached += 1
 
         # Records the rough length of a potential event
         elif interval > params.SHORT_EVENT_TIME_SPACING and event_length > 0:
             # Runs potential event through filters
-            if is_good_short_event(detector, modes, stats, times, energies, event_start, event_length):
+            event_stop = event_start + event_length
+            good_event = True
+
+            # Checks that the event is above the minimum length
+            if event_length < params.SHORT_EVENT_MIN_COUNTS:
+                good_event = False
+                removed_len += 1
+
+            # Checks that there are fewer counts in the higher energy channels than the low energy channels
+            # High/low channel ratio is not checked for THOR or for events with < GOOD_LEN_THRESH counts
+            if (good_event and event_length >= params.GOOD_LEN_THRESH and not detector.is_named('THOR') and
+                    get_hl_channel_ratio(energies, event_start, event_stop) > params.CHANNEL_RATIO):
+                good_event = False
+                removed_channel_ratio += 1
+
+            # Eliminates the low energy events, which are likely just noise
+            # At least min_noise_counts must be above noise_cutoff_energy
+            if (good_event and get_n_highest_count(energies, event_start, event_stop, params.MIN_NOISE_COUNTS)
+                    < params.NOISE_CUTOFF_ENERGY):
+                good_event = False
+                removed_low_energy += 1
+
+            # Eliminates events that are just successive cosmic ray showers
+            if (good_event and modes['aircraft'] and event_length < params.GOOD_LEN_THRESH and
+                    get_clumpiness_and_hel(times, energies, event_start, event_stop)[0] >= params.CLUMPINESS_THRESH):
+                good_event = False
+                removed_crs += 1
+
+            # Adds the event to the list if it passed all the filters
+            if good_event:
                 short_events.append(ShortEvent(event_start, event_length, scintillator))
 
             event_start = 0
             event_length = 0
 
     tl.print_logger(f'{len(short_events)} potential events recorded', detector.log)
-    if stats['removed_len'] > 0:
-        tl.print_logger(f'{stats["removed_len"]} events removed due to insufficient length', detector.log)
+    if removed_len > 0:
+        tl.print_logger(f'{removed_len} events removed due to insufficient length', detector.log)
 
-    if stats['removed_channel_ratio'] > 0:
-        tl.print_logger(f'{stats["removed_channel_ratio"]} events removed due to noise '
+    if removed_channel_ratio > 0:
+        tl.print_logger(f'{removed_channel_ratio} events removed due to noise '
                         f'(bad high-to-low channel ratio)', detector.log)
 
-    if stats['removed_low_energy'] > 0:
-        tl.print_logger(f'{stats["removed_low_energy"]} events removed due to noise '
+    if removed_low_energy > 0:
+        tl.print_logger(f'{removed_low_energy} events removed due to noise '
                         f'(minimum energy threshold not reached)', detector.log)
 
-    if stats['removed_crs'] > 0:
-        tl.print_logger(f'{stats["removed_crs"]} events removed due to successive CRS', detector.log)
+    if removed_crs > 0:
+        tl.print_logger(f'{removed_crs} events removed due to successive CRS', detector.log)
 
-    tl.print_logger(f'Detection threshold reached {stats["total_threshold_reached"]} times', detector.log)
+    tl.print_logger(f'Detection threshold reached {total_threshold_reached} times', detector.log)
 
     return short_events
 
 
-# Calculates subscores, then uses them to calculate a final score for each event and then rank all the events
-def rank_events(detector, potential_events, times, energies, weather_cache):
-    for event in potential_events:
-        event.calculate_score(detector, weather_cache, times, energies)
+# Calculates and records subscores and final score for the given short event
+def calculate_se_score(detector, event, weather_cache, times, energies):
+    # Calculating and recording the length subscore
+    event.len_subscore = 1 / params.GOOD_LEN_THRESH * event.length
 
-    ranked_events = sorted(potential_events, key=lambda x: -x.total_score)  # negative so we get a descending order sort
-    for i in range(len(ranked_events)):
-        ranked_events[i].rank = i + 1
+    clumpiness, high_energy_lead = get_clumpiness_and_hel(times, energies, event.start, event.stop)
+    # Calculating and recording the clumpiness subscore
+    event.clumpiness_subscore = 1 / (1 + np.e ** (40 * (clumpiness - params.CLUMPINESS_TOSSUP)))
+
+    # Calculating and recording the high energy leading count subscore
+    event.hel_subscore = np.e ** -(5.3 * high_energy_lead)
+
+    # Calculating the recording the weather subscore
+    if detector.deployment['weather_station'] != '':
+        local_date, local_time = tl.convert_to_local(detector, times[event.start])
+        event.weather_conditions = tl.get_weather_conditions(detector, local_date, local_time,
+                                                             weather_cache=weather_cache)
+        match event.weather_conditions:
+            case 'lightning or hail':
+                event.weather_subscore = 1
+            case 'heavy rain':
+                event.weather_subscore = 0.75
+            case 'light rain':
+                event.weather_subscore = 0.5
+            case 'fair':
+                event.weather_subscore = 0
+            case _:
+                event.weather_subscore = -1
+    else:
+        event.weather_subscore = -1
+
+    # Calculating and recording the final score
+    assert (params.LEN_WEIGHT + params.CLUMPINESS_WEIGHT + params.HEL_WEIGHT + params.WEATHER_WEIGHT) == 1.0
+    # If weather info couldn't be obtained, the weather subscore is removed and the remaining weights are adjusted
+    # so that they stay proportional to one another
+    if event.weather_subscore == -1:
+        proportionality = 1 / (params.LEN_WEIGHT + params.CLUMPINESS_WEIGHT + params.HEL_WEIGHT)
+        event.total_score = proportionality * (params.LEN_WEIGHT * event.len_subscore +
+                                               params.CLUMPINESS_WEIGHT * event.clumpiness_subscore +
+                                               params.HEL_WEIGHT * event.hel_subscore)
+    else:
+        event.total_score = (params.LEN_WEIGHT * event.len_subscore +
+                             params.CLUMPINESS_WEIGHT * event.clumpiness_subscore +
+                             params.HEL_WEIGHT * event.hel_subscore +
+                             params.WEATHER_WEIGHT * event.weather_subscore)
 
 
 # Finds the list mode file(s) associated with a short event
@@ -384,7 +453,7 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
     figure = plt.figure(figsize=[20, 11.0], dpi=150.)
     figure.suptitle(f'{event.scintillator} Event {str(event.number)}, ' 
                     f'{dt.datetime.utcfromtimestamp(times[event.start] + detector.first_sec)} UTC, ' 
-                    f'{event.length} counts \n Weather: {tl.weather_from_score(event.weather_subscore)} \n'
+                    f'{event.length} counts \n Weather: {event.weather_conditions} \n'
                     f'Score: {"%.3f" % event.total_score}, Rank: {event.rank}', fontsize=20)
     ax1 = figure.add_subplot(3, 1, 1)
     ax2 = figure.add_subplot(3, 1, 2)
@@ -473,7 +542,7 @@ def make_se_json(detector, event, times, energies, wallclock, count_scints):
 
 
 # Runs the short event search
-def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_numbers=None):
+def find_short_events(detector, modes, trace_dict, weather_cache, event_numbers=None):
     if modes['aircraft']:
         rollgap = params.AIRCRAFT_ROLLGAP
     elif modes['combo']:
@@ -481,7 +550,6 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
     else:
         rollgap = params.NORMAL_ROLLGAP
 
-    event_numbers = prev_event_numbers if prev_event_numbers is not None else {}
     for i in range(len(detector.scint_list)):
         if detector.scint_list[i] != detector.default_scintillator and not modes['allscints']:
             continue
@@ -515,7 +583,7 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
         if len(potential_events) > 0:
             tl.print_logger('Generating scatter plots and event files...', detector.log)
 
-            if prev_event_numbers is not None:
+            if event_numbers is not None and scintillator in event_numbers:
                 plots_already_made = event_numbers[scintillator]
             else:
                 plots_already_made = 0
@@ -526,9 +594,27 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
             else:
                 max_plots = len(potential_events)
 
-            # Updates each event object to include its accurate sub scores, total score, and rank
-            rank_events(detector, potential_events, times, energies, weather_cache)
+            # Scoring, numbering, and locating files for each event
+            for j in range(len(potential_events)):
+                event = potential_events[j]
+                # Finds the file(s) that the event occurred in
+                find_se_files(detector, event, times, count_scints)
 
+                # Finds the trace(s) associated with the event and aligns them
+                find_se_traces(detector, event, trace_dict, times, count_scints)
+
+                # Calculates and records the event's subscores and final score
+                calculate_se_score(detector, event, weather_cache, times, energies)
+
+                event.number = plots_already_made + j + 1
+
+            # Ranking each event
+            ranked_events = sorted(potential_events,
+                                   key=lambda x: -x.total_score)  # negative so we get a descending order sort
+            for j in range(len(ranked_events)):
+                ranked_events[j].rank = j + 1
+
+            # Recording each event
             print('', file=detector.log)
             print('Potential short events:', file=detector.log)
 
@@ -538,7 +624,7 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
             else:
                 print(f'Making {max_plots} plots and event files...')
 
-            for j in range(len(potential_events)):
+            for event in potential_events:
                 # Stops making plots/event files/log entries after max reached
                 # This is to prevent the program getting stuck on lab test days (with hundreds of thousands of "events")
                 if plots_made == max_plots:
@@ -546,24 +632,15 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
                           file=detector.log)
                     break
 
-                event = potential_events[j]
-                event.number = j + 1 + plots_already_made
-
                 # Logs the event
                 start_second = times[event.start] - params.SEC_PER_DAY if (
                         times[event.start] > params.SEC_PER_DAY) else times[event.start]
                 print(f'{dt.datetime.utcfromtimestamp(times[event.start] + detector.first_sec)} UTC '
-                      f'({start_second} seconds of day) - weather: {tl.weather_from_score(event.weather_subscore)}',
+                      f'({start_second} seconds of day) - weather: {event.weather_conditions}',
                       file=detector.log)
                 print(f'    Score: {event.total_score}, Rank: {event.rank}, Subscores: [Length: {event.len_subscore}, '
                       f'Clumpiness: {event.clumpiness_subscore}, HEL: {event.hel_subscore}]\n',
                       file=detector.log)
-
-                # Finds the file(s) that the event occurred in
-                find_se_files(detector, event, times, count_scints)
-
-                # Finds the trace(s) associated with the event and aligns them
-                find_se_traces(detector, event, trace_dict, times, count_scints)
 
                 # Makes the scatter plot for the event
                 make_se_scatterplot(detector, event, times, energies, count_scints)
@@ -573,7 +650,8 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
 
                 plots_made += 1
 
-            event_numbers[scintillator] = plots_made + plots_already_made
+            if event_numbers is not None:
+                event_numbers[scintillator] = plots_made + plots_already_made
 
         tl.print_logger('', detector.log)
 
@@ -582,11 +660,10 @@ def find_short_events(detector, modes, trace_dict, weather_cache, prev_event_num
             break
 
     gc.collect()
-    return event_numbers
 
 
 # Returns the list of preferred scintillators to be used in the long event search depending on the Detector
-def get_le_scints(detector):
+def get_le_scint_prefs(detector):
     with open(f'{os.path.dirname(os.path.realpath(__file__))}/config/long_event_search_scints.json', 'r') as file:
         all_preferences = json.load(file)
 
@@ -1266,8 +1343,9 @@ def program(first_date, second_date, unit, mode_info):
                 tl.print_logger('Starting search for glows...', detector.log)
 
                 # Choosing whether to use preferred scintillators for long event search based on whether they have data
+                le_scint_prefs = get_le_scint_prefs(detector)
                 le_scint_list = []
-                for scintillator in get_le_scints(detector):
+                for scintillator in le_scint_prefs:
                     if detector.data_present_in(scintillator):
                         le_scint_list.append(scintillator)
 
@@ -1327,7 +1405,7 @@ def program(first_date, second_date, unit, mode_info):
 
                 chunk_num = 1
                 has_data = True
-                le_scint_data = {scintillator: False for scintillator in get_le_scints(detector)}
+                le_scint_data = {scintillator: False for scintillator in get_le_scint_prefs(detector)}
                 # Passes reader objects between chunks
                 reader_dict = {scintillator: chunk_list[0].get_attribute(scintillator, 'reader', deepcopy=False)
                                for scintillator in chunk_scint_list}
@@ -1397,8 +1475,7 @@ def program(first_date, second_date, unit, mode_info):
                                     'will be ranked on a per-chunk basis.',
                                     detector.log)
                     tl.print_logger('', detector.log)
-                    prev_event_numbers = {scintillator: 0 for scintillator in chunk_scint_list}
-
+                    event_numbers = {}
                     weather_cache = {}
                     chunk_num = 1
                     for chunk_path in chunk_path_list:
@@ -1406,9 +1483,8 @@ def program(first_date, second_date, unit, mode_info):
                         chunk.log = log
                         tl.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
                         # Calling the short event search algorithm
-                        prev_event_numbers = find_short_events(chunk, modes, chunk_trace_dicts[chunk_path],
-                                                               weather_cache, prev_event_numbers=prev_event_numbers)
-
+                        find_short_events(chunk, modes, chunk_trace_dicts[chunk_path], weather_cache,
+                                          event_numbers=event_numbers)
                         del chunk
                         gc.collect()
                         chunk_num += 1
@@ -1421,7 +1497,7 @@ def program(first_date, second_date, unit, mode_info):
                     tl.print_logger('Starting search for glows...', detector.log)
                     le_scint_list = []
                     # Scintillator will be used if it has data in at least one chunk
-                    for scintillator in get_le_scints(detector):
+                    for scintillator in le_scint_data:
                         if le_scint_data[scintillator]:
                             le_scint_list.append(scintillator)
 

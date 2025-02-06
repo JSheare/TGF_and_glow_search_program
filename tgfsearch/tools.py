@@ -37,7 +37,8 @@ def print_logger(string, logfile):
     """
 
     print(string)
-    print(string, file=logfile)
+    if logfile is not None:
+        print(string, file=logfile)
 
 
 def make_path(path):
@@ -444,27 +445,30 @@ def scrape_weather(full_date_str, station):
         return pd.DataFrame()
 
 
-def get_weather_conditions(detector, weather_cache, full_date_str, event_time):
-    """Scrapes weather underground and returns the weather at the approximate time of an event.
+def get_weather_conditions(detector, full_date_str, event_time, weather_cache=None):
+    """Scrapes weather underground and returns the weather around the time of an event.
 
     Parameters
     ----------
     detector : tgfsearch.detectors.detector.Detector
         The Detector that contains the name of the nearest weather station.
-    weather_cache : dict
-        A cache containing weather tables that have already been retrieved. The keys are dates in yyyy-mm-dd format.
     full_date_str : str
         The date that the event occurred on (in local time) in yyyy-mm-dd format.
     event_time : float
         The time that the event occurred at during the day (in local time) in units of seconds since beginning of day.
+    weather_cache : dict
+       Optional. A cache containing weather tables that have already been retrieved. The keys are dates in
+       yyyy-mm-dd format.
 
     Returns
     -------
-    int
-        A score corresponding to the weather conditions around the time of the event. See the function
-        weather_from_score for a summary of what the scores mean.
+    str
+        The weather conditions around the time of the event as a string.
 
     """
+
+    if weather_cache is None:
+        weather_cache = {}
 
     if full_date_str in weather_cache and weather_cache[full_date_str] is not None:
         weather_table = weather_cache[full_date_str]
@@ -492,8 +496,7 @@ def get_weather_conditions(detector, weather_cache, full_date_str, event_time):
 
         # Gets the weather conditions at the closest hour to the event and the surrounding hour_padding hours
         weather = []
-        hour_padding = 3
-        for i in range(best_index - hour_padding, best_index + hour_padding + 1):
+        for i in range(best_index - params.WEATHER_PADDING, best_index + params.WEATHER_PADDING + 1):
             if 0 <= i < index:
                 weather.append(weather_table['Condition'][i])
             else:
@@ -505,7 +508,7 @@ def get_weather_conditions(detector, weather_cache, full_date_str, event_time):
             if condition:
                 for variation in ['Thunder', 'T-Storm', 'Storm', 'Lightning', 'Hail']:
                     if variation in condition:
-                        return 1
+                        return 'lightning or hail'
 
                 if 'Heavy' in condition:
                     heavy_rain = True
@@ -513,41 +516,13 @@ def get_weather_conditions(detector, weather_cache, full_date_str, event_time):
                     rain = True
 
         if heavy_rain:
-            return 0.75
+            return 'heavy rain'
         elif rain:
-            return 0.5
+            return 'light rain'
 
-        return 0
-    else:
-        return -1
-
-
-def weather_from_score(score):
-    """Returns the weather for each code given by the function get_weather_conditions.
-
-    -1 == error getting weather data
-
-    0 == fair
-
-    0.5 == light rain
-
-    0.75 == heavy rain
-
-    1 == lightning or hail
-
-    """
-
-    # If changing scores here remember to update them in get_weather_conditions above
-    if score == 0:
         return 'fair'
-    elif score == 0.5:
-        return 'light rain'
-    elif score == 0.75:
-        return 'heavy rain'
-    elif score == 1:
-        return 'lightning or hail'
     else:
-        return 'no weather data'
+        return 'error getting weather data'
 
 
 def dst_status(date_str):

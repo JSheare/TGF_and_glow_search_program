@@ -172,24 +172,24 @@ list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;containing&nbsp;the&nbsp;names&nbsp;of&nbsp;traces&nbsp;that&nbsp;are&nbsp;likely&nbsp;to&nbsp;be&nbsp;interesting&nbsp;for&nbsp;the&nbsp;requested&nbsp;scintillator.</span></dd></dl>
  <dl><dt><a name="-full_date_to_short"><strong>full_date_to_short</strong></a>(full_date_str)</dt><dd><span class="code">Converts&nbsp;a&nbsp;date&nbsp;string&nbsp;of&nbsp;the&nbsp;form&nbsp;yyyy-mm-dd&nbsp;to&nbsp;the&nbsp;form&nbsp;yymmdd.</span></dd></dl>
  <dl><dt><a name="-get_first_sec"><strong>get_first_sec</strong></a>(date_str)</dt><dd><span class="code">Converts&nbsp;the&nbsp;given&nbsp;date&nbsp;string&nbsp;(in&nbsp;yymmdd&nbsp;format)&nbsp;to&nbsp;its&nbsp;first&nbsp;second&nbsp;in&nbsp;EPOCH&nbsp;time.</span></dd></dl>
- <dl><dt><a name="-get_weather_conditions"><strong>get_weather_conditions</strong></a>(detector, weather_cache, full_date_str, event_time)</dt><dd><span class="code">Scrapes&nbsp;weather&nbsp;underground&nbsp;and&nbsp;returns&nbsp;the&nbsp;weather&nbsp;at&nbsp;the&nbsp;approximate&nbsp;time&nbsp;of&nbsp;an&nbsp;event.<br>
+ <dl><dt><a name="-get_weather_conditions"><strong>get_weather_conditions</strong></a>(detector, full_date_str, event_time, weather_cache=None)</dt><dd><span class="code">Scrapes&nbsp;weather&nbsp;underground&nbsp;and&nbsp;returns&nbsp;the&nbsp;weather&nbsp;around&nbsp;the&nbsp;time&nbsp;of&nbsp;an&nbsp;event.<br>
 &nbsp;<br>
 Parameters<br>
 ----------<br>
 detector&nbsp;:&nbsp;tgfsearch.detectors.detector.Detector<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Detector&nbsp;that&nbsp;contains&nbsp;the&nbsp;name&nbsp;of&nbsp;the&nbsp;nearest&nbsp;weather&nbsp;station.<br>
-weather_cache&nbsp;:&nbsp;dict<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;cache&nbsp;containing&nbsp;weather&nbsp;tables&nbsp;that&nbsp;have&nbsp;already&nbsp;been&nbsp;retrieved.&nbsp;The&nbsp;keys&nbsp;are&nbsp;dates&nbsp;in&nbsp;yyyy-mm-dd&nbsp;format.<br>
 full_date_str&nbsp;:&nbsp;str<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;date&nbsp;that&nbsp;the&nbsp;event&nbsp;occurred&nbsp;on&nbsp;(in&nbsp;local&nbsp;time)&nbsp;in&nbsp;yyyy-mm-dd&nbsp;format.<br>
 event_time&nbsp;:&nbsp;float<br>
 &nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;time&nbsp;that&nbsp;the&nbsp;event&nbsp;occurred&nbsp;at&nbsp;during&nbsp;the&nbsp;day&nbsp;(in&nbsp;local&nbsp;time)&nbsp;in&nbsp;units&nbsp;of&nbsp;seconds&nbsp;since&nbsp;beginning&nbsp;of&nbsp;day.<br>
+weather_cache&nbsp;:&nbsp;dict<br>
+&nbsp;&nbsp;&nbsp;Optional.&nbsp;A&nbsp;cache&nbsp;containing&nbsp;weather&nbsp;tables&nbsp;that&nbsp;have&nbsp;already&nbsp;been&nbsp;retrieved.&nbsp;The&nbsp;keys&nbsp;are&nbsp;dates&nbsp;in<br>
+&nbsp;&nbsp;&nbsp;yyyy-mm-dd&nbsp;format.<br>
 &nbsp;<br>
 Returns<br>
 -------<br>
-int<br>
-&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;score&nbsp;corresponding&nbsp;to&nbsp;the&nbsp;weather&nbsp;conditions&nbsp;around&nbsp;the&nbsp;time&nbsp;of&nbsp;the&nbsp;event.&nbsp;See&nbsp;the&nbsp;function<br>
-&nbsp;&nbsp;&nbsp;&nbsp;weather_from_score&nbsp;for&nbsp;a&nbsp;summary&nbsp;of&nbsp;what&nbsp;the&nbsp;scores&nbsp;mean.</span></dd></dl>
+str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;weather&nbsp;conditions&nbsp;around&nbsp;the&nbsp;time&nbsp;of&nbsp;the&nbsp;event&nbsp;as&nbsp;a&nbsp;string.</span></dd></dl>
  <dl><dt><a name="-is_good_trace"><strong>is_good_trace</strong></a>(trace)</dt><dd><span class="code">Returns&nbsp;True&nbsp;if&nbsp;the&nbsp;given&nbsp;trace&nbsp;is&nbsp;likely&nbsp;to&nbsp;be&nbsp;interesting&nbsp;and&nbsp;False&nbsp;otherwise.<br>
 &nbsp;<br>
 Parameters<br>
@@ -317,16 +317,5 @@ Returns<br>
 -------<br>
 tgfsearch.detectors.detector.Detector<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;Detector.</span></dd></dl>
- <dl><dt><a name="-weather_from_score"><strong>weather_from_score</strong></a>(score)</dt><dd><span class="code">Returns&nbsp;the&nbsp;weather&nbsp;for&nbsp;each&nbsp;code&nbsp;given&nbsp;by&nbsp;the&nbsp;function&nbsp;get_weather_conditions.<br>
-&nbsp;<br>
--1&nbsp;==&nbsp;error&nbsp;getting&nbsp;weather&nbsp;data<br>
-&nbsp;<br>
-0&nbsp;==&nbsp;fair<br>
-&nbsp;<br>
-0.5&nbsp;==&nbsp;light&nbsp;rain<br>
-&nbsp;<br>
-0.75&nbsp;==&nbsp;heavy&nbsp;rain<br>
-&nbsp;<br>
-1&nbsp;==&nbsp;lightning&nbsp;or&nbsp;hail</span></dd></dl>
 </td></tr></table>
 </body></html>

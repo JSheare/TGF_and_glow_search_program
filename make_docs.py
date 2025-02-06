@@ -27,12 +27,6 @@ def main():
     # Docs for scintillator
     make_doc('scintillator', os.getcwd() + '/tgfsearch/detectors')
 
-    # Docs for shortevent
-    make_doc('shortevent', os.getcwd() + '/tgfsearch/events')
-
-    # Docs for longevent
-    make_doc('longevent', os.getcwd() + '/tgfsearch/events')
-
     # Docs for reader
     make_doc('reader', os.getcwd() + '/tgfsearch/helpers')
 

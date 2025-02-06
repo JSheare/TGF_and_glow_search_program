@@ -584,6 +584,4 @@ Full tools documentation for these functions (and others) can be found [here](ht
 
 ## **Other Documentation:**
 - [Scintillator](https://html-preview.github.io/?url=https://github.com/JSheare/TGF_and_glow_search_program/blob/master/docs/scintillator.html)
-- [Short Event Helper](https://html-preview.github.io/?url=https://github.com/JSheare/TGF_and_glow_search_program/blob/master/docs/shortevent.html)
-- [Long Event Helper](https://html-preview.github.io/?url=https://github.com/JSheare/TGF_and_glow_search_program/blob/master/docs/longevent.html)
 - [Reader Helper](https://html-preview.github.io/?url=https://github.com/JSheare/TGF_and_glow_search_program/blob/master/docs/reader.html)
