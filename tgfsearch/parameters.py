@@ -34,9 +34,9 @@ DEADTIME_EXTEND = 1  # Number of samples to extend deadtime by if not yet back t
 
 """Short Event Search Parameters"""
 # Search algorithm parameters
-NORMAL_ROLLGAP = 4  # The normal short event search rollgap
-COMBO_ROLLGAP = 12  # the rollgap used in combo mode
-AIRCRAFT_ROLLGAP = 18  # the rollgap used in aircraft mode
+NORMAL_ROLLGAP = 12  # The normal short event search rollgap
+INDIV_ROLLGAP = 4  # The rollgap used for individual scintillator searches (onescint, allscints)
+AIRCRAFT_ROLLGAP = 18  # The rollgap used in aircraft mode
 SHORT_EVENT_TIME_SPACING = 1e-3  # 1 millisecond
 SHORT_EVENT_MIN_COUNTS = 10  # The minimum number of counts that a short event needs to be
 MAX_PLOTS_PER_SCINT = 1000  # The maximum number of scatter plots/event files that can be made per scintillator

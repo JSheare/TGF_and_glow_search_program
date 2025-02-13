@@ -282,11 +282,11 @@ class SearchWindow(tk.Frame):
         self.regular_cb_label = tk.Label(self.modes_frame, text='Modes:')
         self.regular_cb_label.grid(row=0, column=0, columnspan=2, pady=(5, 0))
 
-        ccb = tk.IntVar()
-        self.combo_cb = tk.Checkbutton(self.modes_frame, text='combo', variable=ccb, onvalue=1, offvalue=0,
-                                       command=lambda: self._check_uncheck(ccb, 'combo'))
-        self.combo_cb.grid(row=1, column=0, sticky=tk.W, pady=(5, 0))
-        self.checkbox_variables.append(ccb)
+        oscb = tk.IntVar()
+        self.onescint_cb = tk.Checkbutton(self.modes_frame, text='onescint', variable=oscb, onvalue=1, offvalue=0,
+                                          command=lambda: self._check_uncheck(oscb, 'onescint'))
+        self.onescint_cb.grid(row=1, column=0, sticky=tk.W, pady=(5, 0))
+        self.checkbox_variables.append(oscb)
 
         ascb = tk.IntVar()
         self.allscints_cb = tk.Checkbutton(self.modes_frame, text='allscints', variable=ascb, onvalue=1, offvalue=0,
@@ -407,9 +407,11 @@ class SearchWindow(tk.Frame):
         self.date_two_entry['state'] = action
         self.detector_entry['state'] = action
         self.import_entry['state'] = action
+        self.import_button['state'] = action
         self.export_entry['state'] = action
+        self.export_button['state'] = action
 
-        self.combo_cb['state'] = action
+        self.onescint_cb['state'] = action
         self.allscints_cb['state'] = action
         self.aircraft_cb['state'] = action
         self.pickle_cb['state'] = action

@@ -60,10 +60,10 @@ def mode_to_flag(mode):
             return '--aircraft'
         case 'allscints':
             return '--allscints'
-        case 'combo':
-            return '--combo'
         case 'custom':
             return '-c'
+        case 'onescint':
+            return '--onescint'
         case 'pickle':
             return '--pickle'
         case 'skshort':
@@ -80,14 +80,14 @@ def get_modes(mode_info):
     # Aircraft mode
     modes['aircraft'] = True if mode_to_flag('aircraft') in mode_info else False
 
-    # All scintillators mode (all the scintillators will be checked by the short event search algorithm)
+    # All scintillators mode (all the scintillators will be checked individually by the short event search algorithm)
     modes['allscints'] = True if mode_to_flag('allscints') in mode_info else False
-
-    # Combo mode (all scintillator data is combined into one set of arrays and examined by the short event search algo)
-    modes['combo'] = True if mode_to_flag('combo') in mode_info else False
 
     # Custom mode (use custom import and/or export directories
     modes['custom'] = True if mode_to_flag('custom') in mode_info else False
+
+    # Onescint mode (only the default scintillator will be checked by the short event search algorithm)
+    modes['onescint'] = True if mode_to_flag('onescint') in mode_info else False
 
     # Pickle mode
     modes['pickle'] = True if mode_to_flag('pickle') in mode_info else False
@@ -95,6 +95,10 @@ def get_modes(mode_info):
     # Modes for skipping over certain algorithms (mostly to speed up testing)
     modes['skshort'] = True if mode_to_flag('skshort') in mode_info else False  # Skip short event search
     modes['skglow'] = True if mode_to_flag('skglow') in mode_info else False  # SKip long event search
+
+    # Allscints includes onescint, so disable onescint if they're both present
+    if modes['allscints'] and modes['onescint']:
+        modes['onescint'] = False
 
     return modes
 
@@ -380,7 +384,7 @@ def find_se_files(detector, event, times, count_scints):
             event_time = times[i]
             event.lm_files[scintillator] = detector.find_lm_file(scintillator, event_time)
 
-        # So that we don't loop through the whole event for no reason when not in combo mode
+        # So that we don't loop through the whole event for no reason when in onescint or allscints mode
         if count_scints is None:
             break
 
@@ -419,7 +423,7 @@ def find_se_traces(detector, event, trace_dict, times, count_scints):
                                                         (trace_info.times <= times[event.stop]))[0]) > 0):
                 event.traces[scintillator] = trace_info
 
-            # So that we don't loop through the whole event for no reason when not in combo mode
+            # So that we don't loop through the whole event for no reason when in onescint or allscints mode
             if count_scints is None:
                 break
 
@@ -485,7 +489,7 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
         ax.vlines([event_times[0] - percent * ts, event_times[-1] + percent * ts], 0, 1e5,
                   colors=['orange', 'r'], linewidth=1, zorder=-1, alpha=0.3)
 
-    # Adds a legend to the plot if we're in combo mode
+    # Adds a legend to the plot
     if count_scints is not None:
         ax3.legend(loc='lower right')
 
@@ -540,27 +544,18 @@ def make_se_json(detector, event, times, energies, wallclock, count_scints):
 def find_short_events(detector, modes, trace_dict, weather_cache, event_numbers=None):
     if modes['aircraft']:
         rollgap = params.AIRCRAFT_ROLLGAP
-    elif modes['combo']:
-        rollgap = params.COMBO_ROLLGAP
+    elif modes['onescint'] or modes['allscints']:
+        rollgap = params.INDIV_ROLLGAP
     else:
         rollgap = params.NORMAL_ROLLGAP
 
     for i in range(len(detector.scint_list)):
-        if detector.scint_list[i] != detector.default_scintillator and not modes['allscints']:
+        if not modes['allscints'] and detector.scint_list[i] != detector.default_scintillator:
             continue
 
         tl.print_logger('', detector.log)
-        # Combining data from all available scintillators (combo mode)
-        if modes['combo']:
-            scintillator = 'CM'
-            tl.print_logger('Searching combined scintillator data...', detector.log)
-            (times,
-             energies,
-             wallclock,
-             count_scints) = tl.combine_data(detector)
-
-        # Normal operating mode (one scintillator at a time)
-        else:
+        # Searching one scintillator at a time (onescint and allscints mode)
+        if modes['onescint'] or modes['allscints']:
             scintillator = detector.scint_list[i]
             if not detector.data_present_in(scintillator):
                 continue
@@ -571,6 +566,15 @@ def find_short_events(detector, modes, trace_dict, weather_cache, event_numbers=
             energies = detector.get_lm_data(scintillator, 'energy')
             wallclock = detector.get_lm_data(scintillator, 'wc')
             count_scints = None
+
+        # Normal operating mode (combining all scintillator data)
+        else:
+            scintillator = 'CS'  # Combined scintillators
+            tl.print_logger('Searching combined scintillator data...', detector.log)
+            (times,
+             energies,
+             wallclock,
+             count_scints) = tl.combine_data(detector)
 
         # Finding potential events with the search algorithm in find_short_events
         potential_events = short_event_search(detector, modes, scintillator, rollgap, times, energies)
@@ -649,10 +653,6 @@ def find_short_events(detector, modes, trace_dict, weather_cache, event_numbers=
                 event_numbers[scintillator] = plots_made + plots_already_made
 
         tl.print_logger('', detector.log)
-
-        # In combo mode, we only need to run through this loop once
-        if modes['combo']:
-            break
 
     gc.collect()
 

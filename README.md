@@ -16,11 +16,11 @@ You can open the search program's graphical user interface by running the follow
 To start a search, enter the first date in your search range in the entry box labeled 'Date One'. 
 
 Next, enter the last date in your search range in the entry box labeled 'Date Two' (if you're searching a single day, 
-just leave this blank). 
+you can leave this blank). 
 
 Afterward, specify the instrument you want to search in the box labeled 'Detector'.
 
-If you're running the program on Thrud (UCSC TGF group computer) you're now ready to begin a search. Otherwise, 
+If you're running the program on Thrud (UCSC TGF group data computer) you're now ready to begin a search. Otherwise, 
 you may need to specify an import location for the data. This can be done by entering the data directory in the box
 labeled 'Import Location' or by clicking on the 'Browse' button to the right of the box and navigating to the data
 directory. 
@@ -35,21 +35,19 @@ clicking 'Clear Text'. You can also reset the entered dates/detector/modes all a
 ### **Program Modes:**
 The program has several 'modes' that give it enhanced functionality. To run the program with any of the modes, simply
 check the mode's corresponding tick box. Details on what each mode does can be found below.
-<br/>
-#### **Normal Modes:**
 
-- **'combo' Mode:** - This mode instructs the program to combine data from all available scintillators 
-when looking for TGFs.
+- **'onescint' Mode:** - This mode instructs the program to run the short event search algorithm on only the default
+scintillator (typically the large plastic). This is generally a faster (though less thorough) search.
 
 
 - **'allscints' Mode** - This mode tells the program to run the short event search algorithm on all the scintillators 
-individually (by default the program only searches the largest plastic scintillator).
+individually (by default the program combines all scintillator data into a single stream).
 
 
-- **'aircraft' Mode** - If the detector you are searching was deployed to an aircraft or some other high-altitude 
+- **'aircraft' Mode** - If the detector you're searching was deployed to an aircraft or some other high-altitude 
 location during the search period, this is the mode that you want to use. It adds a special check to the short event 
 search algorithm that filters out false alarms caused by cosmic rays, and uses a more fine-grained rolling baseline in
-long event search algorithm.
+the long event search algorithm.
 
 - **'pickle' Mode** - This mode serializes and saves imported data for later use OR imports previously-serialized data.
 
@@ -107,28 +105,29 @@ where we omit a custom import location:
 
     tgf-search-cl yymmdd yymmdd detector -c none "export_directory"
 
-#### **'combo' Mode:**
-This mode instructs the program to combine data from all available scintillators when looking for TGFs.
+#### **'onescint' Mode:**
+This mode instructs the program to run the short event search algorithm on only the default scintillator (typically 
+the large plastic). This is generally a faster (though less thorough) search.
 
-To use the program in this mode, enter a command the same way as above but add the flag '--combo' to the end:
+To use the program in this mode, enter a command the same way as above but add the flag '--onescint' to the end:
 
-    tgf-search-cl yymmdd yymmdd detector --combo
+    tgf-search-cl yymmdd yymmdd detector --onescint
 
 #### **'allscints' Mode:**
-This mode tells the program to run the short event search algorithm on all the scintillators 
-(by default the program only searches the largest plastic scintillator).
+This mode tells the program to run the short event search algorithm on all the scintillators individually
+(by default the program combines all scintillator data into a single stream).
 
-To run the program in this mode, run the program the same as above but add the flag '--plastics' to the end:
+To run the program in this mode, enter a command the same way as above but add the flag '--allscints' to the end:
 
     tgf-search-cl yymmdd yymmdd detector --allscints
 
 #### **'aircraft' Mode:**
-If the detector you are searching was deployed to an aircraft or some other high-altitude 
+If the detector you're searching was deployed to an aircraft or some other high-altitude 
 location during the search period, this is the mode that you want to use. It adds a special check to the short event 
 search algorithm that filters out false alarms caused by cosmic rays, and uses a more fine-grained rolling baseline in
-long event search algorithm.
+the long event search algorithm.
 
-To run the program in this mode, run the program the same as above but add the flag '--aircraft' to the end:
+To run the program in this mode,enter a command the same way as above but add the flag '--aircraft' to the end:
 
     tgf-search-cl yymmdd yymmdd detector --aircraft
 
@@ -159,7 +158,7 @@ It is possible to use as many of these modes in tandem as the user needs
 <br/>
 (i.e. commands like this are possible):
 
-    tgf-search-cl yymmdd yymmdd detector --combo --allscints --aircraft
+    tgf-search-cl yymmdd yymmdd detector --pickle --allscints --aircraft
 
 ### **Adaptive Mode:**
 If the data that you're trying to search is from an instrument with an arbitrary scintillator configuration and/or an 
@@ -211,9 +210,9 @@ events with rank 13 or higher are included:
 
 ### **Including Only Short Events With A Minimum Score:**
 To include only those short events which have a score greater than or equal to a certain value, you can use the '-ms'
-flag. Here's an example where only events with a score at or above 0.3 are included:
+flag. Here's an example where only events with a score at or above 0.5 are included:
 
-    tgf-collect yymmdd yymmdd detector -ms 0.3
+    tgf-collect yymmdd yymmdd detector -ms 0.5
 
 
 # **Using Data Tools:**
@@ -237,7 +236,7 @@ data = tgf.fileNameToData('/media/tgfdata/Detectors/THOR/THOR1/220831/eRC4195lpl
 
 ### **Using the Reader Class:**
 The package also includes a convenient, object-oriented interface to the data reader through a class called Reader. To use it, 
-create a reader object like so:
+create a reader instance like so:
 ```python3
 reader = tgf.Reader()
 ```
