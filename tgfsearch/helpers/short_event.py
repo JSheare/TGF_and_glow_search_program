@@ -5,7 +5,7 @@ class ShortEvent:
     def __init__(self, event_start, event_length, scintillator):
         self.start = int(event_start)
         self.length = int(event_length)
-        self.stop = int(event_start + event_length)
+        self.stop = int(event_start + event_length)  # non-inclusive (in line with array slicing)
         self.scintillator = scintillator
         self.weather_conditions = 'no weather data'
         self.lm_files = {}

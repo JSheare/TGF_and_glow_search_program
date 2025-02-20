@@ -9,7 +9,6 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 import os as os
-import pandas as pd
 import psutil as psutil
 import scipy as sp
 import sys as sys
@@ -374,6 +373,14 @@ def calculate_se_score(detector, event, weather_cache, times, energies):
 
 # Finds the list mode file(s) associated with a short event
 def find_se_files(detector, event, times, count_scints):
+    if count_scints is None:
+        scintillators_left = 1
+    else:
+        scintillators_left = 0
+        for scintillator in detector:
+            if detector.data_present_in(scintillator):
+                scintillators_left += 1
+
     for i in range(event.start, event.stop):
         if count_scints is not None:
             scintillator = count_scints[i]
@@ -383,14 +390,23 @@ def find_se_files(detector, event, times, count_scints):
         if scintillator not in event.lm_files:
             event_time = times[i]
             event.lm_files[scintillator] = detector.find_lm_file(scintillator, event_time)
+            scintillators_left -= 1
 
-        # So that we don't loop through the whole event for no reason when in onescint or allscints mode
-        if count_scints is None:
+        # Terminates the function early if we've already found files for the max number of scintillators possible
+        if scintillators_left == 0:
             break
 
 
 # Finds the traces associated with a short event
 def find_se_traces(detector, event, trace_dict, times, count_scints):
+    if count_scints is None:
+        scintillators_left = 1
+    else:
+        scintillators_left = 0
+        for scintillator in detector:
+            if detector.data_present_in(scintillator):
+                scintillators_left += 1
+
     for i in range(event.start, event.stop):
         if count_scints is not None:
             scintillator = count_scints[i]
@@ -422,9 +438,10 @@ def find_se_traces(detector, event, trace_dict, times, count_scints):
             if (trace_info is not None and len(np.where((trace_info.times >= times[event.start]) &
                                                         (trace_info.times <= times[event.stop]))[0]) > 0):
                 event.traces[scintillator] = trace_info
+                scintillators_left -= 1
 
-            # So that we don't loop through the whole event for no reason when in onescint or allscints mode
-            if count_scints is None:
+            # Terminates the function early if we've already found files for the max number of scintillators possible
+            if scintillators_left == 0:
                 break
 
 
@@ -519,25 +536,26 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
 
 # Makes the json file for a short event
 def make_se_json(detector, event, times, energies, wallclock, count_scints):
-    eventpath = f'{detector.get_results_loc()}/event_files/short_events/'
-    tl.make_path(eventpath)
-    event_frame = pd.DataFrame()
-    event_frame['wc'] = wallclock[event.start:event.stop]
-    event_frame['SecondsOfDay'] = times[event.start:event.stop]
-    event_frame['energies'] = energies[event.start:event.stop]
-    event_frame['count_scintillator'] = count_scints[event.start:event.stop] if count_scints is not None else (
+    event_path = f'{detector.get_results_loc()}/event_files/short_events/'
+    tl.make_path(event_path)
+    event_dict = dict()
+    event_dict['wc'] = wallclock[event.start:event.stop].tolist()
+    event_dict['SecondsOfDay'] = times[event.start:event.stop].tolist()
+    event_dict['energies'] = energies[event.start:event.stop].tolist()
+    event_dict['count_scintillator'] = count_scints[event.start:event.stop].tolist() if count_scints is not None else (
             [event.scintillator] * event.length)
-    event_frame['lm_file'] = [event.lm_files[scintillator] for scintillator in event_frame['count_scintillator']]
-    event_frame['trace_file'] = [(event.traces[scintillator].trace_name if scintillator in event.traces else '') for
-                                 scintillator in event_frame['count_scintillator']]
+    event_dict['lm_files'] = event.lm_files
+    event_dict['trace_files'] = {scintillator: event.traces[scintillator].trace_name for scintillator in event.traces}
 
     # Saves the json file
     event_num_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.number)))
     rank_padding = '0' * (len(str(params.MAX_PLOTS_PER_SCINT)) - len(str(event.rank)))
-    event_frame.to_json(f'{eventpath}/{detector.date_str}_{event.scintillator}_'
-                        f'event{event_num_padding}{event.number}_'
-                        f'rank{rank_padding}{event.rank}_'
-                        f'score{("%.3f" % event.total_score).replace(".", "p")}.json')
+    with open(
+            f'{event_path}/{detector.date_str}_{event.scintillator}_'
+            f'event{event_num_padding}{event.number}_'
+            f'rank{rank_padding}{event.rank}_'
+            f'score{("%.3f" % event.total_score).replace(".", "p")}.json', 'w') as file:
+        json.dump(event_dict, file)
 
 
 # Runs the short event search
@@ -547,7 +565,13 @@ def find_short_events(detector, modes, trace_dict, weather_cache, event_numbers=
     elif modes['onescint'] or modes['allscints']:
         rollgap = params.INDIV_ROLLGAP
     else:
-        rollgap = params.NORMAL_ROLLGAP
+        # Calculating the rollgap adaptively based on the number of scintillators with data
+        num_scintillators = 0
+        for scintillator in detector:
+            if detector.data_present_in(scintillator):
+                num_scintillators += 1
+
+        rollgap = round(params.INDIV_ROLLGAP + num_scintillators * params.ROLLGAP_CONTRIBUTION)
 
     for i in range(len(detector.scint_list)):
         if not modes['allscints'] and detector.scint_list[i] != detector.default_scintillator:
@@ -1149,8 +1173,6 @@ def make_chunks(detector):
     # partitioning the day according to the data's approximate density, and we have to use the default scintillator
     # to ensure that default scintillator data is present in every chunk
     if len(lm_filelists[detector.default_scintillator]) == 0:
-        tl.print_logger('\n', detector.log)
-        tl.print_logger('No/missing necessary data for specified day.', detector.log)
         raise FileNotFoundError('data missing for one or more scintillators.')
 
     partition_points = ([0] + [int(tl.file_timestamp(file)) for file in lm_filelists[detector.default_scintillator]] +

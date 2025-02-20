@@ -5,7 +5,7 @@ import numpy as np
 class LongEvent:
     def __init__(self, start, length, z_scores, day_bins):
         self.start = int(start)
-        self.stop = int(start + length - 1) if length > 1 else int(start + length)
+        self.stop = int(start + length - 1) if length > 1 else int(start + length)  # Non-inclusive (for slicing)
         self.length = int(length)
 
         glow_scores = z_scores[self.start:self.stop]
