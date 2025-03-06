@@ -151,7 +151,7 @@ class Detector:
         if self.unit in identities:
             identity = identities[self.unit]
             self.spectra_params = identity['spectra_params']
-            self._import_loc = f'{params.DEFAULT_DATA_LOC}/{identity["subtree"]}/{self.date_str}'
+            self._import_loc = f'{params.DEFAULT_DATA_ROOT}/{identity["subtree"]}/{self.date_str}'
             # Getting the right scintillator configuration based on the date
             correct_date_str = ''
             for after_date_str in identity['scintillators']:
@@ -591,7 +591,7 @@ class Detector:
 
     def _import_lm_data(self, scintillator, feedback):
         """Imports list mode data for the given scintillator."""
-        lm_filelist = self.get_attribute(scintillator, 'lm_filelist')
+        lm_filelist = self._scintillators[scintillator].lm_filelist
         if len(lm_filelist) < 1:
             if self.log is not None:
                 print('Missing list mode data', file=self.log)
@@ -689,9 +689,9 @@ class Detector:
             # Makes the final dataframe and stores it
             all_data = pd.concat(file_frames, axis=0)
 
-            self.set_attribute(scintillator, 'lm_frame', all_data, deepcopy=False)
-            self.set_attribute(scintillator, 'lm_file_ranges', file_ranges, deepcopy=False)
-            self.set_attribute(scintillator, 'lm_file_indices', file_indices, deepcopy=False)
+            self._scintillators[scintillator].lm_frame = all_data
+            self._scintillators[scintillator].lm_file_ranges = file_ranges
+            self._scintillators[scintillator].lm_file_indices = file_indices
 
             if self.log is not None:
                 print('', file=self.log)
@@ -704,7 +704,7 @@ class Detector:
 
     def _import_trace_data(self, scintillator, feedback):
         """Imports trace data for the given scintillator."""
-        trace_filelist = self.get_attribute(scintillator, 'trace_filelist')
+        trace_filelist = self._scintillators[scintillator].trace_filelist
         if len(trace_filelist) < 1:
             if self.log is not None:
                 print('No trace data', file=self.log)
@@ -756,12 +756,13 @@ class Detector:
 
         # Storing the traces
         if len(traces) > 0:
-            self.set_attribute(scintillator, 'traces', traces, deepcopy=False)
+            self._scintillators[scintillator].traces = traces
 
         if self.log is not None:
             print('', file=self.log)
 
-    def import_data(self, existing_filelists=False, import_traces=True, import_lm=True, mem_frac=1., feedback=False):
+    def import_data(self, existing_filelists=False, import_traces=True, import_lm=True, mem_frac=1., clean_energy=False,
+                    feedback=False):
         """Imports data from data files into arrays and then updates them into the detector's
         scintillator objects.
 
@@ -777,6 +778,8 @@ class Detector:
             Optional: The maximum fraction of currently available system memory that the Detector is allowed to use for
              data (not including overhead). If the dataset is larger than this limit, a MemoryError will be raised.
              1.0 (100% of system memory) by default.
+        clean_energy : bool
+            Optional. If True, asks the data reader to strip out maximum and low energy counts.
         feedback : bool
             Optional. If True, feedback about the progress of the importing will be printed.
 

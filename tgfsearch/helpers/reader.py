@@ -25,7 +25,7 @@ class Reader:
         self.passtime = {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0, 'ppsunix': -1.0, 'lastwc': -1, 'ppswc': -1,
                          'hz': 8e7, 'started': 0}
 
-    def read(self, file_name, reset_after=False):
+    def read(self, file_name, reset_after=False, clean_energy=False):
         """Reads the data file with the given name and returns the data as a pandas dataframe.
 
         Parameters
@@ -36,6 +36,8 @@ class Reader:
         reset_after : bool
             Optional. If True, resets the reader instance back to its default state after the data file has been
             read.
+        clean_energy : bool
+            Optional. If True, asks the data reader to strip out maximum and low energy counts.
 
         Returns
         -------
@@ -44,11 +46,11 @@ class Reader:
 
         """
 
-        results = Dr.fileNameToData(file_name, self.passtime)
+        results = Dr.fileNameToData(file_name, self.passtime, killcr=clean_energy)
         if type(results) is tuple:
             # List mode data
-            self.passtime = results[1]
             data = results[0]
+            self.passtime = results[1]
         else:
             # Trace data
             data = results

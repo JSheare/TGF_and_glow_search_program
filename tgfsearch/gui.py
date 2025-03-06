@@ -4,6 +4,7 @@ import os as os
 import platform as platform
 import sys as sys
 import threading as threading
+import time as time
 import tkinter as tk
 import traceback as traceback
 from queue import Queue
@@ -18,7 +19,7 @@ import tgfsearch.tools as tl
 from tgfsearch.search import is_valid_detector, mode_to_flag, program
 
 
-# Redirects stdout and stderr from the search program
+# Redirects stdout and stderr from the search program. Meant to be run in a subprocess
 def search_program_wrapper(write, first_date, second_date, unit, mode_info):
     old_stdout_write = sys.stdout.write
     sys.stdout.write = write.send
@@ -169,8 +170,11 @@ class SearchManager:
                 process.start()
                 while process.is_alive() and not self.event.is_set():
                     # Prints the processes' piped stdout
-                    if read.poll():
+                    while read.poll():
                         print(read.recv(), end='')
+
+                    # Waiting a little while before checking for more
+                    time.sleep(0.20)
 
                 if process.is_alive():  # This will be executed if stop() is run
                     process.terminate()
@@ -279,43 +283,49 @@ class SearchWindow(tk.Frame):
         self.modes_frame.grid(row=3, column=3, pady=(5, 0))
 
         # Adding and placing the mode label and checkboxes
-        self.regular_cb_label = tk.Label(self.modes_frame, text='Modes:')
-        self.regular_cb_label.grid(row=0, column=0, columnspan=2, pady=(5, 0))
+        self.cb_label = tk.Label(self.modes_frame, text='Modes:')
+        self.cb_label.grid(row=0, column=0, columnspan=2, pady=(5, 0))
 
         oscb = tk.IntVar()
         self.onescint_cb = tk.Checkbutton(self.modes_frame, text='onescint', variable=oscb, onvalue=1, offvalue=0,
                                           command=lambda: self._check_uncheck(oscb, 'onescint'))
-        self.onescint_cb.grid(row=1, column=0, sticky=tk.W, pady=(5, 0))
+        self.onescint_cb.grid(row=1, column=0, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(oscb)
 
         ascb = tk.IntVar()
         self.allscints_cb = tk.Checkbutton(self.modes_frame, text='allscints', variable=ascb, onvalue=1, offvalue=0,
                                            command=lambda: self._check_uncheck(ascb, 'allscints'))
-        self.allscints_cb.grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
+        self.allscints_cb.grid(row=2, column=0, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(ascb)
 
         acb = tk.IntVar()
         self.aircraft_cb = tk.Checkbutton(self.modes_frame, text='aircraft', variable=acb, onvalue=1, offvalue=0,
                                           command=lambda: self._check_uncheck(acb, 'aircraft'))
-        self.aircraft_cb.grid(row=3, column=0, sticky=tk.W, pady=(5, 0))
+        self.aircraft_cb.grid(row=3, column=0, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(acb)
+
+        cecb = tk.IntVar()
+        self.clnenrg_cb = tk.Checkbutton(self.modes_frame, text='clnenrg', variable=cecb, onvalue=1, offvalue=0,
+                                         command=lambda: self._check_uncheck(acb, 'clnenrg'))
+        self.clnenrg_cb.grid(row=4, column=0, sticky=tk.W, pady=(3, 0))
+        self.checkbox_variables.append(cecb)
 
         sscb = tk.IntVar()
         self.skshort_cb = tk.Checkbutton(self.modes_frame, text='skshort', variable=sscb, onvalue=1, offvalue=0,
                                          command=lambda: self._check_uncheck(sscb, 'skshort'))
-        self.skshort_cb.grid(row=1, column=1, sticky=tk.W, pady=(5, 0))
+        self.skshort_cb.grid(row=1, column=1, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(sscb)
 
         sgcb = tk.IntVar()
         self.skglow_cb = tk.Checkbutton(self.modes_frame, text='skglow', variable=sgcb, onvalue=1, offvalue=0,
                                         command=lambda: self._check_uncheck(sgcb, 'skglow'))
-        self.skglow_cb.grid(row=2, column=1, sticky=tk.W, pady=(5, 0))
+        self.skglow_cb.grid(row=2, column=1, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(sgcb)
 
         pcb = tk.IntVar()
         self.pickle_cb = tk.Checkbutton(self.modes_frame, text='pickle', variable=pcb, onvalue=1, offvalue=0,
                                         command=lambda: self._check_uncheck(pcb, 'pickle'))
-        self.pickle_cb.grid(row=3, column=1, sticky=tk.W, pady=(5, 0))
+        self.pickle_cb.grid(row=3, column=1, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(pcb)
 
         # Setting up the file import/export frame
@@ -347,10 +357,10 @@ class SearchWindow(tk.Frame):
 
         if platform.system() == 'Windows':
             ttk.Separator(self, orient='horizontal').place(x=565, y=580, relwidth=0.25)  # Modes separator line
-            ttk.Separator(self, orient='horizontal').place(x=0, y=703, relwidth=1.0)  # Import/export separator line
+            ttk.Separator(self, orient='horizontal').place(x=0, y=718, relwidth=1.0)  # Import/export separator line
         else:
-            ttk.Separator(self, orient='horizontal').place(x=593, y=625, relwidth=0.25)  # Modes separator line
-            ttk.Separator(self, orient='horizontal').place(x=0, y=750, relwidth=1.0)  # Import/export separator line
+            ttk.Separator(self, orient='horizontal').place(x=593, y=620, relwidth=0.25)  # Modes separator line
+            ttk.Separator(self, orient='horizontal').place(x=0, y=755, relwidth=1.0)  # Import/export separator line
 
         # Redirecting stdout to the GUI text box
         self.old_stdout_write = sys.stdout.write
@@ -414,6 +424,7 @@ class SearchWindow(tk.Frame):
         self.onescint_cb['state'] = action
         self.allscints_cb['state'] = action
         self.aircraft_cb['state'] = action
+        self.clnenrg_cb['state'] = action
         self.pickle_cb['state'] = action
         self.skshort_cb['state'] = action
         self.skglow_cb['state'] = action
@@ -488,7 +499,7 @@ def main():
     root = tk.Tk()
     root.title('TGF Search')
     if platform.system() == 'Windows':
-        root.geometry('1080x785')
+        root.geometry('1080x800')
     else:
         root.geometry('1080x845')
 

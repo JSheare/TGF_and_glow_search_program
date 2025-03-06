@@ -49,6 +49,9 @@ location during the search period, this is the mode that you want to use. It add
 search algorithm that filters out false alarms caused by cosmic rays, and uses a more fine-grained rolling baseline in
 the long event search algorithm.
 
+- **'clnenrg' Mode** - This mode cuts out all maximum energy counts (> 65000) and all very low energy counts (< 100)
+when the data is being read. 
+
 - **'pickle' Mode** - This mode serializes and saves imported data for later use OR imports previously-serialized data.
 
 - **'skshort' Mode** - This mode skips the short event search algorithm (including trace filtering).
@@ -130,6 +133,14 @@ the long event search algorithm.
 To run the program in this mode,enter a command the same way as above but add the flag '--aircraft' to the end:
 
     tgf-search-cl yymmdd yymmdd detector --aircraft
+
+#### **'clnenrg' Mode:**
+This mode cuts out all maximum energy counts (> 65000) and all very low energy counts (< 100)
+when the data is being read.
+
+To use it, enter a command of the following form:
+
+    tgf-search-cl yymmdd yymmdd detector --clnenrg
 
 #### **'pickle' Mode:**
 This mode serializes and saves imported data for later use OR imports previously-serialized data.

@@ -59,6 +59,8 @@ def mode_to_flag(mode):
             return '--aircraft'
         case 'allscints':
             return '--allscints'
+        case 'clnenrg':
+            return '--clnenrg'
         case 'custom':
             return '-c'
         case 'onescint':
@@ -84,6 +86,9 @@ def get_modes(mode_info):
 
     # Custom mode (use custom import and/or export directories
     modes['custom'] = True if mode_to_flag('custom') in mode_info else False
+
+    # Clean energy mode (strip out max energy and low energies from the data)
+    modes['clnenrg'] = True if mode_to_flag('clnenrg') in mode_info else False
 
     # Onescint mode (only the default scintillator will be checked by the short event search algorithm)
     modes['onescint'] = True if mode_to_flag('onescint') in mode_info else False

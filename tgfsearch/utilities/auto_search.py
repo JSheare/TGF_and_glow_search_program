@@ -64,7 +64,7 @@ def main():
                 checked_dates[unit] = []
 
             queue = []
-            date_paths = glob.glob(f'{params.DEFAULT_DATA_LOC}/{subtree}/*')
+            date_paths = glob.glob(f'{params.DEFAULT_DATA_ROOT}/{subtree}/*')
             date_paths.sort()
             for date_path in date_paths:
                 if len(date_path) >= 6:
@@ -80,7 +80,7 @@ def main():
                 mode_info = list(config[unit][sub_entry]['mode_info'])  # Implicit copy
                 # Adding custom import/export directories
                 mode_info.append('-c')
-                mode_info.append(f'{params.DEFAULT_DATA_LOC}/{subtree}/{date}')
+                mode_info.append(f'{params.DEFAULT_DATA_ROOT}/{subtree}/{date}')
                 mode_info.append(results_loc)
 
                 print(f'Running search: {date} {unit} {mode_info}...')

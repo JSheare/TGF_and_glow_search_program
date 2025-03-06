@@ -10,6 +10,9 @@
 #5/6/24: Changed "if mode is" to "if mode ==" on advice of new warnings.
 #7/5/24 Fixed condition where there is a rollover between the last PPS of the prior frame and the end
 #       of the of the prior frame, which was messing up all the counts up to the first pps of the new frame.
+#3/3/25 added "killcr" feature for noisy detectors in France, kills overflow and
+#       unrealistically low-energy counts
+#       Also made lmFileToData take and pass passtime consistently (don't know if needed)
 
 import re # Regular expressions module for string operations
 import pdb  #syntax to use is pdb.set_trace() for equivalent to an IDL "stop"
@@ -48,7 +51,7 @@ def ucsc_timestring_to_datetime(timeString):
     headerDT = datetime.strptime(newString, "%Y %m %d %H %M %S %f")
     return(headerDT)
 
-def fileNameToData(fileName,passtime):
+def fileNameToData(fileName,passtime,killcr=0):
     if(fileName[-2:] == 'gz'):        # This decompresses the .gz file if it's gz, that way you don't have to uncompress a file first if you don't want to. Works either way.
         f = gzip.open(fileName, 'rt')
     else:
@@ -57,13 +60,13 @@ def fileNameToData(fileName,passtime):
     if ("xtr" in fileName):         # This means it's a trace file, so go to the trace reading function
         return(traceFileToData(lines))
     if(len(lines[0]) == 3):         # Only the thor LM files start with a 3 character (including a space) line, so that's the fastest way to identify that format
-        data,passtime = thorFileToData(lines,passtime)
+        data,passtime = thorFileToData(lines,passtime,killcr=killcr)
     else:
-         mode = 1
-         if len(lines[2]) < 50: #Early LM files (mode 1) Just alternate (Time) - (Buffer) - (Time) - (Buffer) etc. 
+        mode = 1
+        if len(lines[2]) < 50: #Early LM files (mode 1) Just alternate (Time) - (Buffer) - (Time) - (Buffer) etc. 
                                 #The 2nd version has 4 time tags, so seeing that the second line is a time tag and not a full buffer tells you the type.
             mode = 2
-         data = lmFileToData(lines, mode)
+        data = lmFileToData(lines, mode, passtime,killcr=killcr)
     #print('! ',fileName)
     #print(data)
     #print(passtime)
@@ -71,15 +74,15 @@ def fileNameToData(fileName,passtime):
 
 
 ##Perhaps these next two files could be combined, they're very similar, the main difference is the call to "getDataFromLMThor" and the different numbers used for iteration
-def thorFileToData(lines, passtime):
+def thorFileToData(lines, passtime, killcr=0):
     dataList = list()
     for i in range(5, len(lines), 6):
         lmString = lines[i]
         timeString = lines[i - 4] #John had this wrong (he had i-2, which = 3rd stamp)
         headerDT = ucsc_timestring_to_datetime(timeString)
 
-        data = getDataFromLMthor(lmString)
-        data, newpasstime = processDataTiming(data, passtime, headerDT, mode=0)
+        data,wcmode = getDataFromLMthor(lmString)
+        data, newpasstime = processDataTiming(data, passtime, headerDT, wcmode)
 
         #In this condition, you are near the end of the day and the buffer goes into the next day.
         w = np.where( np.array(data['SecondsOfDay']) < 0.) 
@@ -99,7 +102,7 @@ def thorFileToData(lines, passtime):
             if (dt < 0.0):
                 print('Anomalous clock backwards at: ',tfirst,passtime['lastsod'], dt)
 #                pdb.set_trace()
-#            if (dt < -50000.):
+#           if (dt < -50000.):
 #                print('...due to end of day.  Fixing.')
                 #pdb.set_trace()
 #                w = np.where( np.array(data['SecondsOfDay']) - tfirst < -50000.) 
@@ -107,12 +110,18 @@ def thorFileToData(lines, passtime):
                 #data['SecondsOfDay'][w] =  data['SecondsOfDay'][w] + 86400.000
 
         passtime=newpasstime
+        if (killcr > 0):
+            data= data[data['energies']<65000]
+            data= data[data['energies']>100]
+            
+
         dataList.append(data)
     data = pd.concat(dataList)
+    # pdb.set_trace()
     return(data,passtime)
 
 
-def lmFileToData(lines, mode):
+def lmFileToData(lines, mode,passtime,killcr=0):
     dataList = list()
     if mode== 1:
         start = 2
@@ -126,33 +135,39 @@ def lmFileToData(lines, mode):
         lmString = lines[i]
         timeString = lines[i + tStamp]
         headerDT = ucsc_timestring_to_datetime(timeString)
-        
+        #pdb.set_trace()
         data = getDataFromLM(lmString, mode)
         if (i + increment < len(lines)):
             nextLmString = lines[i + increment]
             nextData = getDataFromLM(nextLmString, mode)
+            # pdb.set_trace()
             match = data['wc',data.index[0]] == nextData['wc',data.index[0]]
             if (match):
                 print("duplicate buffer " + str(i))
                 continue
-        data,passtime = processDataTiming(data, passtime,headerDT, mode=mode)
+        data,passtime = processDataTiming(data, passtime,headerDT, mode)
+        if (killcr > 0):
+            data= data[data['energies']<65000]
+            data= data[data['energies']>100]
         dataList.append(data)
     data = pd.concat(dataList)
-    return(data)
+    return(data,passtime)
 
 
 def getDataFromLMthor(lmString):
     jsonDict = json.loads(re.sub("eRC[0-9]{4} ", "", lmString))['lm_data']
     data = pd.DataFrame.from_dict(jsonDict)
-    if 'pps' in data.columns:
+    if 'pps' in data.columns:                ##This is NRL firmware, e.g. LPL at Split; else condition is THOR firmware
         data['PPS'] = data['pps'].copy()
+        wcmode=3
     else:
         data['PPS'] = pd.Series([int('{0:08b}'.format(x)[-8]) for x in data['flags']]) ## very useful column for future operations - separates out GPS signal from the Flags column
+        wcmode=0
     data['gpsSync'] = False
     data['UnixTime']=0.
     data['SecondsOfDay']=0.
 
-    return(data)
+    return(data,wcmode)
 
 
 def processDataTiming(data, passtime, headerDT, mode):
@@ -162,11 +177,13 @@ def processDataTiming(data, passtime, headerDT, mode):
 
     #Get rid of any rollovers within the frame
 
-    rolloverLength = pow(2, 36)
+    rolloverLength = pow(2, 36)  #THOR 858 seconds
+    
     if mode == 1:
         rolloverLength = pow(2, 32)
-    elif mode == 2:
-        rolloverLength = pow(2, 48)
+    elif mode == 2 or mode==3:
+        rolloverLength = pow(2, 48) #NRL 40.7 days!
+        
     rolloverCorrection = (data['wc'].diff() < -rolloverLength/4.).cumsum() * rolloverLength  
     ## Every time you encounter the wallclock going significantly backwards (1/4 of range), 
     ## assume it's rollover. Count how many times its rolled over and multiply that by 2^36 for each row's correction.
@@ -190,7 +207,7 @@ def processDataTiming(data, passtime, headerDT, mode):
 
     #Get PPS events (if available)
 
-    if (mode==0):
+    if (mode==0 or mode==3):
         pps = np.where(data['PPS'])
         pps = pps[0]
         npps = len(pps)
@@ -222,7 +239,7 @@ def processDataTiming(data, passtime, headerDT, mode):
         else:
             data['UnixTime'] = m2_unix
             print('THOR data has a frame with ' ,npps,  ' PPS: ',data['wc'][0] )
-
+            #pdb.set_trace()
     else:  #This is THOR data with PPS flags in it
 
         #Find the frequencies in between each pair of PPS:
@@ -370,6 +387,7 @@ def getDataFromLM(lmString, mode):
     #data = pd.concat(data, ignore_index = True)
     data = data[~data.duplicated()]
     coarsetick = 65536
+    #pdb.set_trace()
     if mode== 2:
         wc = (data[2] + data[3] * coarsetick + data[4] * coarsetick * coarsetick) 
         energy = data[1]
@@ -381,6 +399,7 @@ def getDataFromLM(lmString, mode):
         ticks = data[0] * 0 ## For some reason makes the pd.concat phase much faster than doing (repeat(0, len(data)))
         flags = data[0] * 0
     newData = pd.concat([energy.rename('energy'), wc.rename('wc'), ticks.rename('PPS'), flags.rename('flags')], axis = 1)
+
     return(newData)
 
 

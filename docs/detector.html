@@ -297,7 +297,7 @@ list<br>
 <dl><dt><a name="Detector-has_identity"><strong>has_identity</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;True&nbsp;if&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;has&nbsp;an&nbsp;established&nbsp;identity&nbsp;(established&nbsp;name,<br>
 scintillator&nbsp;configuration,&nbsp;etc.),&nbsp;False&nbsp;otherwise.</span></dd></dl>
 
-<dl><dt><a name="Detector-import_data"><strong>import_data</strong></a>(self, existing_filelists=False, import_traces=True, import_lm=True, mem_frac=1.0, feedback=False)</dt><dd><span class="code">Imports&nbsp;data&nbsp;from&nbsp;data&nbsp;files&nbsp;into&nbsp;arrays&nbsp;and&nbsp;then&nbsp;updates&nbsp;them&nbsp;into&nbsp;the&nbsp;detector's<br>
+<dl><dt><a name="Detector-import_data"><strong>import_data</strong></a>(self, existing_filelists=False, import_traces=True, import_lm=True, mem_frac=1.0, clean_energy=False, feedback=False)</dt><dd><span class="code">Imports&nbsp;data&nbsp;from&nbsp;data&nbsp;files&nbsp;into&nbsp;arrays&nbsp;and&nbsp;then&nbsp;updates&nbsp;them&nbsp;into&nbsp;the&nbsp;detector's<br>
 scintillator&nbsp;objects.<br>
 &nbsp;<br>
 Parameters<br>
@@ -312,6 +312,8 @@ mem_frac&nbsp;:&nbsp;float<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Optional:&nbsp;The&nbsp;maximum&nbsp;fraction&nbsp;of&nbsp;currently&nbsp;available&nbsp;system&nbsp;memory&nbsp;that&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;is&nbsp;allowed&nbsp;to&nbsp;use&nbsp;for<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;(not&nbsp;including&nbsp;overhead).&nbsp;If&nbsp;the&nbsp;dataset&nbsp;is&nbsp;larger&nbsp;than&nbsp;this&nbsp;limit,&nbsp;a&nbsp;MemoryError&nbsp;will&nbsp;be&nbsp;raised.<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.0&nbsp;(100%&nbsp;of&nbsp;system&nbsp;memory)&nbsp;by&nbsp;default.<br>
+clean_energy&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;asks&nbsp;the&nbsp;data&nbsp;reader&nbsp;to&nbsp;strip&nbsp;out&nbsp;maximum&nbsp;and&nbsp;low&nbsp;energy&nbsp;counts.<br>
 feedback&nbsp;:&nbsp;bool<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Optional.&nbsp;If&nbsp;True,&nbsp;feedback&nbsp;about&nbsp;the&nbsp;progress&nbsp;of&nbsp;the&nbsp;importing&nbsp;will&nbsp;be&nbsp;printed.</span></dd></dl>
 
