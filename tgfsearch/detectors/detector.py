@@ -589,7 +589,7 @@ class Detector:
 
         return complete_filelist
 
-    def _import_lm_data(self, scintillator, feedback):
+    def _import_lm_data(self, scintillator, clean_energy, feedback):
         """Imports list mode data for the given scintillator."""
         lm_filelist = self._scintillators[scintillator].lm_filelist
         if len(lm_filelist) < 1:
@@ -627,7 +627,7 @@ class Detector:
                 with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
                     with warnings.catch_warnings():
                         warnings.simplefilter('ignore', category=RuntimeWarning)
-                        data = reader.read(file)
+                        data = reader.read(file, clean_energy=clean_energy)
 
             except Exception as ex:
                 # Files that generate reader errors are skipped
@@ -702,7 +702,7 @@ class Detector:
             if self.log is not None:
                 print('', file=self.log)
 
-    def _import_trace_data(self, scintillator, feedback):
+    def _import_trace_data(self, scintillator, clean_energy, feedback):
         """Imports trace data for the given scintillator."""
         trace_filelist = self._scintillators[scintillator].trace_filelist
         if len(trace_filelist) < 1:
@@ -735,7 +735,7 @@ class Detector:
                 with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
                     with warnings.catch_warnings():
                         warnings.simplefilter('ignore', category=RuntimeWarning)
-                        data = reader.read(file)
+                        data = reader.read(file, clean_energy=clean_energy)
 
             except Exception as ex:
                 # Files that generate reader errors are skipped
@@ -761,8 +761,8 @@ class Detector:
         if self.log is not None:
             print('', file=self.log)
 
-    def import_data(self, existing_filelists=False, import_traces=True, import_lm=True, mem_frac=1., clean_energy=False,
-                    feedback=False):
+    def import_data(self, existing_filelists=False, import_traces=True, import_lm=True, clean_energy=False,
+                    feedback=False, mem_frac=1.):
         """Imports data from data files into arrays and then updates them into the detector's
         scintillator objects.
 
@@ -774,14 +774,14 @@ class Detector:
             Optional. If True, the function will import any trace files it finds. True by default.
         import_lm : bool
             Optional. If True, the function will import any list mode data it finds. True by default.
-        mem_frac : float
-            Optional: The maximum fraction of currently available system memory that the Detector is allowed to use for
-             data (not including overhead). If the dataset is larger than this limit, a MemoryError will be raised.
-             1.0 (100% of system memory) by default.
         clean_energy : bool
             Optional. If True, asks the data reader to strip out maximum and low energy counts.
         feedback : bool
             Optional. If True, feedback about the progress of the importing will be printed.
+        mem_frac : float
+            Optional: The maximum fraction of currently available system memory that the Detector is allowed to use for
+            data (not including overhead). If the dataset is larger than this limit, a MemoryError will be raised.
+            1.0 (100% of available system memory) by default.
 
         """
 
@@ -820,11 +820,11 @@ class Detector:
 
             # Importing list mode data
             if import_lm:
-                self._import_lm_data(scintillator, feedback)
+                self._import_lm_data(scintillator, clean_energy, feedback)
 
             # Importing trace data
             if import_traces:
-                self._import_trace_data(scintillator, feedback)
+                self._import_trace_data(scintillator, clean_energy, feedback)
 
         gc.collect()
 

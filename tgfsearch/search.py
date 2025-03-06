@@ -1322,11 +1322,13 @@ def program(first_date, second_date, unit, mode_info):
                     detector.log = log
                 else:
                     detector.log = log
-                    detector.import_data(mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC, feedback=True)
+                    detector.import_data(mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC,
+                                         clean_energy=modes['clnenrg'], feedback=True)
                     tl.pickle_detector(detector, 'detector')
             else:
                 detector.log = log
-                detector.import_data(mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC, feedback=True)
+                detector.import_data(mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC,
+                                     clean_energy=modes['clnenrg'], feedback=True)
 
             print('')
             print('Done.')
@@ -1437,7 +1439,7 @@ def program(first_date, second_date, unit, mode_info):
 
                     tl.print_logger('', detector.log)
                     tl.print_logger(f'Chunk {chunk_num} (of {num_chunks}):', detector.log)
-                    chunk.import_data(existing_filelists=True, feedback=True)
+                    chunk.import_data(existing_filelists=True, clean_energy=modes['clnenrg'], feedback=True)
 
                     # Checking that data is present in the necessary scintillators
                     if not chunk.data_present_in(chunk.default_scintillator):

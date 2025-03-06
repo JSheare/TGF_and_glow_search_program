@@ -306,7 +306,7 @@ class SearchWindow(tk.Frame):
 
         cecb = tk.IntVar()
         self.clnenrg_cb = tk.Checkbutton(self.modes_frame, text='clnenrg', variable=cecb, onvalue=1, offvalue=0,
-                                         command=lambda: self._check_uncheck(acb, 'clnenrg'))
+                                         command=lambda: self._check_uncheck(cecb, 'clnenrg'))
         self.clnenrg_cb.grid(row=4, column=0, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(cecb)
 
