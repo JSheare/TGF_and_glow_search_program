@@ -16,7 +16,7 @@ if __name__ == '__main__':
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 import tgfsearch.tools as tl
-from tgfsearch.search import is_valid_detector, mode_to_flag, program
+from tgfsearch.search import is_valid_detector, program
 
 
 # Redirects stdout and stderr from the search program. Meant to be run in a subprocess
@@ -102,17 +102,18 @@ class SearchManager:
 
     # Enables the given mode
     def add_mode(self, mode):
-        if not self.lock.locked():
+        with self.lock:
             self.mode_flags[mode] = True
 
     # Disables the given mode
     def remove_mode(self, mode):
-        if not self.lock.locked() and mode in self.mode_flags:
-            self.mode_flags[mode] = False
+        with self.lock:
+            if mode in self.mode_flags:
+                self.mode_flags[mode] = False
 
     # Enqueues a new search with the given parameters
     def enqueue(self, first_date, second_date, detector, import_loc, export_loc):
-        if not self.lock.locked():
+        with self.lock:
             if second_date == 'yymmdd' or second_date == '':
                 second_date = first_date
 
@@ -121,7 +122,7 @@ class SearchManager:
                 mode_info = []
                 for mode in self.mode_flags:
                     if self.mode_flags[mode]:
-                        mode_info.append(mode_to_flag(mode))
+                        mode_info.append(mode)
 
                 mode_info.append('-c')
                 if import_loc == '':
@@ -194,7 +195,7 @@ class SearchManager:
 
     # Clears the search queue and resets the selected modes
     def reset(self):
-        if not self.lock.locked():
+        with self.lock:
             while not self.search_queue.empty():
                 self.search_queue.get()
 
@@ -288,43 +289,43 @@ class SearchWindow(tk.Frame):
 
         oscb = tk.IntVar()
         self.onescint_cb = tk.Checkbutton(self.modes_frame, text='onescint', variable=oscb, onvalue=1, offvalue=0,
-                                          command=lambda: self._check_uncheck(oscb, 'onescint'))
+                                          command=lambda: self._check_uncheck(oscb, '--onescint'))
         self.onescint_cb.grid(row=1, column=0, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(oscb)
 
         ascb = tk.IntVar()
         self.allscints_cb = tk.Checkbutton(self.modes_frame, text='allscints', variable=ascb, onvalue=1, offvalue=0,
-                                           command=lambda: self._check_uncheck(ascb, 'allscints'))
+                                           command=lambda: self._check_uncheck(ascb, '--allscints'))
         self.allscints_cb.grid(row=2, column=0, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(ascb)
 
         acb = tk.IntVar()
         self.aircraft_cb = tk.Checkbutton(self.modes_frame, text='aircraft', variable=acb, onvalue=1, offvalue=0,
-                                          command=lambda: self._check_uncheck(acb, 'aircraft'))
+                                          command=lambda: self._check_uncheck(acb, '--aircraft'))
         self.aircraft_cb.grid(row=3, column=0, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(acb)
 
         cecb = tk.IntVar()
         self.clnenrg_cb = tk.Checkbutton(self.modes_frame, text='clnenrg', variable=cecb, onvalue=1, offvalue=0,
-                                         command=lambda: self._check_uncheck(cecb, 'clnenrg'))
+                                         command=lambda: self._check_uncheck(cecb, '--clnenrg'))
         self.clnenrg_cb.grid(row=4, column=0, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(cecb)
 
         sscb = tk.IntVar()
         self.skshort_cb = tk.Checkbutton(self.modes_frame, text='skshort', variable=sscb, onvalue=1, offvalue=0,
-                                         command=lambda: self._check_uncheck(sscb, 'skshort'))
+                                         command=lambda: self._check_uncheck(sscb, '--skshort'))
         self.skshort_cb.grid(row=1, column=1, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(sscb)
 
         sgcb = tk.IntVar()
         self.skglow_cb = tk.Checkbutton(self.modes_frame, text='skglow', variable=sgcb, onvalue=1, offvalue=0,
-                                        command=lambda: self._check_uncheck(sgcb, 'skglow'))
+                                        command=lambda: self._check_uncheck(sgcb, '--skglow'))
         self.skglow_cb.grid(row=2, column=1, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(sgcb)
 
         pcb = tk.IntVar()
         self.pickle_cb = tk.Checkbutton(self.modes_frame, text='pickle', variable=pcb, onvalue=1, offvalue=0,
-                                        command=lambda: self._check_uncheck(pcb, 'pickle'))
+                                        command=lambda: self._check_uncheck(pcb, '--pickle'))
         self.pickle_cb.grid(row=3, column=1, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(pcb)
 

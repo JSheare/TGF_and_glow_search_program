@@ -52,53 +52,30 @@ def get_detector(unit, date_str):
         return Detector(unit, date_str)
 
 
-# Returns the flag for the given mode
-def mode_to_flag(mode):
-    match mode:
-        case 'aircraft':
-            return '--aircraft'
-        case 'allscints':
-            return '--allscints'
-        case 'clnenrg':
-            return '--clnenrg'
-        case 'custom':
-            return '-c'
-        case 'onescint':
-            return '--onescint'
-        case 'pickle':
-            return '--pickle'
-        case 'skshort':
-            return '--skshort'
-        case 'skglow':
-            return '--skglow'
-        case _:
-            raise ValueError('not a valid mode')
-
-
 # Makes the modes dict used by many of the program's functions
 def get_modes(mode_info):
     modes = dict()
     # Aircraft mode
-    modes['aircraft'] = True if mode_to_flag('aircraft') in mode_info else False
+    modes['aircraft'] = True if '--aircraft' in mode_info else False
 
     # All scintillators mode (all the scintillators will be checked individually by the short event search algorithm)
-    modes['allscints'] = True if mode_to_flag('allscints') in mode_info else False
-
-    # Custom mode (use custom import and/or export directories
-    modes['custom'] = True if mode_to_flag('custom') in mode_info else False
+    modes['allscints'] = True if '--allscints' in mode_info else False
 
     # Clean energy mode (strip out max energy and low energies from the data)
-    modes['clnenrg'] = True if mode_to_flag('clnenrg') in mode_info else False
+    modes['clnenrg'] = True if '--clnenrg' in mode_info else False
+
+    # Custom mode (use custom import and/or export directories
+    modes['custom'] = True if '-c' in mode_info else False
 
     # Onescint mode (only the default scintillator will be checked by the short event search algorithm)
-    modes['onescint'] = True if mode_to_flag('onescint') in mode_info else False
+    modes['onescint'] = True if '--onescint' in mode_info else False
 
     # Pickle mode
-    modes['pickle'] = True if mode_to_flag('pickle') in mode_info else False
+    modes['pickle'] = True if '--pickle' in mode_info else False
 
     # Modes for skipping over certain algorithms (mostly to speed up testing)
-    modes['skshort'] = True if mode_to_flag('skshort') in mode_info else False  # Skip short event search
-    modes['skglow'] = True if mode_to_flag('skglow') in mode_info else False  # SKip long event search
+    modes['skshort'] = True if '--skshort' in mode_info else False  # Skip short event search
+    modes['skglow'] = True if '--skglow' in mode_info else False  # SKip long event search
 
     # Allscints includes onescint, so disable onescint if they're both present
     if modes['allscints'] and modes['onescint']:
