@@ -5,10 +5,12 @@ import gc as gc
 import glob as glob
 import json as json
 import matplotlib.pyplot as plt
+import multiprocessing as multiprocessing
 import numpy as np
 import os as os
 import pandas as pd
 import psutil as psutil
+import threading as threading
 import warnings
 
 import tgfsearch.parameters as params
@@ -589,19 +591,27 @@ class Detector:
 
         return complete_filelist
 
-    def _import_lm_data(self, scintillator, clean_energy, feedback):
+    @staticmethod
+    def _read_data_file(reader, file, clean_energy):
+        """Reading a data file and returning the data and the updated passtime. Meant to be run in a subprocess,
+        which means that the passed arguments and returned values are serialized/deserialized on each end."""
+        # The first with disables prints from the data reader; The second with suppresses annoying numpy warnings
+        with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', category=RuntimeWarning)
+                data = reader.read(file, clean_energy=clean_energy)
+
+        # Ends the worker subprocess if the parent is gone for whatever reason (usually explicit termination)
+        parent = multiprocessing.parent_process()
+        if parent is None or not parent.is_alive():
+            exit()
+
+        # Have to return the reader passtime because the reader is a copy
+        return data, reader.passtime
+
+    def _import_lm(self, process_pool, scintillator, options):
         """Imports list mode data for the given scintillator."""
         lm_filelist = self._scintillators[scintillator].lm_filelist
-        if len(lm_filelist) < 1:
-            if self.log is not None:
-                print('Missing list mode data', file=self.log)
-                print('', file=self.log)
-
-            if feedback:
-                print('Missing list mode data')
-
-            return
-
         file_frames = []
         file_ranges = []
         file_indices = {}
@@ -609,62 +619,51 @@ class Detector:
         prev_second = 0
         start_index = 0
         files_imported = 0
+        log_strings = []
 
         if self.log is not None:
-            print('List Mode Files:', file=self.log)
-            print('File|Import Success|File Time Gap (sec)', file=self.log)
-
-        if feedback:
-            print(f'Importing {len(lm_filelist)} list mode files...')
+            log_strings.append('List Mode Files:\nFile|Import Success|File Time Gap (sec)\n')
 
         # Importing the data
         reader = self._scintillators[scintillator].reader
         for file in lm_filelist:
             # Try-except block to handle reader errors
             try:
-                # The first with disables prints from the data reader; The second with suppresses annoying
-                # numpy warnings
-                with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
-                    with warnings.catch_warnings():
-                        warnings.simplefilter('ignore', category=RuntimeWarning)
-                        data = reader.read(file, clean_energy=clean_energy)
-
+                # Reading data in another process
+                data, reader.passtime = process_pool.apply(self._read_data_file,
+                                                           args=(reader, file, options['clean_energy']))
             except Exception as ex:
                 # Files that generate reader errors are skipped
                 if self.log is not None:
-                    print(f'{file}|False|N/A', file=self.log)
-                    print(f'    Error importing file: {ex}', file=self.log)
+                    log_strings.append(f'{file}|False|N/A\n    Error importing file: {ex}\n')
 
                 continue
 
             if 'energies' in data.columns:
                 data.rename(columns={'energies': 'energy'}, inplace=True)
 
-            # first_second = data['SecondsOfDay'].iloc[0]
-            # last_second = data['SecondsOfDay'].iloc[-1]
+                # first_second = data['SecondsOfDay'].iloc[0]
+                # last_second = data['SecondsOfDay'].iloc[-1]
 
-            # Above would be better, but counts are very occasionally out of chronological order for some reason
-            first_second = data['SecondsOfDay'].min()
-            last_second = data['SecondsOfDay'].max()
+                # Above would be better, but counts are very occasionally out of chronological order for some reason
+                first_second = data['SecondsOfDay'].min()
+                last_second = data['SecondsOfDay'].max()
 
-            # Determines the time gaps between adjacent files
-            file_time_gap = first_second - prev_second if files_imported > 0 else 0.0
-            file_time_gaps.append(file_time_gap)
-            prev_second = last_second
-            file_ranges.append([first_second, last_second])
-            file_frames.append(data)
-            if self.log is not None:
-                print(f'{file}|True|{file_time_gap}', file=self.log)
+                # Determines the time gaps between adjacent files
+                file_time_gap = first_second - prev_second if files_imported > 0 else 0.0
+                file_time_gaps.append(file_time_gap)
+                prev_second = last_second
+                file_ranges.append([first_second, last_second])
+                file_frames.append(data)
+                if self.log is not None:
+                    log_strings.append(f'{file}|True|{file_time_gap}\n')
 
-            # Keeps track of file indices in the larger dataframe
-            data_length = len(data.index)
-            file_indices[file] = [start_index, start_index + data_length]
-            start_index += data_length
+                # Keeps track of file indices in the larger dataframe
+                data_length = len(data.index)
+                file_indices[file] = [start_index, start_index + data_length]
+                start_index += data_length
 
-            files_imported += 1
-
-        if feedback:
-            print(f'{files_imported}/{len(lm_filelist)} list mode files imported')
+                files_imported += 1
 
         if len(file_frames) > 0:
             # Correcting for the fact that the first few minutes of the next day are usually included
@@ -694,72 +693,111 @@ class Detector:
             self._scintillators[scintillator].lm_file_indices = file_indices
 
             if self.log is not None:
-                print('', file=self.log)
-                print(f'Total Counts: {len(all_data.index)}', file=self.log)
-                print(f'Average time gap: {sum(file_time_gaps) / len(file_time_gaps)}', file=self.log)
-                print('', file=self.log)
+                log_strings.append(f'\n'
+                                   f'Total Counts: {len(all_data.index)}\n'
+                                   f'Average time gap: {sum(file_time_gaps) / len(file_time_gaps)}\n'
+                                   f'\n')
+
         else:
             if self.log is not None:
-                print('', file=self.log)
+                log_strings.append('\n')
 
-    def _import_trace_data(self, scintillator, clean_energy, feedback):
+        return files_imported, ''.join(log_strings)
+
+    def _import_traces(self, process_pool, scintillator, options):
         """Imports trace data for the given scintillator."""
         trace_filelist = self._scintillators[scintillator].trace_filelist
-        if len(trace_filelist) < 1:
-            if self.log is not None:
-                print('No trace data', file=self.log)
-                print('', file=self.log)
-
-            if feedback:
-                print('No trace data')
-
-            return
-
         traces = {}
         files_imported = 0
-
+        log_strings = []
         if self.log is not None:
-            print('Trace Files:', file=self.log)
-            print('File|Import Success|', file=self.log)
-
-        if feedback:
-            print(f'Importing {len(trace_filelist)} trace files...')
+            log_strings.append('Trace Files:\nFile|Import Success|\n')
 
         # Importing the data
         reader = self._scintillators[scintillator].reader
         for file in trace_filelist:
             # Try-except block for handling reader errors
             try:
-                # The first with disables prints from the data reader; The second with suppresses annoying
-                # numpy warnings
-                with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
-                    with warnings.catch_warnings():
-                        warnings.simplefilter('ignore', category=RuntimeWarning)
-                        data = reader.read(file, clean_energy=clean_energy)
-
+                # Reading data in another process
+                data, _ = process_pool.apply(self._read_data_file, args=(reader, file, options['clean_energy']))
             except Exception as ex:
                 # Files that generate reader errors are skipped
                 if self.log is not None:
-                    print(f'{file}|False|', file=self.log)
-                    print(f'    Error importing file: {ex}', file=self.log)
+                    log_strings.append(f'{file}|False|\n    Error importing file: {ex}\n')
 
                 continue
 
             traces[file] = data
             if self.log is not None:
-                print(f'{file}|True|', file=self.log)
+                log_strings.append(f'{file}|True|\n')
 
             files_imported += 1
-
-        if feedback:
-            print(f'{files_imported}/{len(trace_filelist)} trace files imported')
 
         # Storing the traces
         if len(traces) > 0:
             self._scintillators[scintillator].traces = traces
 
         if self.log is not None:
-            print('', file=self.log)
+            log_strings.append('\n')
+
+        return files_imported, ''.join(log_strings)
+
+    def _import_scintillator(self, process_pool, output_lock, scintillator, options):
+        """Manages data importing for a single scintillator. Meant to be run on a separate thread."""
+        eRC = self._scintillators[scintillator].eRC
+        lm_filelist_len = len(self._scintillators[scintillator].lm_filelist)
+        trace_filelist_len = len(self._scintillators[scintillator].trace_filelist)
+        # Writing initial status to stdout
+        if options['feedback']:
+            with output_lock:
+                print('')
+                print(f'For eRC {eRC} ({scintillator}):')
+                if options['import_lm']:
+                    if lm_filelist_len > 0:
+                        print(f'Importing {lm_filelist_len} list mode files...')
+                    else:
+                        print('Missing list mode data')
+
+                if options['import_traces']:
+                    if trace_filelist_len > 0:
+                        print(f'Importing {trace_filelist_len} trace files...')
+                    else:
+                        print('No trace data')
+
+        if options['import_lm'] and lm_filelist_len > 0:
+            lm_results = self._import_lm(process_pool, scintillator, options)
+        else:
+            lm_results = None
+
+        if options['import_traces'] and trace_filelist_len > 0:
+            trace_results = self._import_traces(process_pool, scintillator, options)
+        else:
+            trace_results = None
+
+        if (lm_results is not None or trace_results is not None) and (options['feedback'] or self.log is not None):
+            with output_lock:
+                # Writing import status to stdout
+                if options['feedback']:
+                    print('')
+                    print(f'For eRC {eRC} ({scintillator}):')
+                    if options['import_lm'] and lm_results is not None:
+                        print(f'{lm_results[0]}/{lm_filelist_len} list mode files imported')
+                    else:
+                        print('No list mode data imported')
+
+                    if options['import_traces'] and trace_results is not None:
+                        print(f'{trace_results[0]}/{trace_filelist_len} trace files imported')
+                    else:
+                        print(f'No traces imported')
+
+                # Writing import information to the log
+                if self.log is not None:
+                    print(f'For eRC {eRC} ({scintillator}):', file=self.log)
+                    if options['import_lm'] and lm_results is not None:
+                        self.log.write(lm_results[1])
+
+                    if options['import_traces'] and trace_results is not None:
+                        self.log.write(trace_results[1])
 
     def import_data(self, existing_filelists=False, import_traces=True, import_lm=True, clean_energy=False,
                     feedback=False, mem_frac=1.):
@@ -794,7 +832,7 @@ class Detector:
         if not existing_filelists:
             # Locates the files to be imported
             for scintillator in self._scintillators:
-                complete_filelist = self._get_serial_num_filelist(self.get_attribute(scintillator, 'eRC'))
+                complete_filelist = self._get_serial_num_filelist(self._scintillators[scintillator].eRC)
                 lm_filelist, trace_filelist = tl.separate_data_files(tl.filter_data_files(complete_filelist))
                 if import_lm:
                     self._scintillators[scintillator].lm_filelist = lm_filelist
@@ -809,22 +847,23 @@ class Detector:
         if self.log is not None:
             print('', file=self.log)
 
-        for scintillator in self._scintillators:
-            eRC = self.get_attribute(scintillator, 'eRC')
-            if self.log is not None:
-                print(f'For eRC {eRC} ({scintillator}):', file=self.log)
+        options = {'import_traces': import_traces, 'import_lm': import_lm, 'clean_energy': clean_energy,
+                   'feedback': feedback}
 
-            if feedback:
-                print('')
-                print(f'For eRC {eRC} ({scintillator}):')
+        # Creating the process pool for data reading tasks
+        with multiprocessing.Pool(processes=len(self.scint_list)) as process_pool:
+            # Creating threads for each scintillator's import manager
+            output_lock = threading.Lock()  # Mutex for log and stdout output
+            threads = [threading.Thread(target=self._import_scintillator,
+                                        args=(process_pool, output_lock, scintillator, options))
+                       for scintillator in self._scintillators]
 
-            # Importing list mode data
-            if import_lm:
-                self._import_lm_data(scintillator, clean_energy, feedback)
+            for thread in threads:
+                thread.start()
 
-            # Importing trace data
-            if import_traces:
-                self._import_trace_data(scintillator, clean_energy, feedback)
+            # Waiting for data importing to finish for each scintillator
+            for thread in threads:
+                thread.join()
 
         gc.collect()
 

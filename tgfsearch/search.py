@@ -1299,13 +1299,13 @@ def program(first_date, second_date, unit, mode_info):
                     detector.log = log
                 else:
                     detector.log = log
-                    detector.import_data(mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC,
-                                         clean_energy=modes['clnenrg'], feedback=True)
+                    detector.import_data(clean_energy=modes['clnenrg'], feedback=True,
+                                         mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC)
                     tl.pickle_detector(detector, 'detector')
             else:
                 detector.log = log
-                detector.import_data(mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC,
-                                     clean_energy=modes['clnenrg'], feedback=True)
+                detector.import_data(clean_energy=modes['clnenrg'], feedback=True,
+                                     mem_frac=params.TOTAL_MEMORY_ALLOWANCE_FRAC)
 
             print('')
             print('Done.')
