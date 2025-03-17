@@ -210,6 +210,7 @@ class SearchWindow(tk.Frame):
         super().__init__(master, **kwargs)
         self.master = master
         self.checkbox_variables = []
+        self.toggleable_widgets = []
 
         # Making and placing the text box display
         self.text_box = tk.Text(self, height=30, width=100)
@@ -231,6 +232,7 @@ class SearchWindow(tk.Frame):
         self.date_one_entry.insert(0, 'yymmdd')
         self.date_one_entry.bind('<FocusIn>', lambda e: self._clear_ghost_text(self.date_one_entry, 'yymmdd'))
         self.date_one_entry.grid(row=1, column=0, pady=(5, 0))
+        self.toggleable_widgets.append(self.date_one_entry)
 
         self.date_two_label = tk.Label(self.input_frame, text='Date Two:')
         self.date_two_label.grid(row=2, column=0, pady=(5, 0))
@@ -239,12 +241,14 @@ class SearchWindow(tk.Frame):
         self.date_two_entry.insert(0, 'yymmdd')
         self.date_two_entry.bind('<FocusIn>', lambda e: self._clear_ghost_text(self.date_two_entry, 'yymmdd'))
         self.date_two_entry.grid(row=3, column=0, pady=(5, 0))
+        self.toggleable_widgets.append(self.date_two_entry)
 
         self.detector_label = tk.Label(self.input_frame, text='Detector:')
         self.detector_label.grid(row=4, column=0, pady=(5, 0))
 
         self.detector_entry = tk.Entry(self.input_frame, width=15, borderwidth=5)
         self.detector_entry.grid(row=5, column=0, pady=(5, 0))
+        self.toggleable_widgets.append(self.detector_entry)
 
         # Setting up the search control frame
         self.search_frame = tk.Frame(self)
@@ -254,10 +258,12 @@ class SearchWindow(tk.Frame):
         self.start_button = tk.Button(self.search_frame, height=3, width=20, text='Start', bg='white',
                                       command=self.start)
         self.start_button.grid(row=0, column=0, columnspan=2, pady=(5, 0))
+        self.toggleable_widgets.append(self.start_button)
 
         self.enqueue_button = tk.Button(self.search_frame, height=3, width=8, text='Enqueue', bg='white',
                                         command=self.enqueue)
         self.enqueue_button.grid(row=1, column=0, pady=(5, 0))
+        self.toggleable_widgets.append(self.enqueue_button)
 
         self.stop_button = tk.Button(self.search_frame, height=3, width=8, text='Stop', bg='white',
                                      command=self.stop)
@@ -292,42 +298,56 @@ class SearchWindow(tk.Frame):
                                           command=lambda: self._check_uncheck(oscb, '--onescint'))
         self.onescint_cb.grid(row=1, column=0, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(oscb)
+        self.toggleable_widgets.append(self.onescint_cb)
 
         ascb = tk.IntVar()
         self.allscints_cb = tk.Checkbutton(self.modes_frame, text='allscints', variable=ascb, onvalue=1, offvalue=0,
                                            command=lambda: self._check_uncheck(ascb, '--allscints'))
         self.allscints_cb.grid(row=2, column=0, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(ascb)
+        self.toggleable_widgets.append(self.allscints_cb)
 
         acb = tk.IntVar()
         self.aircraft_cb = tk.Checkbutton(self.modes_frame, text='aircraft', variable=acb, onvalue=1, offvalue=0,
                                           command=lambda: self._check_uncheck(acb, '--aircraft'))
         self.aircraft_cb.grid(row=3, column=0, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(acb)
+        self.toggleable_widgets.append(self.aircraft_cb)
 
         cecb = tk.IntVar()
         self.clnenrg_cb = tk.Checkbutton(self.modes_frame, text='clnenrg', variable=cecb, onvalue=1, offvalue=0,
                                          command=lambda: self._check_uncheck(cecb, '--clnenrg'))
         self.clnenrg_cb.grid(row=4, column=0, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(cecb)
+        self.toggleable_widgets.append(self.clnenrg_cb)
+
+        stcb = tk.IntVar()
+        self.sktrace_cb = tk.Checkbutton(self.modes_frame, text='sktrace', variable=stcb, onvalue=1, offvalue=0,
+                                         command=lambda: self._check_uncheck(stcb, '--sktrace'))
+        self.sktrace_cb.grid(row=1, column=1, sticky=tk.W, pady=(3, 0))
+        self.checkbox_variables.append(stcb)
+        self.toggleable_widgets.append(self.sktrace_cb)
 
         sscb = tk.IntVar()
         self.skshort_cb = tk.Checkbutton(self.modes_frame, text='skshort', variable=sscb, onvalue=1, offvalue=0,
                                          command=lambda: self._check_uncheck(sscb, '--skshort'))
-        self.skshort_cb.grid(row=1, column=1, sticky=tk.W, pady=(3, 0))
+        self.skshort_cb.grid(row=2, column=1, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(sscb)
+        self.toggleable_widgets.append(self.skshort_cb)
 
         sgcb = tk.IntVar()
         self.skglow_cb = tk.Checkbutton(self.modes_frame, text='skglow', variable=sgcb, onvalue=1, offvalue=0,
                                         command=lambda: self._check_uncheck(sgcb, '--skglow'))
-        self.skglow_cb.grid(row=2, column=1, sticky=tk.W, pady=(3, 0))
+        self.skglow_cb.grid(row=3, column=1, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(sgcb)
+        self.toggleable_widgets.append(self.skglow_cb)
 
         pcb = tk.IntVar()
         self.pickle_cb = tk.Checkbutton(self.modes_frame, text='pickle', variable=pcb, onvalue=1, offvalue=0,
                                         command=lambda: self._check_uncheck(pcb, '--pickle'))
-        self.pickle_cb.grid(row=3, column=1, sticky=tk.W, pady=(3, 0))
+        self.pickle_cb.grid(row=4, column=1, sticky=tk.W, pady=(3, 0))
         self.checkbox_variables.append(pcb)
+        self.toggleable_widgets.append(self.pickle_cb)
 
         # Setting up the file import/export frame
         self.file_frame = tk.Frame(self)
@@ -340,10 +360,12 @@ class SearchWindow(tk.Frame):
 
         self.import_entry = tk.Entry(self.file_frame, width=40, borderwidth=5)
         self.import_entry.grid(row=1, column=0, columnspan=2, pady=(5, 0))
+        self.toggleable_widgets.append(self.import_entry)
 
         self.import_button = tk.Button(self.file_frame, width=6, height=2, text='Browse',
                                        command=lambda: self._select_dir(self.import_entry))
         self.import_button.grid(row=1, column=2, pady=(5, 0))
+        self.toggleable_widgets.append(self.import_button)
 
         # Adding and placing the custom export label, entry box, and file dialogue button
         self.export_label = tk.Label(self.file_frame, text='Export Location:')
@@ -351,10 +373,12 @@ class SearchWindow(tk.Frame):
 
         self.export_entry = tk.Entry(self.file_frame, width=40, borderwidth=5)
         self.export_entry.grid(row=1, column=4, columnspan=2, pady=(5, 0))
+        self.toggleable_widgets.append(self.export_entry)
 
         self.export_button = tk.Button(self.file_frame, width=6, height=2, text='Browse',
                                        command=lambda: self._select_dir(self.export_entry))
         self.export_button.grid(row=1, column=6, pady=(5, 0))
+        self.toggleable_widgets.append(self.export_button)
 
         if platform.system() == 'Windows':
             ttk.Separator(self, orient='horizontal').place(x=565, y=580, relwidth=0.25)  # Modes separator line
@@ -412,23 +436,8 @@ class SearchWindow(tk.Frame):
 
     # Enables/disables GUI widgets depending on the action parameter
     def _change_widgets(self, action):
-        self.start_button['state'] = action
-        self.enqueue_button['state'] = action
-        self.date_one_entry['state'] = action
-        self.date_two_entry['state'] = action
-        self.detector_entry['state'] = action
-        self.import_entry['state'] = action
-        self.import_button['state'] = action
-        self.export_entry['state'] = action
-        self.export_button['state'] = action
-
-        self.onescint_cb['state'] = action
-        self.allscints_cb['state'] = action
-        self.aircraft_cb['state'] = action
-        self.clnenrg_cb['state'] = action
-        self.pickle_cb['state'] = action
-        self.skshort_cb['state'] = action
-        self.skglow_cb['state'] = action
+        for widget in self.toggleable_widgets:
+            widget['state'] = action
 
     # Enables all checkboxes/buttons
     def enable_widgets(self):

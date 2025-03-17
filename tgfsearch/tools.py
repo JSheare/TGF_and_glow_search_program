@@ -666,9 +666,10 @@ def combine_data(detector):
     count_scints = []
     for scintillator in detector:
         if detector.data_present_in(scintillator):
-            times.append(detector.get_lm_data(scintillator, 'SecondsOfDay'))
-            energies.append(detector.get_lm_data(scintillator, 'energy'))
-            wallclock.append(detector.get_lm_data(scintillator, 'wc'))
+            lm_frame = detector.get_attribute(scintillator, 'lm_frame', deepcopy=False)
+            times.append(lm_frame['SecondsOfDay'])
+            energies.append(lm_frame['energy'])
+            wallclock.append(lm_frame['wc'])
             count_scints.append(np.array([scintillator] * len(times[-1])))
 
     times = np.concatenate(times)
@@ -724,8 +725,7 @@ def separate_data(data, count_scints, start=None, stop=None):
 
     # Converting back to numpy arrays
     for scintillator in data_dict:
-        separated_data = data_dict[scintillator]
-        data_dict[scintillator] = np.array(separated_data)
+        data_dict[scintillator] = np.array(data_dict[scintillator])
 
     return data_dict
 

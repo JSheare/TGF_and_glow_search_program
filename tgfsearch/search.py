@@ -74,6 +74,7 @@ def get_modes(mode_info):
     modes['pickle'] = True if '--pickle' in mode_info else False
 
     # Modes for skipping over certain algorithms (mostly to speed up testing)
+    modes['sktrace'] = True if '--sktrace' in mode_info else False # Skip trace filtering
     modes['skshort'] = True if '--skshort' in mode_info else False  # Skip short event search
     modes['skglow'] = True if '--skglow' in mode_info else False  # SKip long event search
 
@@ -185,8 +186,11 @@ def get_clumpiness_and_hel(times, energies, start, stop):
     clump_counts = 0
     high_energy_lead = 0
     leading_counts = 0
+    prev_time = times[start]
     for i in range(start + 1, stop):
-        difference = times[i] - times[i - 1]
+        count_time = times[i]
+        difference = count_time - prev_time
+        prev_time = count_time  # Numpy array indexing is slow, so I'd rather do it as little as possible
         if difference < params.DIFFERENCE_THRESH:
             clump_counts += 1
             if clump_counts == 1:
@@ -1311,7 +1315,7 @@ def program(first_date, second_date, unit, mode_info):
             print('Done.')
 
             # Trace Search
-            if not modes['skshort']:
+            if not modes['sktrace']:
                 tl.print_logger('\n', detector.log)
                 tl.print_logger('Filtering traces...', detector.log)
                 trace_dict = find_traces(detector)
@@ -1447,7 +1451,7 @@ def program(first_date, second_date, unit, mode_info):
 
                 # Trace Search
                 chunk_trace_dicts = {}
-                if not modes['skshort']:
+                if not modes['sktrace']:
                     tl.print_logger('\n', detector.log)
                     tl.print_logger('Filtering traces...', detector.log)
                     for chunk_path in chunk_path_list:

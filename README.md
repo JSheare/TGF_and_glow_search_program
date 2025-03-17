@@ -54,7 +54,9 @@ when the data is being read.
 
 - **'pickle' Mode** - This mode serializes and saves imported data for later use OR imports previously-serialized data.
 
-- **'skshort' Mode** - This mode skips the short event search algorithm (including trace filtering).
+- **'skshort' Mode** - This mode skips the short event search algorithm.
+
+- **'sktrace' Mode** - Thise mode skips the trace filtering algorithm.
 
 - **'skglow' Mode** - This mode skips the long event search algorithm.
 
@@ -150,11 +152,18 @@ To use it, enter a command of the following form:
     tgf-search-cl yymmdd yymmdd detector --pickle
 
 #### **'skshort' Mode:**
-This mode skips the short event search algorithm (including trace filtering).
+This mode skips the short event search algorithm.
 
 To use it, enter a command of the following form:
 
     tgf-search-cl yymmdd yymmdd detector --skshort
+
+#### **'sktrace' Mode:**
+This mode skips the trace filtering algorithm.
+
+To use it, enter a command of the following form:
+
+    tgf-search-cl yymmdd yymmdd detector --sktrace
 
 #### **'skglow' Mode:**
 This mode skips the long event search algorithm.
