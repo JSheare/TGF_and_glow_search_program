@@ -1,5 +1,4 @@
 """A base class for keeping track of lightning data and associated information."""
-import contextlib as contextlib
 import datetime as dt
 import gc as gc
 import glob as glob
@@ -10,8 +9,8 @@ import numpy as np
 import os as os
 import pandas as pd
 import psutil as psutil
+import sys as sys
 import threading as threading
-import warnings
 
 import tgfsearch.parameters as params
 import tgfsearch.tools as tl
@@ -595,17 +594,7 @@ class Detector:
     def _read_data_file(reader, file, clean_energy):
         """Reading a data file and returning the data and the updated passtime. Meant to be run in a subprocess,
         which means that the passed arguments and returned values are serialized/deserialized on each end."""
-        # The first with disables prints from the data reader; The second with suppresses annoying numpy warnings
-        with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore', category=RuntimeWarning)
-                data = reader.read(file, clean_energy=clean_energy)
-
-        # Ends the worker subprocess if the parent is gone for whatever reason (usually explicit termination)
-        parent = multiprocessing.parent_process()
-        if parent is None or not parent.is_alive():
-            exit()
-
+        data = reader.read(file, clean_energy=clean_energy)
         # Have to return the reader passtime because the reader is a copy
         return data, reader.passtime
 
@@ -642,44 +631,41 @@ class Detector:
             if 'energies' in data.columns:
                 data.rename(columns={'energies': 'energy'}, inplace=True)
 
-                # first_second = data['SecondsOfDay'].iloc[0]
-                # last_second = data['SecondsOfDay'].iloc[-1]
+            # first_second = data['SecondsOfDay'].iloc[0]
+            # last_second = data['SecondsOfDay'].iloc[-1]
 
-                # Above would be better, but counts are very occasionally out of chronological order for some reason
-                first_second = data['SecondsOfDay'].min()
-                last_second = data['SecondsOfDay'].max()
+            # Above would be better, but counts are very occasionally out of chronological order for some reason
+            first_second = data['SecondsOfDay'].min()
+            last_second = data['SecondsOfDay'].max()
 
-                # Determines the time gaps between adjacent files
-                file_time_gap = first_second - prev_second if files_imported > 0 else 0.0
-                file_time_gaps.append(file_time_gap)
-                prev_second = last_second
-                file_ranges.append([first_second, last_second])
-                file_frames.append(data)
-                if self.log is not None:
-                    log_strings.append(f'{file}|True|{file_time_gap}\n')
+            # Determines the time gaps between adjacent files
+            file_time_gap = first_second - prev_second if files_imported > 0 else 0.0
+            file_time_gaps.append(file_time_gap)
+            prev_second = last_second
+            file_ranges.append([first_second, last_second])
+            file_frames.append(data)
+            if self.log is not None:
+                log_strings.append(f'{file}|True|{file_time_gap}\n')
 
-                # Keeps track of file indices in the larger dataframe
-                data_length = len(data.index)
-                file_indices[file] = [start_index, start_index + data_length]
-                start_index += data_length
+            # Keeps track of file indices in the larger dataframe
+            data_length = len(data.index)
+            file_indices[file] = [start_index, start_index + data_length]
+            start_index += data_length
 
-                files_imported += 1
+            files_imported += 1
 
         if len(file_frames) > 0:
             # Correcting for the fact that the first few minutes of the next day are usually included
             # in the last file
-            last_times = file_frames[-1]['SecondsOfDay'].to_numpy()
+            last_times = file_frames[-1]['SecondsOfDay']
             # First count of the next day - last count of the current day will be either equal to or less than
             # params.SEC_PER_DAY by up to a few hundred seconds depending on how late the first count came in.
             # Choosing a large error just to be sure
             error = 500
-            day_change = np.where(np.diff(last_times, prepend=0.0) <= -(params.SEC_PER_DAY - error))[0]
+            day_change = np.where(last_times.diff() <= -(params.SEC_PER_DAY - error))[0]
             if len(day_change) > 0:
-                change_index = int(day_change[0]) + 1
-                for i in range(change_index, len(last_times)):
+                for i in range(int(day_change[0]) + 1, len(last_times)):
                     last_times[i] += params.SEC_PER_DAY
-
-                file_frames[-1]['SecondsOfDay'] = last_times
 
             # Correcting the last file's time ranges too
             if file_ranges[-1][1] - file_ranges[-1][0] >= (params.SEC_PER_DAY - error):
@@ -799,10 +785,15 @@ class Detector:
                     if options['import_traces'] and trace_results is not None:
                         self.log.write(trace_results[1])
 
+    @staticmethod
+    def _worker_init():
+        """Data importer worker process initialization function. Mutes worker stdout and stderr output."""
+        sys.stdout = open(os.devnull, 'w')
+        sys.stderr = open(os.devnull, 'w')
+
     def import_data(self, existing_filelists=False, import_traces=True, import_lm=True, clean_energy=False,
                     feedback=False, mem_frac=1.):
-        """Imports data from data files into arrays and then updates them into the detector's
-        scintillator objects.
+        """Imports and stores data from the daily data files.
 
         Parameters
         ----------
@@ -851,11 +842,12 @@ class Detector:
                    'feedback': feedback}
 
         # Creating the process pool for data reading tasks
-        with multiprocessing.Pool(processes=len(self.scint_list)) as process_pool:
+        with multiprocessing.Pool(processes=len(self.scint_list), initializer=self._worker_init) as process_pool:
             # Creating threads for each scintillator's import manager
-            output_lock = threading.Lock()  # Mutex for log and stdout output
+            output_lock = threading.Lock()  # Mutex lock for log and stdout output
             threads = [threading.Thread(target=self._import_scintillator,
-                                        args=(process_pool, output_lock, scintillator, options))
+                                        args=(process_pool, output_lock, scintillator, options),
+                                        daemon=True)
                        for scintillator in self._scintillators]
 
             for thread in threads:

@@ -237,6 +237,9 @@ def short_event_search(detector, modes, scintillator, rollgap, times, energies):
     event_start = 0
     event_length = 0
     for i in range(len(times)):
+        # Note: we're doing it with indexing like this to save memory. It's slower (numpy array indexing is about 5x
+        # slower than normal list indexing due to overhead), but it also uses significantly less memory because
+        # we aren't making a copy of the data array with a call to np.roll
         rolled_index = i + rollgap if i + rollgap < len(times) else (i + rollgap) - len(times)
         interval = times[rolled_index] - times[i]
         if 0 < interval <= params.SHORT_EVENT_TIME_SPACING:
@@ -265,7 +268,7 @@ def short_event_search(detector, modes, scintillator, rollgap, times, energies):
 
             # Checks that there are fewer counts in the higher energy channels than the low energy channels
             # High/low channel ratio is not checked for THOR or for events with < GOOD_LEN_THRESH counts
-            if (good_event and event_length >= params.GOOD_LEN_THRESH and not detector.is_named('THOR') and
+            if (good_event and event_length >= params.GOOD_LEN_THRESH and detector.is_named('GODOT') and
                     get_hl_channel_ratio(energies, event_start, event_stop) > params.CHANNEL_RATIO):
                 good_event = False
                 removed_channel_ratio += 1

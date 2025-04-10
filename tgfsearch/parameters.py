@@ -48,7 +48,7 @@ GOOD_LEN_THRESH = 30  # The number of counts at which a short event becomes *def
 CHANNEL_RANGE_WIDTH = 300  # The width of channels examined by the low/high energy ratio filter
 CHANNEL_SEPARATION = 100  # The number of channels separating the low/high channel ranges
 LOW_CHANNEL_START = 200  # The starting channel of the low energy channel range
-CHANNEL_RATIO = 0.5  # The low/high energy channel range ratio required by the low/high energy ratio filter
+CHANNEL_RATIO = 0.5  # The high/low energy channel range ratio required by the high/low energy ratio filter
 MIN_NOISE_COUNTS = 3  # The minimum number of non-noise counts required for an event
 NOISE_CUTOFF_ENERGY = 300  # The threshold for what's considered a noise/non-noise count
 

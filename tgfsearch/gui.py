@@ -179,6 +179,7 @@ class SearchManager:
 
                 if process.is_alive():  # This will be executed if stop() is run
                     process.terminate()
+                    process.join()
                     break
 
                 # In case there's still some strings left in the pipe
