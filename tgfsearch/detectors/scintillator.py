@@ -61,8 +61,8 @@ class Scintillator:
 
     def data_present(self, data_type='lm'):
         if data_type == 'lm':
-            # Using energy as an arbitrary check here. Time or wc would've worked too.
-            return True if 'energy' in self.lm_frame and len(self.lm_frame['energy']) > 0 else False
+            # Using energy as an arbitrary check here. Seconds of day or any of the others would've worked as well
+            return True if 'energies' in self.lm_frame and len(self.lm_frame['energies']) > 0 else False
         elif data_type == 'trace':
             return True if len(self.traces) > 0 else False
         else:

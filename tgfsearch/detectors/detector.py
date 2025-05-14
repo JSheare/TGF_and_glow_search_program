@@ -174,8 +174,8 @@ class Detector:
             raise ValueError(f"'{self.unit}' is not a valid detector.")
 
     def has_identity(self):
-        """Returns True if the Detector has an established identity (established name,
-        scintillator configuration, etc.), False otherwise."""
+        """Returns True if the Detector has an established identity (established name, scintillator configuration,
+        etc.), False otherwise."""
         return self._has_identity
 
     def file_form(self, eRC):
@@ -322,7 +322,7 @@ class Detector:
         -------
         str || list || numpy.ndarray || dict || pandas.core.frame.DataFrame
             String if 'eRC' is requested; list if 'lm_filelist' or 'lm_file_ranges' is requested;
-            numpy array  if 'time', 'energy', or 'wc' is requested; Reader if 'reader' is requested; dataframe
+            numpy array  if 'time', 'energies', or 'wc' is requested; Reader if 'reader' is requested; dataframe
             if 'lm_frame' is requested, etc.
 
         """
@@ -628,8 +628,8 @@ class Detector:
 
                 continue
 
-            if 'energies' in data.columns:
-                data.rename(columns={'energies': 'energy'}, inplace=True)
+            if 'energy' in data.columns:
+                data.rename(columns={'energy': 'energies'}, inplace=True)
 
             # first_second = data['SecondsOfDay'].iloc[0]
             # last_second = data['SecondsOfDay'].iloc[-1]
@@ -655,20 +655,18 @@ class Detector:
             files_imported += 1
 
         if len(file_frames) > 0:
-            # Correcting for the fact that the first few minutes of the next day are usually included
-            # in the last file
-            last_times = file_frames[-1]['SecondsOfDay']
+            # Correcting for the fact that the first few minutes of the next day are usually included in the last file
             # First count of the next day - last count of the current day will be either equal to or less than
-            # params.SEC_PER_DAY by up to a few hundred seconds depending on how late the first count came in.
+            # -params.SEC_PER_DAY by up to a few hundred seconds depending on how late the first count came in.
             # Choosing a large error just to be sure
             error = 500
-            day_change = np.where(last_times.diff() <= -(params.SEC_PER_DAY - error))[0]
+            day_change = np.where(file_frames[-1]['SecondsOfDay'].diff() <= -(params.SEC_PER_DAY - error))[0]
             if len(day_change) > 0:
-                for i in range(int(day_change[0]) + 1, len(last_times)):
-                    last_times[i] += params.SEC_PER_DAY
+                file_frames[-1].iloc[
+                    day_change[0]:, file_frames[-1].columns.get_loc('SecondsOfDay')] += params.SEC_PER_DAY
 
             # Correcting the last file's time ranges too
-            if file_ranges[-1][1] - file_ranges[-1][0] >= (params.SEC_PER_DAY - error):
+            if file_ranges[-1][1] - file_ranges[-1][0] <= -(params.SEC_PER_DAY - error):
                 file_ranges[-1][1] += params.SEC_PER_DAY
 
             # Makes the final dataframe and stores it
@@ -879,7 +877,7 @@ class Detector:
             if self.data_present_in(scintillator):
                 energy_bins = np.arange(0.0, self.spectra_params['bin_range'], self.spectra_params['bin_size'])
                 data = self.get_attribute(scintillator, 'lm_frame', deepcopy=False)
-                energy_hist = np.histogram(data['energy'], bins=energy_bins)[0]
+                energy_hist = np.histogram(data['energies'], bins=energy_bins)[0]
                 return energy_bins[:-1], energy_hist  # Bins is always longer than hist by one
             else:
                 raise ValueError(f"data for '{scintillator}' is either missing or hasn't been imported yet.")

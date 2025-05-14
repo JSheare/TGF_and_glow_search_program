@@ -576,7 +576,7 @@ def find_short_events(detector, modes, trace_dict, weather_cache, event_numbers=
             tl.print_logger(f'Searching eRC {detector.get_attribute(scintillator, "eRC")} '
                             f'({scintillator})...', detector.log)
             times = detector.get_lm_data(scintillator, 'SecondsOfDay')
-            energies = detector.get_lm_data(scintillator, 'energy')
+            energies = detector.get_lm_data(scintillator, 'energies')
             wallclock = detector.get_lm_data(scintillator, 'wc')
             count_scints = None
 
@@ -687,10 +687,12 @@ def get_le_scint_prefs(detector):
 
 
 # Makes histogram used in long event search. If possible, cuts out counts below a certain energy
-def make_le_hist(detector, scintillator, bin_size):
-    bins_allday = np.arange(0, params.SEC_PER_DAY + 200 + bin_size, bin_size)
+def make_le_hist(detector, scintillator, hist_end, bin_size):
+    # Rounding the edge down to the nearest full bin
+    hist_end -= hist_end % bin_size
+    bins_allday = np.arange(0, hist_end + bin_size, bin_size)
     times = detector.get_lm_data(scintillator, 'SecondsOfDay')
-    energies = detector.get_lm_data(scintillator, 'energy')
+    energies = detector.get_lm_data(scintillator, 'energies')
     if scintillator == 'NaI':
         times = np.delete(times, np.where(energies < params.NAI_CHANNEL_CUTOFF))
     else:
@@ -1359,6 +1361,16 @@ def program(first_date, second_date, unit, mode_info):
 
                 print(f'Using the following scintillators: {", ".join(le_scint_list)}', file=detector.log)
 
+                # Determining the end point of the histogram based on the last counts of each scintillator. Using
+                # the earliest to ensure that the last bin has data from all scintillators
+                hist_end = float('inf')
+                for scintillator in le_scint_list:
+                    last_count = detector.get_attribute(scintillator, 'lm_file_ranges', deepcopy=False)[-1][1]
+                    if last_count < hist_end:
+                        hist_end = last_count
+
+                hist_end = int(hist_end)
+
                 for bin_size in [params.SHORT_BIN_SIZE, params.LONG_BIN_SIZE]:
                     tl.print_logger('', detector.log)
                     tl.print_logger(f'Searching with {bin_size} second bins...', detector.log)
@@ -1366,7 +1378,7 @@ def program(first_date, second_date, unit, mode_info):
                     bins_allday = None
                     hist_allday = None
                     for scintillator in le_scint_list:
-                        bins_allday, scint_hist = make_le_hist(detector, scintillator, bin_size)
+                        bins_allday, scint_hist = make_le_hist(detector, scintillator, hist_end, bin_size)
                         hist_allday = scint_hist if hist_allday is None else hist_allday + scint_hist
 
                     # Calling the long event search algorithm
@@ -1436,9 +1448,8 @@ def program(first_date, second_date, unit, mode_info):
 
                     # Makes a full list of filetime extrema for long event search
                     for scintillator in chunk:
-                        extrema = detector.get_attribute(scintillator, 'lm_file_ranges')
+                        extrema = detector.get_attribute(scintillator, 'lm_file_ranges', deepcopy=False)
                         extrema += chunk.get_attribute(scintillator, 'lm_file_ranges')
-                        detector.set_attribute(scintillator, 'lm_file_ranges', extrema)
 
                     # Pickle chunk and add its path to the list
                     chunk_path_list.append(tl.pickle_chunk(chunk, f'chunk{chunk_num}'))
@@ -1509,6 +1520,16 @@ def program(first_date, second_date, unit, mode_info):
                     if len(le_scint_list) == 0:
                         le_scint_list.append(detector.default_scintillator)
 
+                    # Determining the end point of the histogram based on the last counts of each scintillator. Using
+                    # the earliest to ensure that the last bin has data from all scintillators
+                    hist_end = float('inf')
+                    for scintillator in le_scint_list:
+                        last_count = detector.get_attribute(scintillator, 'lm_file_ranges', deepcopy=False)[-1][1]
+                        if last_count < hist_end:
+                            hist_end = last_count
+
+                    hist_end = int(hist_end)
+
                     print(f'Using the following scintillators: {", ".join(le_scint_list)}', file=detector.log)
                     for bin_size in [params.SHORT_BIN_SIZE, params.LONG_BIN_SIZE]:
                         tl.print_logger('', detector.log)
@@ -1520,7 +1541,7 @@ def program(first_date, second_date, unit, mode_info):
                             for scintillator in le_scint_list:
                                 if chunk.data_present_in(scintillator):
                                     # Histograms the counts from each scintillator and combines them with the main one
-                                    bins_allday, scint_hist = make_le_hist(chunk, scintillator, bin_size)
+                                    bins_allday, scint_hist = make_le_hist(chunk, scintillator, hist_end, bin_size)
                                     hist_allday = scint_hist if hist_allday is None else hist_allday + scint_hist
 
                             del chunk

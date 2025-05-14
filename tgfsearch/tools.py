@@ -668,7 +668,7 @@ def combine_data(detector):
         if detector.data_present_in(scintillator):
             lm_frame = detector.get_attribute(scintillator, 'lm_frame', deepcopy=False)
             times.append(lm_frame['SecondsOfDay'])
-            energies.append(lm_frame['energy'])
+            energies.append(lm_frame['energies'])
             wallclock.append(lm_frame['wc'])
             count_scints.append(np.array([scintillator] * len(times[-1])))
 

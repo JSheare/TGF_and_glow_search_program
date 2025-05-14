@@ -13,7 +13,7 @@ class LongEvent:
         self.highest_score = glow_scores[self.peak_index - self.start]
 
         self.start_sec = day_bins[self.start]
-        self.stop_sec = day_bins[self.stop]
+        self.stop_sec = day_bins[self.stop - 1] + (day_bins[1] - day_bins[0])
 
         self.lm_files = {}
 

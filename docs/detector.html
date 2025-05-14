@@ -16,21 +16,20 @@
 <td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Modules</strong></td></tr>
     
 <tr><td class="decor pkg-content-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
-<td class="singlecolumn"><table><tr><td class="multicolumn"><a href="contextlib.html">contextlib</a><br>
-<a href="datetime.html">datetime</a><br>
+<td class="singlecolumn"><table><tr><td class="multicolumn"><a href="datetime.html">datetime</a><br>
 <a href="gc.html">gc</a><br>
 <a href="glob.html">glob</a><br>
-</td><td class="multicolumn"><a href="json.html">json</a><br>
-<a href="multiprocessing.html">multiprocessing</a><br>
+<a href="json.html">json</a><br>
+</td><td class="multicolumn"><a href="multiprocessing.html">multiprocessing</a><br>
 <a href="numpy.html">numpy</a><br>
 <a href="os.html">os</a><br>
-</td><td class="multicolumn"><a href="tgfsearch.parameters.html">tgfsearch.parameters</a><br>
-<a href="pandas.html">pandas</a><br>
+<a href="tgfsearch.parameters.html">tgfsearch.parameters</a><br>
+</td><td class="multicolumn"><a href="pandas.html">pandas</a><br>
 <a href="matplotlib.pyplot.html">matplotlib.pyplot</a><br>
 <a href="psutil.html">psutil</a><br>
+<a href="sys.html">sys</a><br>
 </td><td class="multicolumn"><a href="threading.html">threading</a><br>
 <a href="tgfsearch.tools.html">tgfsearch.tools</a><br>
-<a href="warnings.html">warnings</a><br>
 </td></tr></table></td></tr></table><p>
 <table class="section">
 <tr class="decor index-decor heading-text">
@@ -202,7 +201,7 @@ Returns<br>
 -------<br>
 str&nbsp;||&nbsp;list&nbsp;||&nbsp;numpy.ndarray&nbsp;||&nbsp;dict&nbsp;||&nbsp;pandas.core.frame.DataFrame<br>
 &nbsp;&nbsp;&nbsp;&nbsp;String&nbsp;if&nbsp;'eRC'&nbsp;is&nbsp;requested;&nbsp;list&nbsp;if&nbsp;'lm_filelist'&nbsp;or&nbsp;'lm_file_ranges'&nbsp;is&nbsp;requested;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;numpy&nbsp;array&nbsp;&nbsp;if&nbsp;'time',&nbsp;'energy',&nbsp;or&nbsp;'wc'&nbsp;is&nbsp;requested;&nbsp;Reader&nbsp;if&nbsp;'reader'&nbsp;is&nbsp;requested;&nbsp;dataframe<br>
+&nbsp;&nbsp;&nbsp;&nbsp;numpy&nbsp;array&nbsp;&nbsp;if&nbsp;'time',&nbsp;'energies',&nbsp;or&nbsp;'wc'&nbsp;is&nbsp;requested;&nbsp;Reader&nbsp;if&nbsp;'reader'&nbsp;is&nbsp;requested;&nbsp;dataframe<br>
 &nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;'lm_frame'&nbsp;is&nbsp;requested,&nbsp;etc.</span></dd></dl>
 
 <dl><dt><a name="Detector-get_clone"><strong>get_clone</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;a&nbsp;new&nbsp;<a href="#Detector">Detector</a>&nbsp;with&nbsp;the&nbsp;same&nbsp;identity&nbsp;as&nbsp;the&nbsp;current&nbsp;one&nbsp;(but&nbsp;no&nbsp;data).<br>
@@ -296,11 +295,10 @@ Returns<br>
 list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;names&nbsp;of&nbsp;the&nbsp;traces&nbsp;that&nbsp;are&nbsp;currently&nbsp;being&nbsp;stored.</span></dd></dl>
 
-<dl><dt><a name="Detector-has_identity"><strong>has_identity</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;True&nbsp;if&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;has&nbsp;an&nbsp;established&nbsp;identity&nbsp;(established&nbsp;name,<br>
-scintillator&nbsp;configuration,&nbsp;etc.),&nbsp;False&nbsp;otherwise.</span></dd></dl>
+<dl><dt><a name="Detector-has_identity"><strong>has_identity</strong></a>(self)</dt><dd><span class="code">Returns&nbsp;True&nbsp;if&nbsp;the&nbsp;<a href="#Detector">Detector</a>&nbsp;has&nbsp;an&nbsp;established&nbsp;identity&nbsp;(established&nbsp;name,&nbsp;scintillator&nbsp;configuration,<br>
+etc.),&nbsp;False&nbsp;otherwise.</span></dd></dl>
 
-<dl><dt><a name="Detector-import_data"><strong>import_data</strong></a>(self, existing_filelists=False, import_traces=True, import_lm=True, clean_energy=False, feedback=False, mem_frac=1.0)</dt><dd><span class="code">Imports&nbsp;data&nbsp;from&nbsp;data&nbsp;files&nbsp;into&nbsp;arrays&nbsp;and&nbsp;then&nbsp;updates&nbsp;them&nbsp;into&nbsp;the&nbsp;detector's<br>
-scintillator&nbsp;objects.<br>
+<dl><dt><a name="Detector-import_data"><strong>import_data</strong></a>(self, existing_filelists=False, import_traces=True, import_lm=True, clean_energy=False, feedback=False, mem_frac=1.0)</dt><dd><span class="code">Imports&nbsp;and&nbsp;stores&nbsp;data&nbsp;from&nbsp;the&nbsp;daily&nbsp;data&nbsp;files.<br>
 &nbsp;<br>
 Parameters<br>
 ----------<br>
