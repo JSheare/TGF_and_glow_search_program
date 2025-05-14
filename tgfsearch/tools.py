@@ -440,7 +440,6 @@ def scrape_weather(full_date_str, station):
         table = pd.read_html(tables[1].get_attribute('outerHTML'))[0]
 
         return table.dropna()  # This is a dataframe containing the table we want
-
     except:
         return pd.DataFrame()
 

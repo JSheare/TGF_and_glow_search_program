@@ -74,7 +74,7 @@ def get_modes(mode_info):
     modes['pickle'] = True if '--pickle' in mode_info else False
 
     # Modes for skipping over certain algorithms (mostly to speed up testing)
-    modes['sktrace'] = True if '--sktrace' in mode_info else False # Skip trace filtering
+    modes['sktrace'] = True if '--sktrace' in mode_info else False  # Skip trace filtering
     modes['skshort'] = True if '--skshort' in mode_info else False  # Skip short event search
     modes['skglow'] = True if '--skglow' in mode_info else False  # SKip long event search
 
