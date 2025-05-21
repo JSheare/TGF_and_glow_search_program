@@ -439,15 +439,26 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
     # Subplot timescales
     timescales = [params.SE_TIMESCALE_ONE, params.SE_TIMESCALE_TWO, params.SE_TIMESCALE_THREE]
 
-    # Dot colors. Note that if an instrument with more than just NaI, SP, MP, and LP is ever added, this
-    # will result in key errors
+    # Dot colors. Dots for unsupported scintillators will be blue (see below)
     colors = {'NaI': params.NAI_COLOR, 'SP': params.SP_COLOR, 'MP': params.MP_COLOR, 'LP': params.LP_COLOR}
 
-    # Truncated time and energy arrays to speed up scatter plot making
-    fraction_of_day = 1 / 128
-    spacer = int((len(times) * fraction_of_day) / 2)
+    # Measuring a rough average count rate in the vicinity around the event
+    measure_counts = 400
+    if event.start - measure_counts >= 0:
+        average_countrate = measure_counts/(times[event.start - 1] - times[event.start - measure_counts])
+    else:
+        # -1 because event.stop is one count after the end of the event, so we include it in the measurement
+        if event.stop + (measure_counts - 1) >= len(times):
+            measure_counts = len(times) - event.stop
+
+        average_countrate = measure_counts/(times[event.stop + (measure_counts - 1)] - times[event.stop])
+
+    # Using the average count rate to make shortened arrays that are ~max(timescales) long
+    # Adding an extra 10% to the average because it usually undershoots
+    average_countrate += average_countrate * 0.10
+    spacer = int(0.5 * max(timescales) * average_countrate)
     left_edge = 0 if event.start - spacer < 0 else event.start - spacer
-    right_edge = (len(times) - 1) if event.stop + spacer > (len(times) - 1) else event.stop + spacer
+    right_edge = len(times) - 1 if event.stop + spacer >= len(times) else event.stop + spacer
     if count_scints is not None:
         times_dict = tl.separate_data(times, count_scints, left_edge, right_edge)
         energies_dict = tl.separate_data(energies, count_scints, left_edge, right_edge)
@@ -473,19 +484,20 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
         ax = ax_list[i]
         ax.set_xlim(xmin=best_time - (ts / 2), xmax=best_time + (ts / 2))
 
-        dot_size = 5 if ts == params.SE_TIMESCALE_THREE else 3  # makes larger dots for top plot
+        dot_size = 5 if ts == params.SE_TIMESCALE_ONE else 3  # makes larger dots for top plot
         ax.set_yscale('log')
         ax.set_ylim([0.6, 1e5])
         for scintillator in times_dict:
+            color = colors[scintillator] if scintillator in colors else 'b'
             # 0.6 to avoid annoying divide by zero warnings
             ax.scatter(times_dict[scintillator], energies_dict[scintillator] + 0.6,
-                       s=dot_size, zorder=1, alpha=params.DOT_ALPHA, label=scintillator, color=colors[scintillator])
+                       s=dot_size, zorder=1, alpha=params.DOT_ALPHA, label=scintillator, color=color)
 
             # Plotting traces on only the first subplot
             if ts == params.SE_TIMESCALE_ONE and scintillator in event.traces:
                 # Dividing by 100 makes the trace appear a little lower in the plot, which looks better
                 ax.plot(event.traces[scintillator].times, (event.traces[scintillator].energies + 0.6) / 100,
-                        zorder=-1, alpha=params.DOT_ALPHA, color=colors[scintillator])
+                        zorder=-1, alpha=params.DOT_ALPHA, color=color)
 
         ax.set_xlabel(f'Time (Seconds, {ts}s total)')
         ax.set_ylabel('Energy Channel')
@@ -1134,10 +1146,10 @@ def get_partition_memory(start, end, trace_map, lm_filelist):
     memory = 0
     for i in range(start, end):
         file = lm_filelist[i]
-        memory += tl.file_size(file)
+        memory += tl.file_size(file) * params.LM_GROWTH_FACTOR
         if file in trace_map:
             for trace in trace_map[file]:
-                memory += tl.file_size(trace)
+                memory += tl.file_size(trace) * params.TRACE_GROWTH_FACTOR
 
     return memory
 

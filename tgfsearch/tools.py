@@ -715,16 +715,15 @@ def separate_data(data, count_scints, start=None, stop=None):
         stop = len(data)
 
     data_dict = dict()
-    for i in range(start, stop):
-        scintillator = count_scints[i]
+    # Recording all scintillators present
+    count_scints_slice = count_scints[start:stop]
+    for scintillator in count_scints_slice:
         if scintillator not in data_dict:
-            data_dict[scintillator] = [data[i]]
-        else:
-            data_dict[scintillator].append(data[i])
+            data_dict[scintillator] = None
 
-    # Converting back to numpy arrays
+    # Separating the data into numpy arrays for each scintillator
     for scintillator in data_dict:
-        data_dict[scintillator] = np.array(data_dict[scintillator])
+        data_dict[scintillator] = data[np.where(count_scints_slice == scintillator)[0] + start]
 
     return data_dict
 

@@ -551,15 +551,15 @@ class Detector:
         else:
             raise ValueError(f"'{scintillator}' is not a valid scintillator.")
 
-    def get_fileset_size(self):
-        """Returns the total size (in bytes) of all the currently listed files for the day."""
+    def _projected_memory(self):
+        """Returns the projected size (in bytes) of the object after all currently listed files have been imported."""
         total_file_size = 0
         for scintillator in self._scintillators:
             for file in self.get_attribute(scintillator, 'lm_filelist', deepcopy=False):
-                total_file_size += tl.file_size(file)
+                total_file_size += tl.file_size(file) * params.LM_GROWTH_FACTOR
 
             for file in self.get_attribute(scintillator, 'trace_filelist', deepcopy=False):
-                total_file_size += tl.file_size(file)
+                total_file_size += tl.file_size(file) * params.TRACE_GROWTH_FACTOR
 
         return total_file_size
 
@@ -807,7 +807,7 @@ class Detector:
             Optional. If True, feedback about the progress of the importing will be printed.
         mem_frac : float
             Optional: The maximum fraction of currently available system memory that the Detector is allowed to use for
-            data (not including overhead). If the dataset is larger than this limit, a MemoryError will be raised.
+            data. If the dataset is projected to be  larger than this limit, a MemoryError will be raised.
             1.0 (100% of available system memory) by default.
 
         """
@@ -830,7 +830,7 @@ class Detector:
                     self._scintillators[scintillator].trace_filelist = trace_filelist
 
         # Checking to make sure that currently listed data won't go over the memory limit
-        if self.get_fileset_size() > psutil.virtual_memory()[1] * mem_frac:
+        if self._projected_memory() > psutil.virtual_memory()[1] * mem_frac:
             raise MemoryError('dataset larger than specified limit.')
 
         if self.log is not None:

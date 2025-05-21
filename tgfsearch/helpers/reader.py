@@ -1,6 +1,6 @@
 """A class that wraps and serves as an easy interface for the data reader."""
 
-import tgfsearch.DataReaderTimetrack2 as Dr
+import tgfsearch.data_reader_annotated as dr
 
 
 class Reader:
@@ -73,7 +73,7 @@ class Reader:
 
         """
 
-        results = Dr.fileNameToData(file_name, self.passtime, killcr=clean_energy)
+        results = dr.fileNameToData(file_name, self.passtime, killcr=clean_energy)
         if type(results) is tuple:
             # List mode data
             data = results[0]

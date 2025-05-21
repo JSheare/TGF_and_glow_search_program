@@ -548,8 +548,6 @@ if adaptive.has_identity():
   - Returns a list of names of the traces that are currently being stored.
 - Detector.find_matching_traces()
   - Finds the traces that could be a match for the given count (if they exist).
-- Detector.get_fileset_size()
-  - Returns the total size (in bytes) of all the currently listed files for the day.
 - Detector.clear()
   - Clears all data currently stored in the Detector.
 
