@@ -32,6 +32,7 @@ class Reader:
         # lastwc: Bridgeport wall clock for the last event in the previous frame (no rollover corrections)
         # ppswc: Bridgeport wall clock for the last GPS pulse per second of the previous frame (no rollover corrections)
         # hz: Sampling rate of the analog to digital converter that records events
+        # frlen: the length of the first frame read
         # started: flag for whether or not there is a previous frame. If 0, current passtime values will be ignored
         # See reset() method for the default values of these entries
         self.passtime = {}
@@ -50,6 +51,7 @@ class Reader:
         self.passtime['lastwc'] = -1
         self.passtime['ppswc'] = -1
         self.passtime['hz'] = 8e7  # Always this value for now
+        self.passtime['frlen'] = -1
         self.passtime['started'] = 0
 
     def read(self, file_name, reset_after=False, clean_energy=False):

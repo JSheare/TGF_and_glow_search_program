@@ -38,7 +38,7 @@ def multifilesToData(filefile):
     lines = f.read().splitlines()
     started = 0
     passtime = {"lastsod": -1.0, "ppssod": -1.0, "lastunix": -1.0, "ppsunix": -1.0, "lastwc": -1, "ppswc": -1,
-                "hz": 8e7, "started": 0}
+                "hz": 8e7, 'frlen': -1, "started": 0}
     for s in lines:
         print("using file: "+s)
         data, passtime = fileNameToData(s, passtime)
@@ -236,12 +236,10 @@ def processDataTiming(data, passtime, headerDT, mode):
     if passtime['started']:
         first_count = header_unix - (data['wc'][lst] - data['wc'][0])/passtime['hz']
         if first_count - passtime['lastunix'] > passtime['frlen']/4:
-            print(f'Previous frame missing')
             passtime['started'] = 0
 
     # Checking for a wallclock rollover before the start of the frame
     if passtime['started'] and data['wc'][0] - passtime['ppswc'] < -rolloverLength/4:
-        print('1 rollover before frame')
         # Checking for rollover between the last frame's pps and the final count
         if passtime['lastwc'] - passtime['ppswc'] < -rolloverLength/4:
             passtime['lastwc'] += rolloverLength

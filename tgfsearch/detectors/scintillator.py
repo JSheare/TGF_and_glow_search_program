@@ -1,6 +1,6 @@
 """A class for keeping track of a particular scintillator's data."""
 import copy as copy
-import numpy as np
+import gc as gc
 import pandas as pd
 
 import tgfsearch.parameters as params
@@ -49,6 +49,9 @@ class Scintillator:
         self.trace_filelist = []
         self.traces = {}
         self.reader = Reader()
+
+    def __del__(self):
+        self.clear()
 
     def __str__(self):
         return f'Scintillator({self.name}, {self.eRC})'
@@ -110,7 +113,7 @@ class Scintillator:
             frame = self.get_lm_file(file_name, deepcopy=False)
 
         if column in frame:
-            return np.array(frame[column])
+            return frame[column].to_numpy()
         else:
             raise ValueError(f"'{column}' is either not a valid column or data hasn't been imported.")
 
@@ -216,10 +219,12 @@ class Scintillator:
     def clear(self, clear_filelists=True):
         """Clears all data currently stored in the Scintillator."""
         self.lm_frame = pd.DataFrame()
-        self.traces.clear()
         self.lm_file_ranges.clear()
         self.lm_file_indices.clear()
+        self.traces.clear()
         self.reader.reset()
         if clear_filelists:
             self.lm_filelist.clear()
             self.trace_filelist.clear()
+
+        gc.collect()

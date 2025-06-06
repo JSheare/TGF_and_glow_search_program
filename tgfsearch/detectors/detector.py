@@ -15,6 +15,7 @@ import threading as threading
 import tgfsearch.parameters as params
 import tgfsearch.tools as tl
 from tgfsearch.detectors.scintillator import Scintillator
+from tgfsearch.helpers.reader import Reader
 
 
 class Detector:
@@ -86,6 +87,9 @@ class Detector:
             self._read_identity()
 
         self.set_results_loc(os.getcwd().replace('\\', '/'))
+
+    def __del__(self):
+        self.clear()
 
     def __str__(self):
         """String casting overload. Returns a string of the form 'Detector(unit, date_str)'."""
@@ -591,12 +595,19 @@ class Detector:
         return complete_filelist
 
     @staticmethod
-    def _read_data_file(reader, file, clean_energy):
-        """Reading a data file and returning the data and the updated passtime. Meant to be run in a subprocess,
-        which means that the passed arguments and returned values are serialized/deserialized on each end."""
-        data = reader.read(file, clean_energy=clean_energy)
-        # Have to return the reader passtime because the reader is a copy
-        return data, reader.passtime
+    def _read_data_file(reader, filelist, clean_energy, connection):
+        """Reading the given data files and sending them to the given pipe. Meant to be run in a subprocess, which 
+        means that the passed arguments and piped values are serialized/deserialized on each end."""
+        for file in filelist:
+            try:
+                data = reader.read(file, clean_energy=clean_energy)
+                connection.send(data)
+            except Exception as ex:
+                connection.send(ex)
+
+            connection.recv()
+
+        connection.send(reader)  # Sending the updated reader back to the main process
 
     def _import_lm(self, process_pool, scintillator, options):
         """Imports list mode data for the given scintillator."""
@@ -614,18 +625,23 @@ class Detector:
             log_strings.append('List Mode Files:\nFile|Import Success|File Time Gap (sec)\n')
 
         # Importing the data
-        reader = self._scintillators[scintillator].reader
-        for file in lm_filelist:
-            # Try-except block to handle reader errors
-            try:
-                # Reading data in another process
-                data, reader.passtime = process_pool.apply(self._read_data_file,
-                                                           args=(reader, file, options['clean_energy']))
-            except Exception as ex:
-                # Files that generate reader errors are skipped
-                if self.log is not None:
-                    log_strings.append(f'{file}|False|N/A\n    Error importing file: {ex}\n')
-
+        end1, end2 = multiprocessing.Pipe()
+        file_index = 0
+        process_pool.apply_async(self._read_data_file, args=(self._scintillators[scintillator].reader, lm_filelist,
+                                                             options['clean_energy'], end2))
+        while True:
+            data = end1.recv()  # Reading data from the other process
+            end1.send(1)  # Notifying the other process that the data has been received
+            if isinstance(data, pd.DataFrame):
+                pass
+            elif isinstance(data, Reader):
+                # Storing the updated reader object from the other process, which also serves as sentinel value
+                self._scintillators[scintillator].reader = data
+                break
+            else:
+                # Logging any reader errors
+                log_strings.append(f'{lm_filelist[file_index]}|False|N/A\n    Error importing file: {data}\n')
+                file_index += 1
                 continue
 
             if 'energy' in data.columns:
@@ -645,14 +661,15 @@ class Detector:
             file_ranges.append([first_second, last_second])
             file_frames.append(data)
             if self.log is not None:
-                log_strings.append(f'{file}|True|{file_time_gap}\n')
+                log_strings.append(f'{lm_filelist[file_index]}|True|{file_time_gap}\n')
 
             # Keeps track of file indices in the larger dataframe
             data_length = len(data.index)
-            file_indices[file] = [start_index, start_index + data_length]
+            file_indices[lm_filelist[file_index]] = [start_index, start_index + data_length]
             start_index += data_length
 
             files_imported += 1
+            file_index += 1
 
         if len(file_frames) > 0:
             # Correcting for the fact that the first few minutes of the next day are usually included in the last file
@@ -670,15 +687,13 @@ class Detector:
                 file_ranges[-1][1] += params.SEC_PER_DAY
 
             # Makes the final dataframe and stores it
-            all_data = pd.concat(file_frames, axis=0)
-
-            self._scintillators[scintillator].lm_frame = all_data
+            self._scintillators[scintillator].lm_frame = pd.concat(file_frames, axis=0)
             self._scintillators[scintillator].lm_file_ranges = file_ranges
             self._scintillators[scintillator].lm_file_indices = file_indices
 
             if self.log is not None:
                 log_strings.append(f'\n'
-                                   f'Total Counts: {len(all_data.index)}\n'
+                                   f'Total Counts: {len(self._scintillators[scintillator].lm_frame.index)}\n'
                                    f'Average time gap: {sum(file_time_gaps) / len(file_time_gaps)}\n'
                                    f'\n')
 
@@ -698,24 +713,31 @@ class Detector:
             log_strings.append('Trace Files:\nFile|Import Success|\n')
 
         # Importing the data
-        reader = self._scintillators[scintillator].reader
-        for file in trace_filelist:
-            # Try-except block for handling reader errors
-            try:
-                # Reading data in another process
-                data, _ = process_pool.apply(self._read_data_file, args=(reader, file, options['clean_energy']))
-            except Exception as ex:
-                # Files that generate reader errors are skipped
-                if self.log is not None:
-                    log_strings.append(f'{file}|False|\n    Error importing file: {ex}\n')
-
+        end1, end2 = multiprocessing.Pipe()
+        file_index = 0
+        process_pool.apply_async(self._read_data_file, args=(self._scintillators[scintillator].reader, trace_filelist,
+                                                             options['clean_energy'], end2))
+        while True:
+            data = end1.recv()  # Reading data from the other process
+            end1.send(1)  # Notifying the other process that the data has been received
+            if isinstance(data, pd.DataFrame):
+                pass
+            elif isinstance(data, Reader):
+                # Storing the updated reader object from the other process, which also serves as sentinel value
+                self._scintillators[scintillator].reader = data
+                break
+            else:
+                # Logging any reader errors
+                log_strings.append(f'{trace_filelist[file_index]}|False|N/A\n    Error importing file: {data}\n')
+                file_index += 1
                 continue
 
-            traces[file] = data
+            traces[trace_filelist[file_index]] = data
             if self.log is not None:
-                log_strings.append(f'{file}|True|\n')
+                log_strings.append(f'{trace_filelist[file_index]}|True|\n')
 
             files_imported += 1
+            file_index += 1
 
         # Storing the traces
         if len(traces) > 0:

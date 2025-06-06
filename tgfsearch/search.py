@@ -1418,7 +1418,6 @@ def program(first_date, second_date, unit, mode_info):
 
                 # Clears leftover data (just to be sure)
                 detector.clear(clear_filelists=False)
-                gc.collect()
 
                 # Makes and sets up the chunks
                 chunk_list = make_chunks(detector)
@@ -1468,7 +1467,6 @@ def program(first_date, second_date, unit, mode_info):
 
                     # Eliminates the chunk from active memory
                     del chunk
-                    gc.collect()
 
                     chunk_num += 1
 
@@ -1484,6 +1482,7 @@ def program(first_date, second_date, unit, mode_info):
                         chunk = tl.unpickle_chunk(chunk_path)
                         trace_dict = find_traces(chunk)
                         chunk_trace_dicts[chunk_path] = trace_dict
+                        del chunk
 
                     tl.print_logger('Done.', detector.log)
                 else:
@@ -1513,7 +1512,6 @@ def program(first_date, second_date, unit, mode_info):
                         find_short_events(chunk, modes, chunk_trace_dicts[chunk_path], weather_cache,
                                           event_numbers=event_numbers)
                         del chunk
-                        gc.collect()
                         chunk_num += 1
 
                     tl.print_logger('Done.', detector.log)
@@ -1557,7 +1555,6 @@ def program(first_date, second_date, unit, mode_info):
                                     hist_allday = scint_hist if hist_allday is None else hist_allday + scint_hist
 
                             del chunk
-                            gc.collect()
 
                         # Calling the long event search algorithm
                         find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday)
@@ -1583,7 +1580,6 @@ def program(first_date, second_date, unit, mode_info):
 
         del detector
         log.close()
-        gc.collect()
 
 
 if __name__ == '__main__':
