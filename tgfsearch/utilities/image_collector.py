@@ -167,21 +167,27 @@ def main():
             shutil.copyfile(plot, f'{short_event_path}/{s_filename}')
 
         # Histograms
-        short_hist_list = glob.glob(f'{path}/*histogram_{params.SHORT_BIN_SIZE}_sec_bins.png')
-        if len(short_hist_list) > 0:
-            tl.make_path(short_hist_path)
-
+        short_hist_list = glob.glob(f'{path}/{date_str}_histogram_{params.SHORT_BIN_SIZE}_sec_bins_*_events.png')
+        short_path_made = False
         for hist in short_hist_list:
             hist_filename = hist.split('/')[-1].split('\\')[-1]
-            shutil.copyfile(hist, f'{short_hist_path}/{hist_filename}')
+            if int(hist_filename.split('_')[5]) > 0:
+                if not short_path_made:
+                    tl.make_path(short_hist_path)
+                    short_path_made = True
 
-        long_hist_list = glob.glob(f'{path}/*histogram_{params.LONG_BIN_SIZE}_sec_bins.png')
-        if len(long_hist_list) > 0:
-            tl.make_path(long_hist_path)
+                shutil.copyfile(hist, f'{short_hist_path}/{hist_filename}')
 
+        long_hist_list = glob.glob(f'{path}/{date_str}_histogram_{params.LONG_BIN_SIZE}_sec_bins_*_events.png')
+        long_path_made = False
         for hist in long_hist_list:
             hist_filename = hist.split('/')[-1].split('\\')[-1]
-            shutil.copyfile(hist, f'{long_hist_path}/{hist_filename}')
+            if int(hist_filename.split('_')[5]) > 0:
+                if not long_path_made:
+                    tl.make_path(long_hist_path)
+                    long_path_made = True
+
+                shutil.copyfile(hist, f'{long_hist_path}/{hist_filename}')
 
 
 if __name__ == '__main__':

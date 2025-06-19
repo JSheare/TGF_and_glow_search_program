@@ -1078,7 +1078,8 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
     tl.print_logger('Saving Histogram...', detector.log)
     hist_path = f'{detector.get_results_loc()}'
     tl.make_path(hist_path)
-    figure.savefig(f'{hist_path}/{detector.date_str}_histogram_{bin_size}_sec_bins.png', dpi=500)
+    figure.savefig(f'{hist_path}/{detector.date_str}_histogram_{bin_size}_sec_bins_{len(potential_glows)}_events.png',
+                   dpi=500)
     figure.clf()
     plt.close(figure)
     gc.collect()

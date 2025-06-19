@@ -16,8 +16,8 @@ class Reader:
         # Data file documentation
         # We should probably move this to the data reader module in the future, but here is fine for now
         # Data files are broken down into a number of frames (or buffers)
-        # A frame is a chunk of 2047 events (recorded in a single-line json-formatted string) preceded by either one or
-        #   four time tags (old firmware uses one, more modern firmware uses four)
+        # A frame is a chunk of events (recorded in a single-line data string) preceded by either one or four time tags
+        #   (old firmware uses one, more modern firmware uses four)
         # First tag: the time that the computer asked for the buffer
         # Second tag: the time that the computer received the "full buffer" message
         # Third tag: the time that the computer asked for the frame to be sent

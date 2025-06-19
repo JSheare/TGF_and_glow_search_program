@@ -1,7 +1,6 @@
 """A graphical user interface for running the TGF search program."""
 import multiprocessing as multiprocessing
 import os as os
-import platform as platform
 import sys as sys
 import threading as threading
 import time as time
@@ -381,12 +380,10 @@ class SearchWindow(tk.Frame):
         self.export_button.grid(row=1, column=6, pady=(5, 0))
         self.toggleable_widgets.append(self.export_button)
 
-        if platform.system() == 'Windows':
-            ttk.Separator(self, orient='horizontal').place(x=565, y=580, relwidth=0.25)  # Modes separator line
-            ttk.Separator(self, orient='horizontal').place(x=0, y=718, relwidth=1.0)  # Import/export separator line
-        else:
-            ttk.Separator(self, orient='horizontal').place(x=593, y=620, relwidth=0.25)  # Modes separator line
-            ttk.Separator(self, orient='horizontal').place(x=0, y=755, relwidth=1.0)  # Import/export separator line
+        # Modes separator line
+        ttk.Separator(self, orient='horizontal').place(in_=self.modes_frame, bordermode='outside', y=3, relwidth=1.0)
+        # Import/export separator line
+        ttk.Separator(self, orient='horizontal').place(in_=self.file_frame, bordermode='outside', relwidth=1.0)
 
         # Redirecting stdout to the GUI text box
         self.old_stdout_write = sys.stdout.write
@@ -509,13 +506,9 @@ def main():
 
     root = tk.Tk()
     root.title('TGF Search')
-    if platform.system() == 'Windows':
-        root.geometry('1080x800')
-    else:
-        root.geometry('1080x845')
 
     gui = SearchWindow(root)
-    gui.pack()
+    gui.pack(padx=130, pady=10)
     root.mainloop()
 
 
