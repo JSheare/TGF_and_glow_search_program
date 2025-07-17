@@ -11,6 +11,7 @@ import pandas as pd
 import psutil as psutil
 import sys as sys
 import threading as threading
+import warnings as warnings
 
 import tgfsearch.parameters as params
 import tgfsearch.tools as tl
@@ -598,14 +599,26 @@ class Detector:
     def _read_data_file(reader, filelist, clean_energy, connection):
         """Reading the given data files and sending them to the given pipe. Meant to be run in a subprocess, which 
         means that the passed arguments and piped values are serialized/deserialized on each end."""
-        for file in filelist:
-            try:
-                data = reader.read(file, clean_energy=clean_energy)
-                connection.send(data)
-            except Exception as ex:
-                connection.send(ex)
+        warning_strings = []
+        with warnings.catch_warnings():
+            # Redirecting warning strings to the warning_strings list
+            warnings.showwarning = (lambda message, category, filename, lineno,
+                                    file_handle=None, line=None: warning_strings.append(
+                                        warnings.formatwarning(message, category, filename, lineno, line)))
+            for file in filelist:
+                try:
+                    data = reader.read(file, clean_energy=clean_energy)
+                    connection.send(data)
+                    # Sending the warning strings, if they exist
+                    if len(warning_strings) > 0:
+                        connection.recv()
+                        connection.send(warning_strings)
+                        warning_strings.clear()
 
-            connection.recv()
+                except Exception as ex:
+                    connection.send(ex)
+
+                connection.recv()
 
         connection.send(reader)  # Sending the updated reader back to the main process
 
@@ -615,14 +628,12 @@ class Detector:
         file_frames = []
         file_ranges = []
         file_indices = {}
-        file_time_gaps = []
-        prev_second = 0
         start_index = 0
         files_imported = 0
         log_strings = []
 
         if self.log is not None:
-            log_strings.append('List Mode Files:\nFile|Import Success|File Time Gap (sec)\n')
+            log_strings.append('List Mode Files:\nFile|Import Success|\n')
 
         # Importing the data
         end1, end2 = multiprocessing.Pipe()
@@ -634,18 +645,19 @@ class Detector:
             end1.send(1)  # Notifying the other process that the data has been received
             if isinstance(data, pd.DataFrame):
                 pass
+            elif isinstance(data, list):
+                # Logging any warnings from the previous file
+                log_strings.append('\t' + '\t'.join(data))
+                continue
             elif isinstance(data, Reader):
                 # Storing the updated reader object from the other process, which also serves as sentinel value
                 self._scintillators[scintillator].reader = data
                 break
             else:
                 # Logging any reader errors
-                log_strings.append(f'{lm_filelist[file_index]}|False|N/A\n    Error importing file: {data}\n')
+                log_strings.append(f'{lm_filelist[file_index]}|False|\n\tError importing file: {data}\n')
                 file_index += 1
                 continue
-
-            if 'energy' in data.columns:
-                data.rename(columns={'energy': 'energies'}, inplace=True)
 
             # first_second = data['SecondsOfDay'].iloc[0]
             # last_second = data['SecondsOfDay'].iloc[-1]
@@ -655,13 +667,10 @@ class Detector:
             last_second = data['SecondsOfDay'].max()
 
             # Determines the time gaps between adjacent files
-            file_time_gap = first_second - prev_second if files_imported > 0 else 0.0
-            file_time_gaps.append(file_time_gap)
-            prev_second = last_second
             file_ranges.append([first_second, last_second])
             file_frames.append(data)
             if self.log is not None:
-                log_strings.append(f'{lm_filelist[file_index]}|True|{file_time_gap}\n')
+                log_strings.append(f'{lm_filelist[file_index]}|True|\n')
 
             # Keeps track of file indices in the larger dataframe
             data_length = len(data.index)
@@ -692,10 +701,7 @@ class Detector:
             self._scintillators[scintillator].lm_file_indices = file_indices
 
             if self.log is not None:
-                log_strings.append(f'\n'
-                                   f'Total Counts: {len(self._scintillators[scintillator].lm_frame.index)}\n'
-                                   f'Average time gap: {sum(file_time_gaps) / len(file_time_gaps)}\n'
-                                   f'\n')
+                log_strings.append(f'\nTotal Counts: {len(self._scintillators[scintillator].lm_frame.index)}\n\n')
 
         else:
             if self.log is not None:
@@ -722,13 +728,17 @@ class Detector:
             end1.send(1)  # Notifying the other process that the data has been received
             if isinstance(data, pd.DataFrame):
                 pass
+            elif isinstance(data, list):
+                # Logging any warnings from the previous file
+                log_strings.append('\t' + '\t'.join(data))
+                continue
             elif isinstance(data, Reader):
                 # Storing the updated reader object from the other process, which also serves as sentinel value
                 self._scintillators[scintillator].reader = data
                 break
             else:
                 # Logging any reader errors
-                log_strings.append(f'{trace_filelist[file_index]}|False|N/A\n    Error importing file: {data}\n')
+                log_strings.append(f'{trace_filelist[file_index]}|False|\n\tError importing file: {data}\n')
                 file_index += 1
                 continue
 
