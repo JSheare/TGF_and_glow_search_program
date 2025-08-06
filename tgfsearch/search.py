@@ -468,7 +468,7 @@ def make_se_scatterplot(detector, event, times, energies, count_scints):
 
     figure = plt.figure(figsize=[20, 11.0], dpi=150.)
     figure.suptitle(f'{event.scintillator} Event {str(event.number)}, ' 
-                    f'{dt.datetime.utcfromtimestamp(times[event.start] + detector.first_sec)} UTC, ' 
+                    f'{dt.datetime.fromtimestamp(times[event.start] + detector.first_sec, dt.UTC)} UTC, ' 
                     f'{event.length} counts \n Weather: {event.weather_conditions} \n'
                     f'Score: {"%.3f" % event.total_score}, Rank: {event.rank}', fontsize=20)
     ax1 = figure.add_subplot(3, 1, 1)
@@ -659,7 +659,7 @@ def find_short_events(detector, modes, trace_dict, weather_cache, event_numbers=
                 # Logs the event
                 start_second = times[event.start] - params.SEC_PER_DAY if (
                         times[event.start] > params.SEC_PER_DAY) else times[event.start]
-                print(f'{dt.datetime.utcfromtimestamp(times[event.start] + detector.first_sec)} UTC '
+                print(f'{dt.datetime.fromtimestamp(times[event.start] + detector.first_sec, dt.UTC)} UTC '
                       f'({start_second} seconds of day) - weather: {event.weather_conditions}',
                       file=detector.log)
                 print(f'    Score: {event.total_score}, Rank: {event.rank}, Subscores: [Length: {event.len_subscore}, '
@@ -1038,7 +1038,7 @@ def find_long_events(detector, modes, le_scint_list, bins_allday, hist_allday):
         for i in range(len(potential_glows)):
 
             glow = potential_glows[i]
-            info = (f'{dt.datetime.utcfromtimestamp(glow.start_sec + detector.first_sec)} UTC ({glow.start_sec} '
+            info = (f'{dt.datetime.fromtimestamp(glow.start_sec + detector.first_sec, dt.UTC)} UTC ({glow.start_sec} '
                     f'seconds of day), {glow.stop_sec - glow.start_sec} seconds long, highest z-score: '
                     f'{glow.highest_score}, {bin_size} sec bins')
 

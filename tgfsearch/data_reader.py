@@ -157,10 +157,8 @@ def generic_lm_parser_old(passtime, lines):
         # 65536 is 2^16. Multiplying an int by it is the same as a 16 bit rightward shift
         wc = frame_data[1] + frame_data[2] * 65536
         energy = frame_data[0]
-        pps = frame_data[0] * 0
         flags = frame_data[0] * 0
-        frame_data = pd.concat([energy.rename('energy'), wc.rename('wc'), pps.rename('pps'), flags.rename('flags')],
-                               axis=1)
+        frame_data = pd.concat([energy.rename('energy'), wc.rename('wc'), flags.rename('flags')], axis=1)
         # Eliminating duplicate data from the previous frame, if it's present
         if passtime['prevfr'] is not None and frame_data['wc'][0] == passtime['prevfr']['wc'][0]:
             frame_data.drop([j for j in range(0, len(passtime['prevfr'].index))], inplace=True)
@@ -219,6 +217,7 @@ def generic_lm_parser_new(passtime, lines):
         flags = frame_data[5]
         frame_data = pd.concat([energy.rename('energy'), wc.rename('wc'), pps.rename('PPS'), flags.rename('flags')],
                                axis=1)
+        frame_data['gpsSync'] = False
         # Eliminating duplicate data from the previous frame. This usually happens when buffers that are only partially
         # full are read out
         if passtime['prevfr'] is not None:

@@ -41,7 +41,7 @@ scintillator (typically the large plastic). This is generally a faster (though l
 
 
 - **'allscints' Mode** - This mode tells the program to run the short event search algorithm on all the scintillators 
-individually (by default the program combines all scintillator data into a single stream).
+individually (by default the program combines all scintillator data into a single set).
 
 
 - **'aircraft' Mode** - If the detector you're searching was deployed to an aircraft or some other high-altitude 
@@ -120,7 +120,7 @@ To use the program in this mode, enter a command the same way as above but add t
 
 #### **'allscints' Mode:**
 This mode tells the program to run the short event search algorithm on all the scintillators individually
-(by default the program combines all scintillator data into a single stream).
+(by default the program combines all scintillator data into a single set).
 
 To run the program in this mode, enter a command the same way as above but add the flag '--allscints' to the end:
 
@@ -248,9 +248,8 @@ import tgfsearch as tgf
 Just to make sure we've covered all our bases, for those who are already familiar with the single-file data reader, it's
 included in the package and can be used like so:
 ```python3
-passtime = {'lastsod': -1.0, 'ppssod': -1.0, 'lastunix': -1.0, 'ppsunix': -1.0, 'lastwc': 0,
-            'ppswc': 0, 'hz': 8e7, 'started': 0}
-data = tgf.fileNameToData('/media/tgfdata/Detectors/THOR/THOR1/220831/eRC4195lpl_lm_220831_235435.txt.gz', passtime)
+passtime = None
+data, passtime = tgf.read_file('/media/tgfdata/Detectors/THOR/THOR1/220831/eRC4195lpl_lm_220831_235435.txt.gz', passtime)
 # where data is just a dataframe like you're probably used to.
 ```
 
@@ -435,7 +434,7 @@ There are a few things to note about the new Detector:
       220831, and detector2 has the date 220830, detector3 will use the earlier 220830.
 - Time data in the new Detector will be updated to reflect the difference in date between the two provided
       Detectors. For example, detector and detector2 are separated by a day, so all the data from the later
-      Detector (detector in this case) will be corrected one day forward.
+      Detector (detector2 in this case) will be corrected one day forward.
 - Trying to import data with the new Detector won't work and will instead raise an error.
 
 If you ever need to get a list of dates stored in a Detector, you can do so with Detector's dates_stored attribute:
@@ -443,22 +442,6 @@ If you ever need to get a list of dates stored in a Detector, you can do so with
 dates_stored = detector3.dates_stored  # In this example, the list would be ['220830', '220831']
 ```
 
-### **Trace Filtering and Alignment:**
-The package contains several functions for filtering and aligning traces that you may find useful.
-
-```python3
-# For single traces. is_good will be True if the trace is good.
-is_good = tgf.is_good_trace(trace_file_data)
-
-# For a group of traces stored in a Detector. The result will be a list containing the names of traces that are
-# likely to be interesting for the requested scintillator (the large plastic in this example).
-good_trace_names = tgf.filter_traces(detector, 'LP')
-
-if is_good:
-    # Aligning the trace with its corresponding list mode data. This will return two numpy arrays: one with the
-    # correctly-aligned times and another with the magnitude-corrected trace energies.
-    trace_times, trace_energies = tgf.align_trace(trace_file_data, lm_file_data)
-```
 
 ### **Clearing Data from Detector:**
 Detector also has a method for clearing all currently stored data:
@@ -511,6 +494,24 @@ the has_identity() method:
 ```python3
 if adaptive.has_identity():
     print(f'adaptive has identity and is named {adaptive.unit}')
+```
+
+
+### **Trace Filtering and Alignment:**
+The package contains several functions for filtering and aligning traces that you may find useful.
+
+```python3
+# For single traces. is_good will be True if the trace is good.
+is_good = tgf.is_good_trace(trace_file_data)
+
+# For a group of traces stored in a Detector. The result will be a list containing the names of traces that are
+# likely to be interesting for the requested scintillator (the large plastic in this example).
+good_trace_names = tgf.filter_traces(detector, 'LP')
+
+if is_good:
+    # Aligning the trace with its corresponding list mode data. This will return two numpy arrays: one with the
+    # correctly-aligned times and another with the magnitude-corrected trace energies.
+    trace_times, trace_energies = tgf.align_trace(trace_file_data, lm_file_data)
 ```
 
 ## **List of Common Functions and Methods:**

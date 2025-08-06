@@ -20,6 +20,13 @@ from tgfsearch.search import is_valid_detector, program
 
 # Redirects stdout and stderr from the search program. Meant to be run in a subprocess
 def search_program_wrapper(write, first_date, second_date, unit, mode_info):
+    # For running the program with pythonw (no terminal)
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, 'w')
+
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, 'w')
+
     old_stdout_write = sys.stdout.write
     sys.stdout.write = write.send
     try:

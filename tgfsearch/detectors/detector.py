@@ -67,7 +67,7 @@ class Detector:
         self.date_str = date_str  # yymmdd
         self.log = None
         self.first_sec = tl.get_first_sec(self.date_str)
-        self.full_date_str = dt.datetime.utcfromtimestamp(int(self.first_sec)).strftime('%Y-%m-%d')  # yyyy-mm-dd
+        self.full_date_str = dt.datetime.fromtimestamp(int(self.first_sec), dt.UTC).strftime('%Y-%m-%d')  # yyyy-mm-dd
         self.dates_stored = [date_str]
 
         # Identity-related information
@@ -629,7 +629,6 @@ class Detector:
         file_ranges = []
         file_indices = {}
         start_index = 0
-        files_imported = 0
         log_strings = []
 
         if self.log is not None:
@@ -659,10 +658,6 @@ class Detector:
                 file_index += 1
                 continue
 
-            # first_second = data['SecondsOfDay'].iloc[0]
-            # last_second = data['SecondsOfDay'].iloc[-1]
-
-            # Above would be better, but counts are very occasionally out of chronological order for some reason
             first_second = data['SecondsOfDay'].min()
             last_second = data['SecondsOfDay'].max()
 
@@ -677,7 +672,6 @@ class Detector:
             file_indices[lm_filelist[file_index]] = [start_index, start_index + data_length]
             start_index += data_length
 
-            files_imported += 1
             file_index += 1
 
         if len(file_frames) > 0:
@@ -707,13 +701,12 @@ class Detector:
             if self.log is not None:
                 log_strings.append('\n')
 
-        return files_imported, ''.join(log_strings)
+        return len(file_frames), ''.join(log_strings)
 
     def _import_traces(self, process_pool, scintillator, options):
         """Imports trace data for the given scintillator."""
         trace_filelist = self._scintillators[scintillator].trace_filelist
         traces = {}
-        files_imported = 0
         log_strings = []
         if self.log is not None:
             log_strings.append('Trace Files:\nFile|Import Success|\n')
@@ -746,7 +739,6 @@ class Detector:
             if self.log is not None:
                 log_strings.append(f'{trace_filelist[file_index]}|True|\n')
 
-            files_imported += 1
             file_index += 1
 
         # Storing the traces
@@ -756,7 +748,7 @@ class Detector:
         if self.log is not None:
             log_strings.append('\n')
 
-        return files_imported, ''.join(log_strings)
+        return len(traces), ''.join(log_strings)
 
     def _import_scintillator(self, process_pool, output_lock, scintillator, options):
         """Manages data importing for a single scintillator. Meant to be run on a separate thread."""
