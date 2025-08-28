@@ -1,7 +1,7 @@
 """Parameters for use by the TGF search program and its modules."""
 
 """General Parameters"""
-DEFAULT_DATA_ROOT = '/media/david/AllDetectorData1/Detectors'
+DEFAULT_DATA_ROOT = '/media/david/AllDetectorData/Detectors'
 SEC_PER_DAY = 86400  # Number of seconds in a day
 SEC_PER_HOUR = 3600  # Number of seconds in an hour
 CENTURY = '20'  # The current century (numerically)
@@ -102,6 +102,6 @@ A_WINDOW_GAP = 20  # The (approximate) number of seconds between the center bin 
 LE_MAIN_BAR_COLOR = 'r'  # The color of the bars on the whole-day subplot
 LE_MAIN_BAR_ALPHA = 0.5  # Controls the transparency of the bars in the whole-day subplot
 LE_THRESH_LINE_COLOR = 'blue'  # Color of line representing triggering threshold
-LE_SUBPLOT_PADDING = 20  # The max number of bins to pad a long event by on either side
+LE_SUBPLOT_PADDING = 100  # The max number of bins to pad a long event by on either side
 LE_SUBPLOT_BAR_COLOR = 'c'  # Color of histogram bars in the subplots
 LE_SUBPLOT_BAR_ALPHA = 0.5  # Controls the transparency of the bars in the subplots

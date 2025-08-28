@@ -574,7 +574,7 @@ class Detector:
         Parameters
         ----------
         clear_filelists : bool
-            Optional. If True, lists of files stored in the detector will be also be cleared. True by default.
+            Optional. If True, lists of files stored in the Detector will be also be cleared. True by default.
 
         """
 
@@ -690,7 +690,11 @@ class Detector:
                 file_ranges[-1][1] += params.SEC_PER_DAY
 
             # Makes the final dataframe and stores it
-            self._scintillators[scintillator].lm_frame = pd.concat(file_frames, axis=0)
+            lm_frame = pd.concat(file_frames, ignore_index=True)
+            if 'index' in lm_frame.columns:
+                lm_frame.drop(columns='index', inplace=True)
+
+            self._scintillators[scintillator].lm_frame = lm_frame
             self._scintillators[scintillator].lm_file_ranges = file_ranges
             self._scintillators[scintillator].lm_file_indices = file_indices
 
@@ -826,12 +830,12 @@ class Detector:
         import_lm : bool
             Optional. If True, the function will import any list mode data it finds. True by default.
         clean_energy : bool
-            Optional. If True, asks the data reader to strip out maximum and low energy counts.
+            Optional. If True, the data reader will strip out maximum and low energy counts. False by default.
         feedback : bool
             Optional. If True, feedback about the progress of the importing will be printed.
         mem_frac : float
             Optional: The maximum fraction of currently available system memory that the Detector is allowed to use for
-            data. If the dataset is projected to be  larger than this limit, a MemoryError will be raised.
+            data. If the dataset is projected to be larger than this limit, a MemoryError will be raised.
             1.0 (100% of available system memory) by default.
 
         """
